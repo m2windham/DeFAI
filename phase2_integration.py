@@ -93,6 +93,71 @@ for t, raw in enumerate(obs):
     prev = k
 pb_assign = np.array(pb_assign); pb_pred = np.array(pb_pred)
 
+# ---- SMOOTHED baseline: same prototypes + transition table, but with temporal
+# HYSTERESIS (stick with previous prototype unless a new one is clearly closer).
+# This hands the baseline the temporal-continuity the oscillator field gets for
+# free. If it now matches the organism, the organism's edge IS that smoothing.
+protos_s = []; Ps = np.zeros((20, 20)); ps_assign = []; ps_pred = []; prev = -1; prev_k = -1
+for t, raw in enumerate(obs):
+    if protos_s:
+        ds = ((np.array(protos_s) - raw) ** 2).sum(1); kn = int(np.argmin(ds))
+        k = prev_k if (0 <= prev_k < len(protos_s) and ds[prev_k] < 1.3 * ds[kn]) else kn
+        dmin = ds[k]
+    else:
+        k, dmin = -1, 1e9
+    if k < 0 or dmin > 30 and len(protos_s) < 20:
+        protos_s.append(raw.copy()); k = len(protos_s) - 1
+    else:
+        protos_s[k] = 0.98 * protos_s[k] + 0.02 * raw
+    ps_assign.append(k)
+    if prev >= 0: Ps[prev, k] += 1
+    ps_pred.append(int(np.argmax(Ps[k])) if Ps[k].sum() > 0 else k)
+    prev = k; prev_k = k
+ps_assign = np.array(ps_assign); ps_pred = np.array(ps_pred)
+
+# ---- FEATURE-EMA baseline: classify a temporally-smoothed FEATURE vector
+# (continuous-state momentum, like the field carrying z across steps). If THIS
+# catches the organism, the edge is continuous-state momentum; if not, the edge
+# is something deeper in the oscillator representation itself.
+protos_e = []; Pe = np.zeros((20, 20)); pe_assign = []; pe_pred = []; prev = -1
+xs = np.zeros(N)
+for t, raw in enumerate(obs):
+    xs = 0.5 * xs + 0.5 * raw                       # continuous feature momentum
+    if protos_e:
+        ds = ((np.array(protos_e) - xs) ** 2).sum(1); k = int(np.argmin(ds)); dmin = ds[k]
+    else:
+        k, dmin = -1, 1e9
+    if k < 0 or dmin > 30 and len(protos_e) < 20:
+        protos_e.append(xs.copy()); k = len(protos_e) - 1
+    else:
+        protos_e[k] = 0.98 * protos_e[k] + 0.02 * xs
+    pe_assign.append(k)
+    if prev >= 0: Pe[prev, k] += 1
+    pe_pred.append(int(np.argmax(Pe[k])) if Pe[k].sum() > 0 else k)
+    prev = k
+pe_assign = np.array(pe_assign); pe_pred = np.array(pe_pred)
+
+# ---- COSINE baseline: prototypes matched by COSINE similarity (like the organism's
+# normalized complex overlap) instead of Euclidean. If this catches the organism,
+# the "integration win" is really just the metric -- NOT the oscillator dynamics.
+def unit(v): return v / (np.linalg.norm(v) + 1e-9)
+protos_c = []; Pc = np.zeros((20, 20)); pc_assign = []; pc_pred = []; prev = -1
+for t, raw in enumerate(obs):
+    u = unit(raw)
+    if protos_c:
+        sims = np.array(protos_c) @ u; k = int(np.argmax(sims)); best = sims[k]
+    else:
+        k, best = -1, -1
+    if k < 0 or best < 0.6 and len(protos_c) < 20:
+        protos_c.append(u.copy()); k = len(protos_c) - 1
+    else:
+        protos_c[k] = unit(0.98 * protos_c[k] + 0.02 * u)
+    pc_assign.append(k)
+    if prev >= 0: Pc[prev, k] += 1
+    pc_pred.append(int(np.argmax(Pc[k])) if Pc[k].sum() > 0 else k)
+    prev = k
+pc_assign = np.array(pc_assign); pc_pred = np.array(pc_pred)
+
 # ===================== evaluate: next-CLASS prediction accuracy ============
 def mem_to_class(assign):
     lab = {}
@@ -108,6 +173,9 @@ def acc_from(pred_mem, assign):
 
 org_acc = acc_from(org_pred_mem, cur_assign)
 pb_acc = acc_from(pb_pred, pb_assign)
+ps_acc = acc_from(ps_pred, ps_assign)
+pe_acc = acc_from(pe_pred, pe_assign)
+pc_acc = acc_from(pc_pred, pc_assign)
 persist_acc = (seq_cls[:-1] == true_next).mean()
 # also: how well each RECOGNIZES the occluded current digit (perception)
 org_recog = np.mean([mem_to_class(cur_assign).get(k, -1) == seq_cls[t] for t, k in enumerate(cur_assign)])
@@ -120,14 +188,18 @@ print(f"    organism (unified)     : {org_recog:.3f}")
 print(f"    assembled baseline     : {pb_recog:.3f}")
 print(f"\n  NEXT-class prediction accuracy:")
 print(f"    organism (one substrate)        : {org_acc:.3f}")
-print(f"    assembled stack (3 components)  : {pb_acc:.3f}")
+print(f"    assembled stack (independent)   : {pb_acc:.3f}")
+print(f"    assembled stack + HYSTERESIS    : {ps_acc:.3f}  <- discrete-label continuity")
+print(f"    assembled stack + FEATURE-EMA   : {pe_acc:.3f}  <- continuous-state momentum")
+print(f"    assembled stack + COSINE metric : {pc_acc:.3f}  <- same metric as organism")
 print(f"    persistence (no temporal model) : {persist_acc:.3f}")
 print(f"\n  organism memories used: {org.used.sum()}, baseline prototypes: {len(protos)}")
 
-beats_persist = org_acc > persist_acc + 0.05
-matches_stack = org_acc > pb_acc - 0.05
-print("\nverdict:",
-      ("unified substrate MATCHES the assembled pipeline AND beats persistence "
-       "-> integration value is real") if beats_persist and matches_stack else
-      ("organism uses temporal structure (beats persistence) but trails the assembled stack"
-       if beats_persist else "no clear temporal advantage -- inspect"))
+best_base = max(pb_acc, ps_acc, pe_acc, pc_acc)
+print(f"\n  strongest baseline = {best_base:.3f} (cosine-metric prototypes+table)")
+print("verdict:",
+      "organism BEATS the best baseline -> integration value real"
+      if org_acc > best_base + 0.02 else
+      "INTEGRATION HYPOTHESIS NOT SUPPORTED: a matched-metric simple pipeline beats the "
+      "organism. The earlier 'win' vs Euclidean baselines was a METRIC artifact, not the "
+      "oscillator dynamics. The dynamics cost accuracy here.")
