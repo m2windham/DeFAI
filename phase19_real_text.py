@@ -101,7 +101,7 @@ def make_stream(seq, hold=8):
 # recruit=0.75 with expanded capacity (K=300) recovered coverage from
 # 80/202 (40%) to 195/202 (96.5%) with no other changes.
 RECRUIT_THRESH = 0.75
-CAPACITY_K = min(300, N_WORDS*4)
+CAPACITY_K = min(1200, N_WORDS*4)
 
 print("\n" + "="*72)
 print(f"MULTI-EPOCH TRAINING (repeated exposure, recruit={RECRUIT_THRESH}, K={CAPACITY_K})\n")
