@@ -54,13 +54,20 @@ failure:
 3. **The metric is blind.** Occurrences are assigned to slots by pure word
    embedding, which cannot attribute two senses to two slots.
 
-The proposed fix is **word-conditional residual gating**: compare same-word
-patterns in the context residual (component orthogonal to the word
-direction), where distinct contexts separate cleanly and independently of
-`alpha`. Work plan:
+The fix is **word-conditional residual gating**: compare same-word patterns
+in the context residual (component orthogonal to the word direction), where
+distinct contexts separate cleanly and independently of `alpha`. Status:
 
 - `verify_residual_gating.py` — the theorem + fix, verified numerically.
-- Track A (`phase8b_track_a.py`) — is the real prev-attractor context signal
-  bimodal enough to separate senses? (feasibility gate, run first)
-- Track B (`phase8c_residual_gating.py`) — residual-gated recruit/merge and
-  an occurrence-level assignment metric; threshold sweep.
+- Track A (`phase8b_track_a.py`) — the real prev-attractor context signal IS
+  role-aligned (cluster purity 0.74–0.83 vs ~0.52 chance) but thin: residuals
+  track the specific previous word, and the role signal is only the shared
+  category component (within-role overlap ~0.30 vs ~0.22 across).
+- Track B (`phase8c_residual_gating.py`) — partial success, split along that
+  margin: with a fast slot EMA all three dual words get role-specific slots
+  whose successor statistics match their role's grammar (functional
+  disambiguation, the phase-8 goal), at the cost of same-role over-splitting;
+  a slow EMA yields an exact 2-way role-aligned split for `fish` but leaves
+  `duck`/`bear` unsplit. The `alpha=0` control never splits. Open problem:
+  consolidation that re-pools same-role duplicates without re-merging the
+  cross-role split.

@@ -39,6 +39,21 @@ Success criteria: ~2 role-aligned slots per dual word, ~1 slot per
 single-role word, and role-specific successor statistics (the ANIMAL-fish
 slot should predict ACTION successors; the ACTION-fish slot, OBJECT).
 Controls: alpha=0 (no context) must stay at 1 slot per word.
+
+RESULT (recorded from the committed run): PARTIAL, exactly along the thin
+margin Track A measured.
+  - alpha=0 control: 1 slot per word, 0 splits -- the gate does not misfire.
+  - fast EMA (eta=0.2), thr 0.5-0.75: FUNCTIONAL disambiguation 3/3 -- every
+    dual word gets ANIMAL-dominant and ACTION-dominant slots, and every such
+    slot's successor distribution matches its role's grammar (the phase-8
+    goal); but same-role duplicates over-split (pure words ~2.1-2.3 slots).
+  - slow EMA (eta=0.05), thr 0.75-0.85: 'fish' splits EXACTLY 2-way,
+    role-aligned; 'duck'/'bear' never split (residual novelty stays under
+    threshold once slots average toward the category mean).
+  - No config reaches 3/3 exact 2-way splits: the usable threshold window is
+    word-dependent because within-vs-across-role residual overlap margins
+    are word-dependent (Track A). The remaining gap is consolidation --
+    same-role centroids stop overlapping enough to re-merge once formed.
 """
 
 import numpy as np
