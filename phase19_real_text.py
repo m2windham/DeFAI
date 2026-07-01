@@ -157,9 +157,18 @@ print(f"Missing words ({len(missing)}): {missing[:20]}{'...' if len(missing)>20 
 # ---- discover emergent categories (unsupervised, real text) ----------------
 print("\n" + "="*72)
 print("EMERGENT CATEGORY DISCOVERY on real text\n")
+# FIX: cap category granularity independently of memory-slot count. The
+# previous run showed category count fragmenting to 15 (mostly 1-4-word
+# categories) as capacity/vocab grew, which made the predictive-gain
+# statistic WORSE (more near-empty conditioning bins), not better --
+# despite having 2x the raw text. Forcing a small target_k here decouples
+# "how many memory slots exist" from "how many grammatical roles we're
+# willing to resolve," which is the actual lever that controls samples-
+# per-bin -- the thing that needs to grow for the entropy-gain statistic
+# to become trustworthy.
 result = org.discover_categories(
-    thresh_sweep=(0.05,0.08,0.1,0.15,0.2,0.25,0.3,0.4,0.5,0.6,0.65,0.7,0.75,0.8,0.85,0.9,0.95,0.97,0.99),
-    target_k=8, eta=0.15, seed=3, verbose=True)
+    thresh_sweep=(0.5,0.7,0.85,0.9,0.95,0.99,0.995,0.998,0.999,0.9995,0.9999,0.99999),
+    target_k=6, eta=0.15, seed=3, verbose=True)
 print(f"\nFound {result['n_categories']} emergent categories at threshold={result['threshold']}")
 
 word_to_emergent_cat = {}
