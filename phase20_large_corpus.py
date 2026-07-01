@@ -140,8 +140,14 @@ print(f"Missing ({len(missing)}): {missing}")
 
 np.save('/tmp/phase20_org_mem.npy', org.mem)
 np.save('/tmp/phase20_assigns.npy', assigns)
+# compact raw transition counts restricted to kept memories, in the SAME
+# order as org.mem -- needed by discover_categories_v2's PPMI transform,
+# which requires unnormalized counts (org.Pn alone is already row-
+# normalized and has lost the magnitude information PPMI needs).
+raw_counts_compact = org.P[np.ix_(org.kept_idx, org.kept_idx)]
+np.save('/tmp/phase20_raw_counts.npy', raw_counts_compact)
 import pickle
 with open('/tmp/phase20_state.pkl', 'wb') as f:
     pickle.dump(dict(slot_word=slot_word, org_used=org.used, org_P=org.P,
-                      org_Pn=org.Pn, n_mem=n_mem), f)
+                      org_Pn=org.Pn, n_mem=n_mem, kept_idx=org.kept_idx), f)
 print("Saved intermediate state to /tmp/phase20_*.")

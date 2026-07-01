@@ -80,6 +80,9 @@ class Organism:
             else:                                          # fold transitions into the kept slot
                 self.P[dup] += self.P[k]; self.P[:, dup] += self.P[:, k]
         self.mem = self.xi[merged]
+        self.kept_idx = merged   # indices into self.P/self.xi that survived -- lets
+                                 # callers reconstruct RAW (unnormalized) transition
+                                 # counts restricted to the kept memories later.
         Pm = self.P[np.ix_(merged, merged)]
         self.Pn = Pm / (Pm.sum(1, keepdims=True) + 1e-9)   # row-normalized transition probs
         return merged

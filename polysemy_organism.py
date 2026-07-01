@@ -82,6 +82,77 @@ def _greedy_recruit_cluster(X, recruit_thresh, eta=0.15, seed=0):
     return assign, proto, cat_slots, counts
 
 
+def _ppmi_transform(counts):
+    """Same transform used for word embeddings (Phase 19/20): removes
+    frequency-MAGNITUDE bias from a raw co-occurrence-like count matrix,
+    leaving only how much MORE (or less) than chance two things co-occur.
+    This is the fix for category discovery's real-text failure: raw
+    transition-profile clustering (_greedy_recruit_cluster on Pn, which is
+    already row-normalized but still reflects each row's absolute
+    magnitude structure) let high-frequency words dominate cluster
+    formation by sheer count, causing either fragmentation (many
+    frequency-isolated singleton categories) or collapse (one giant blob
+    absorbing everything of "ordinary" magnitude) depending on scale."""
+    total = counts.sum()
+    row_sum = counts.sum(1, keepdims=True)
+    col_sum = counts.sum(0, keepdims=True)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        pmi = np.log((counts * total) / (row_sum @ col_sum + 1e-12) + 1e-12)
+    return np.maximum(pmi, 0.0)
+
+
+def _kmeans_real(X, k, n_iter=100, seed=0, n_restarts=6):
+    """Standard real-valued k-means with multiple restarts (best inertia).
+    Used instead of the old threshold-gated greedy recruitment, which had
+    no mechanism to keep cluster sizes balanced -- a single global
+    threshold either merges everything or splits everything, with no
+    middle ground tunable independent of scale."""
+    rng = np.random.default_rng(seed)
+    best_labels, best_inertia, best_centers = None, np.inf, None
+    n = X.shape[0]
+    k = min(k, n)
+    for r in range(n_restarts):
+        idx = rng.choice(n, size=k, replace=False)
+        centers = X[idx].copy()
+        labels = np.full(n, -1)
+        for _ in range(n_iter):
+            d = ((X[:, None, :] - centers[None, :, :]) ** 2).sum(-1)
+            new_labels = d.argmin(1)
+            if np.array_equal(new_labels, labels):
+                break
+            labels = new_labels
+            for c in range(k):
+                members = X[labels == c]
+                if len(members) > 0:
+                    centers[c] = members.mean(0)
+        d = ((X - centers[labels]) ** 2).sum(-1)
+        inertia = d.sum()
+        if inertia < best_inertia:
+            best_inertia = inertia
+            best_labels = labels.copy()
+            best_centers = centers.copy()
+    return best_labels, best_centers
+
+
+def _silhouette_real(X, labels):
+    """Silhouette score on real-valued features (Euclidean)."""
+    n = X.shape[0]
+    D = np.sqrt(np.maximum(((X[:, None, :] - X[None, :, :]) ** 2).sum(-1), 0.0))
+    uniq = sorted(set(labels.tolist()))
+    if len(uniq) < 2:
+        return -1.0
+    sil = np.zeros(n)
+    for i in range(n):
+        same = (labels == labels[i]).copy()
+        same[i] = False
+        a = D[i, same].mean() if same.sum() > 0 else 0.0
+        others = [c for c in uniq if c != labels[i]]
+        b_candidates = [D[i, labels == c].mean() for c in others if (labels == c).any()]
+        b = min(b_candidates) if b_candidates else 0.0
+        sil[i] = (b - a) / max(a, b, 1e-9)
+    return float(sil.mean())
+
+
 class PolysemyOrganism(Organism):
     def __init__(self, N=128, K=8, omega=0.25, beta=12.0, seed=0):
         super().__init__(N=N, K=K, omega=omega, beta=beta, seed=seed)
@@ -133,6 +204,60 @@ class PolysemyOrganism(Organism):
             if members:
                 self.cat_attractor[cs] = normalize(self.mem[members].mean(0), self.norm)
         return dict(n_categories=n_cats, threshold=thresh, word_slot_to_cat=self.word_slot_to_cat,
+                    cat_attractor=self.cat_attractor)
+
+    def discover_categories_v2(self, k_range=range(3, 16), eta=None, seed=3,
+                                verbose=False, raw_counts=None):
+        """Fixed category discovery: PPMI-transformed transition profiles
+        (removes frequency-magnitude bias) + real k-means with k chosen by
+        silhouette score (replaces the single-threshold greedy recruitment
+        that fragmented on small corpora and collapsed on large ones).
+
+        raw_counts: optional (n,n) raw transition-count matrix restricted
+        to the kept memory slots, in the SAME order as self.mem. If not
+        given, uses self.P restricted via self.kept_idx (set by
+        Organism.consolidate()) -- the normal path when this organism did
+        its own perceive()+consolidate(). Pass raw_counts explicitly when
+        reconstructing state from a saved/pickled run (e.g. after loading
+        org.P from disk with a different index space).
+        """
+        n = self.mem.shape[0]
+        if raw_counts is None:
+            if not hasattr(self, 'kept_idx'):
+                raise RuntimeError("discover_categories_v2: no raw_counts given and "
+                                    "self.kept_idx not set -- call consolidate() first "
+                                    "or pass raw_counts explicitly.")
+            raw_counts = self.P[np.ix_(self.kept_idx, self.kept_idx)]
+
+        ppmi = _ppmi_transform(raw_counts)
+        profiles = np.concatenate([ppmi, ppmi.T], axis=1)
+        profiles = profiles / (np.linalg.norm(profiles, axis=1, keepdims=True) + 1e-9)
+
+        best = None
+        for k in k_range:
+            if k >= n:
+                continue
+            labels, centers = _kmeans_real(profiles, k, seed=seed)
+            sil = _silhouette_real(profiles, labels)
+            sizes = np.bincount(labels, minlength=k)
+            balance = sizes.min() / max(sizes.max(), 1)   # 1.0 = perfectly balanced
+            if verbose:
+                print(f"  k={k:2d}: silhouette={sil:.3f}  sizes={sorted(sizes.tolist())}  "
+                      f"balance={balance:.3f}")
+            if best is None or sil > best[0]:
+                best = (sil, k, labels, centers)
+
+        if best is None:
+            raise RuntimeError("discover_categories_v2: no k in k_range produced clusters")
+
+        sil, k, labels, centers = best
+        self.word_slot_to_cat = {i: int(labels[i]) for i in range(n)}
+        self.cat_attractor = {}
+        for c in sorted(set(labels.tolist())):
+            members = [i for i in range(n) if labels[i] == c]
+            if members:
+                self.cat_attractor[c] = normalize(self.mem[members].mean(0), self.norm)
+        return dict(n_categories=k, silhouette=sil, word_slot_to_cat=self.word_slot_to_cat,
                     cat_attractor=self.cat_attractor)
 
     def category_of_word(self, word_id, slot_word_map):
