@@ -3,11 +3,46 @@ PHASE 20B -- analysis on the large-corpus trained organism (loads state
 saved by phase20_large_corpus.py, avoiding re-running the ~12-minute
 training step).
 """
+import re
+import glob
 import pickle
 import numpy as np
+from collections import Counter
 from organism import normalize
 from polysemy_organism import PolysemyOrganism, _entropy
-from phase20_large_corpus import train_seq, word_to_idx, vocab, N_WORDS, word_counts, present
+
+# ---- rebuild the CHEAP part (tokenize/vocab, ~1s) independently, so this
+# script never imports phase20_large_corpus.py directly -- that module's
+# top level also runs the ~14-minute embeddings+training pipeline, which
+# we've already run once (saved to /tmp/phase20_*) and don't want to
+# silently re-trigger just by importing it for its vocab objects. -----------
+GUTENBERG_START = re.compile(r"\*\*\*\s*START OF (THE|THIS) PROJECT GUTENBERG EBOOK.*?\*\*\*", re.IGNORECASE | re.DOTALL)
+GUTENBERG_END = re.compile(r"\*\*\*\s*END OF (THE|THIS) PROJECT GUTENBERG EBOOK.*", re.IGNORECASE | re.DOTALL)
+
+all_text = []
+for path in sorted(glob.glob("/tmp/gutenberg_corpus/*.txt")):
+    with open(path, encoding="utf-8") as f:
+        text = f.read()
+    m_start = GUTENBERG_START.search(text)
+    m_end = GUTENBERG_END.search(text)
+    start = m_start.end() if m_start else 0
+    end = m_end.start() if m_end else len(text)
+    all_text.append(text[start:end])
+full_text = "\n".join(all_text)
+raw_tokens = re.findall(r"[a-zA-Z']+", full_text.lower())
+
+word_counts = Counter(raw_tokens)
+MIN_COUNT = 150
+vocab = sorted([w for w, c in word_counts.items() if c >= MIN_COUNT])
+word_to_idx = {w: i for i, w in enumerate(vocab)}
+N_WORDS = len(vocab)
+train_seq = [word_to_idx[w] for w in raw_tokens if w in word_to_idx]
+
+CANDIDATE_POLYSEMOUS = ['watch', 'light', 'bank', 'spring', 'duck', 'bear', 'run',
+                        'well', 'fair', 'kind', 'still', 'right', 'left', 'match',
+                        'train', 'fly', 'rock', 'park', 'book', 'fine', 'saw', 'letter']
+present = [w for w in CANDIDATE_POLYSEMOUS if w in word_to_idx]
+print(f"Rebuilt vocab: {N_WORDS} words, {len(train_seq)} training tokens (matches prior run)")
 
 mem = np.load('/tmp/phase20_org_mem.npy')
 assigns = np.load('/tmp/phase20_assigns.npy')
@@ -22,6 +57,7 @@ org = PolysemyOrganism(N=N, K=n_mem, omega=0.15, beta=10.0, seed=0)
 org.xi[:n_mem] = mem
 org.used[:n_mem] = True
 org.Pn = state['org_Pn']
+org.mem = mem
 
 print(f"Loaded: {n_mem} memories, {len(set(slot_word.values()))}/{N_WORDS} word coverage")
 
