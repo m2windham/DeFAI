@@ -213,6 +213,50 @@ class CentroidOrg:
         R = np.array(R)
         return spherical_mean(R, R[0])
 
+    def replay_refine(self, assigns, rounds=5, word_thresh=0.7):
+        """Offline replay: re-sort recorded occurrences against stable slot
+        centroids (EM-style), still word-conditional and label-free.
+
+        Online recruitment must judge each occurrence against whatever the
+        slots look like AT THAT MOMENT, so early occurrences land in slots
+        that later drift -- a slot can end up mixed across roles, and no
+        merge policy can unmix it. Replay fixes the estimator: alternate
+        (a) reassign each occurrence to the word-matching slot whose
+        occurrence-centroid residual it best overlaps, (b) recompute the
+        centroids. The handoff brief warned against jumping to offline
+        clustering BEFORE Track A; Track A has since shown the signal is
+        present in the data, so a replay pass tests whether ONLINE formation
+        plus OFFLINE re-sorting recovers it."""
+        x_units = {wi: unit(embeddings[wi].astype(complex)) for wi in set(train_seq)}
+        for _ in range(rounds):
+            cent = {k: self.centroid_residual(k, assigns) for k in np.where(self.used)[0]}
+            used_idx = np.where(self.used)[0]
+            for t, wi in enumerate(train_seq):
+                if assigns[t] < 0:
+                    continue
+                x = normalize(embeddings[wi].astype(complex), self.norm)
+                wov = np.abs(self.overlaps(x, self.wvec[used_idx]))
+                cands = used_idx[wov > word_thresh]
+                if len(cands) == 0:
+                    continue
+                r_t = ctx_residual(self.composites[t], x_units[wi])
+                rovs = [resid_overlap(r_t, cent[c]) for c in cands]
+                assigns[t] = int(cands[int(np.argmax(rovs))])
+            # refresh counts; drop slots replay emptied out
+            self.count[:] = 0
+            for t in range(len(assigns)):
+                if assigns[t] >= 0:
+                    self.count[assigns[t]] += 1
+            for k in np.where(self.used)[0]:
+                if self.count[k] == 0:
+                    self.used[k] = False
+        # rebuild occurrence-level transitions from the refined assignments
+        self.Pn[:] = 0
+        for t in range(1, len(assigns)):
+            if assigns[t-1] >= 0 and assigns[t] >= 0:
+                self.Pn[assigns[t-1], assigns[t]] += 1
+        return assigns
+
     def consolidate(self, assigns, prune_frac=0.05, word_merge=0.84, resid_merge=0.4):
         """Merge word-matching slots whose OCCURRENCE-CENTROID residuals
         overlap; pool occurrences and recompute after each merge."""
@@ -318,7 +362,9 @@ print("=== CONTROL: centroid consolidation with alpha_ctx=0 ===")
 org0 = CentroidOrg(N=N, K=70, seed=0)
 a0 = org0.perceive_words(train_seq, alpha_ctx=0.0, resid_recruit=0.5)
 a0 = org0.consolidate(a0)
-evaluate("alpha=0 control", a0, org0)
+a0 = org0.replay_refine(a0)
+a0 = org0.consolidate(a0)
+evaluate("alpha=0 control (incl. replay)", a0, org0)
 
 # ============================================================================
 # SWEEP: recruit threshold x centroid merge threshold (fast EMA throughout)
@@ -339,19 +385,21 @@ for thr, rmerge in sweep:
     org = CentroidOrg(N=N, K=70, seed=0)
     a = org.perceive_words(train_seq, alpha_ctx=ALPHA_CTX, resid_recruit=thr)
     a = org.consolidate(a, resid_merge=rmerge)
+    s1, c1, p1, n1, _ = evaluate(f"thr={thr} rm={rmerge} (online+merge)", a, org)
+    a = org.replay_refine(a)
+    a = org.consolidate(a, resid_merge=rmerge)
     split_ok, covered, pure_mean, n_slots, dual_slots = evaluate(
-        f"thr={thr} rm={rmerge}", a, org)
-    summary.append((thr, rmerge, split_ok, covered, pure_mean, n_slots))
+        f"thr={thr} rm={rmerge} (after replay)", a, org)
+    summary.append((thr, rmerge, s1, c1, p1, split_ok, covered, pure_mean, n_slots))
     key = (split_ok, covered, -abs(pure_mean - 1))
     if best is None or key > best[0]:
         best = (key, thr, rmerge, a, org, dual_slots, split_ok, covered, pure_mean)
 
 print("\n" + "="*68)
-print("PHASE 9 -- CENTROID CONSOLIDATION RESULTS\n")
-print(f"{'thr':>5} {'merge':>6} {'exact splits':>13} {'roles covered':>14} "
-      f"{'pure slots/word':>16} {'total':>6}")
-for thr, rmerge, s, c, p, n in summary:
-    print(f"{thr:>5} {rmerge:>6} {s:>11}/3 {c:>12}/3 {p:>16.2f} {n:>6}")
+print("PHASE 9 -- CENTROID CONSOLIDATION + REPLAY RESULTS\n")
+print(f"{'thr':>5} {'merge':>6} | {'online: exact/cov/pure':>23} | {'replay: exact/cov/pure':>23} {'total':>6}")
+for thr, rmerge, s1, c1, p1, s, c, p, n in summary:
+    print(f"{thr:>5} {rmerge:>6} | {s1:>10}/3 {c1:>3}/3 {p1:>5.2f} | {s:>10}/3 {c:>3}/3 {p:>5.2f} {n:>6}")
 
 _, thr, rmerge, a, org, dual_slots, split_ok, covered, pure_mean = best
 print(f"\nBest config: thr={thr} resid_merge={rmerge}  "
