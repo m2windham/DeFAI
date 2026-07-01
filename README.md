@@ -35,6 +35,7 @@ python organism.py          # core demo: memories + structure + recall
 | Phase 5 | `phase5*.py` | Scale (100 words), first polysemy attempt, learned (word2vec) embeddings. |
 | Phase 6–7 | `phase6_continuous_manifold.py`, `phase7_context_perceive.py` | Context carry during recall (wrong place), then conjunctive coding during perceive (right place, but corpus had no real ambiguity). |
 | Phase 8 | `phase8_true_polysemy.py` | Genuinely dual-role words (`fish`/`duck`/`bear` as both ANIMAL and ACTION, identical embedding). **Negative result, root-caused.** |
+| Phase 9 | `phase9_centroid_consolidation.py` | Occurrence-centroid consolidation (2/3 exact splits, best yet) + replay refinement (negative result: EM inherits online mixing). |
 
 Side experiment: `strain_propagation.py` (Kuramoto "code bath" refactor-wave test).
 
@@ -68,6 +69,12 @@ distinct contexts separate cleanly and independently of `alpha`. Status:
   whose successor statistics match their role's grammar (functional
   disambiguation, the phase-8 goal), at the cost of same-role over-splitting;
   a slow EMA yields an exact 2-way role-aligned split for `fish` but leaves
-  `duck`/`bear` unsplit. The `alpha=0` control never splits. Open problem:
-  consolidation that re-pools same-role duplicates without re-merging the
-  cross-role split.
+  `duck`/`bear` unsplit. The `alpha=0` control never splits.
+- Phase 9 (`phase9_centroid_consolidation.py`) — consolidation by
+  occurrence-centroid residuals lifts the best structure to 2/3 exact 2-way
+  splits with 3/3 functional coverage. The remaining failure is online
+  mixing: a slot that absorbs both roles early cannot be unmixed afterward —
+  replay/EM re-sorting (stage 2) provably inherits that mixing through its
+  initialization (negative result, preserved). Open problem for phase 10:
+  prevent mixing at formation time, e.g. context-primed settling so the two
+  senses land in different attractor basins dynamically.

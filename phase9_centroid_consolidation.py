@@ -29,6 +29,25 @@ Change vs phase 8c (one mechanism change, everything else identical):
 
 Success criteria unchanged: exactly 2 role-aligned slots per dual word,
 ~1 per single-role word, role-specific successors, alpha=0 control intact.
+
+RESULT (recorded from the committed run):
+  - Stage 1 (online + centroid merge) is the best structure achieved on the
+    polysemy problem so far: thr=0.65 / resid_merge=0.5 gives 2/3 exact
+    2-way splits ('duck', 'bear') with 3/3 functional role coverage
+    (phase 8c's best was 1/3). alpha=0 control stays at 1 slot per word.
+  - The remaining failure is ONLINE MIXING, not merging: at these
+    thresholds one 'bear'/'duck' slot absorbs both roles early (e.g. 603
+    ANIMAL + 637 ACTION occurrences) and no consolidation can unmix it.
+  - Stage 2 (replay refinement) is a NEGATIVE result, preserved: EM-style
+    re-sorting against slot centroids inherits the online mixing through
+    its initialization -- a role-mixed slot has a between-roles centroid,
+    overlaps everything, and swallows the small pure slot (bear collapsed
+    back to one fully-mixed slot; 2/3 -> 1/3 exact). Replay only sharpened
+    slots that were already role-dominant.
+  - Open problem for phase 10: prevent mixing at FORMATION time -- e.g.
+    context-primed settling (bias the field toward xi[prev] BEFORE the word
+    settles, so the two senses land in different basins dynamically) rather
+    than post-hoc composite comparison.
 """
 
 import numpy as np
