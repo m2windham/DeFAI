@@ -171,10 +171,15 @@ class PrimedOrg:
         for t, wi in enumerate(seq):
             x = normalize(embeddings[wi].astype(complex), self.norm)
             if not carry:   # control: destroy the context signal at word onset
-                z = normalize(self.rng.standard_normal(self.N).astype(complex), self.norm)
-            # frame 1: primed settling -- carry-over + basin pull decide where
-            # the state lands; this context-rich state is the conjunction
-            z = self._settle(z, x, g_in, g_mem, dt)
+                # reset to the input itself -- removes context without
+                # injecting a noise residual for the gate to misfire on
+                z = x.copy()
+            # frame 1: input-only settling. The carry-over context must be
+            # OBSERVED before any attractor pull acts on it -- pulling first
+            # drags the state into the nearest existing basin and erases the
+            # evidence the recruit gate needs (measured: g_mem during this
+            # frame drops role coverage from 3/3 to 0/3).
+            z = self._settle(z, x, g_in, 0.0, dt)
             v = z.copy()
             self.composites[t] = v
             used_idx = np.where(self.used)[0]
@@ -188,10 +193,14 @@ class PrimedOrg:
                     if (1 - max(rovs)) > resid_recruit and not self.used.all():
                         k = -1                      # same word, novel context
                     else:
-                        # basin capture: the slot the primed state actually
-                        # landed nearest, in full composite space
-                        cov = np.abs(self.overlaps(v, self.xi[cands]))
+                        # basin capture AFTER the gate: a short burst of
+                        # attractor pull from the context-rich state lets the
+                        # existing variants compete as basins; the winner is
+                        # the assignment
+                        zb = self._settle(v, x, g_in, g_mem, dt, steps=4) if g_mem > 0 else v
+                        cov = np.abs(self.overlaps(zb, self.xi[cands]))
                         k = int(cands[int(np.argmax(cov))])
+                        z = zb
             if k < 0:
                 if not self.used.all():
                     k = int(np.argmin(self.used.astype(float)))
