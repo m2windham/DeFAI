@@ -90,6 +90,50 @@ class Organism:
         self.Pn = Pm / (Pm.sum(1, keepdims=True) + 1e-9)   # row-normalized transition probs
         return merged
 
+    # ---- PHASE 13: recall with lateral inhibition + hop commitment ---------
+    def recall2(self, steps=40000, dt=0.05, tau_h=18.0, lam=2.0, gamma=2.5,
+                g_rec=5.0, Dn=0.004, topk=8, commit=0.6, debounce=20):
+        """Two fixes over recall(), each ablatable:
+        - topk: only the k best-scoring memories compete for the field pull
+          (lateral inhibition). With many crowded memories, the full softmax
+          blends same-category attractors into a blob and the state flickers
+          among them; top-k keeps the pull discrete. topk >= K disables.
+        - commit/debounce: a transition is recorded only when the new memory
+          exceeds `commit` overlap AND stays the argmax for `debounce`
+          consecutive steps -- mid-flight states no longer count as hops.
+          debounce=1, commit=0.5 reproduces recall()'s acceptance rule."""
+        M = self.mem; Ku = M.shape[0]
+        z = normalize(self.rng.standard_normal(self.N) + 1j * self.rng.standard_normal(self.N), self.norm)
+        h = np.zeros(Ku); seq = []; cur = 0
+        cand = -1; streak = 0
+        k_eff = min(topk, Ku)
+        for s in range(steps):
+            o = self.overlaps(z, M); m = np.abs(o)
+            fat = np.maximum(1 - lam * h, 0.0)
+            score = m * fat + gamma * self.Pn[cur] * fat
+            if k_eff < Ku:
+                top = np.argpartition(score, -k_eff)[-k_eff:]
+                w = np.zeros(Ku)
+                e = np.exp(self.beta * (score[top] - score[top].max()))
+                w[top] = e / e.sum()
+            else:
+                w = np.exp(self.beta * (score - score.max())); w /= w.sum()
+            phase = o / (m + 1e-9)
+            T = (w * phase) @ M
+            noise = np.sqrt(2 * Dn * dt) * (self.rng.standard_normal(self.N) +
+                                            1j * self.rng.standard_normal(self.N)) / np.sqrt(2)
+            z = normalize(z + dt * (1j * self.omega * z + g_rec * (T - z)) + noise, self.norm)
+            h = h + dt / tau_h * (m - h)
+            a = int(np.argmax(m))
+            if a != cur and m[a] > commit:
+                streak = streak + 1 if a == cand else 1
+                cand = a
+                if streak >= debounce:
+                    seq.append(a); cur = a; streak = 0
+            else:
+                streak = 0; cand = -1
+        return np.array(seq)
+
     # ---- PHASE 2: recall = generate learned trajectories ------------------
     def recall(self, steps=40000, dt=0.05, tau_h=18.0, lam=2.0, gamma=2.5,
                g_rec=5.0, Dn=0.004):
