@@ -36,6 +36,7 @@ python organism.py          # core demo: memories + structure + recall
 | Phase 6–7 | `phase6_continuous_manifold.py`, `phase7_context_perceive.py` | Context carry during recall (wrong place), then conjunctive coding during perceive (right place, but corpus had no real ambiguity). |
 | Phase 8 | `phase8_true_polysemy.py` | Genuinely dual-role words (`fish`/`duck`/`bear` as both ANIMAL and ACTION, identical embedding). **Negative result, root-caused.** |
 | Phase 9 | `phase9_centroid_consolidation.py` | Occurrence-centroid consolidation (2/3 exact splits, best yet) + replay refinement (negative result: EM inherits online mixing). |
+| Phase 10 | `phase10_context_primed_settling.py` | Context as field carry-over: full functional disambiguation with no alpha parameter, seed-stable; attractor pull during perception is harmful (negative result, both orderings). |
 
 Side experiment: `strain_propagation.py` (Kuramoto "code bath" refactor-wave test).
 
@@ -75,6 +76,13 @@ distinct contexts separate cleanly and independently of `alpha`. Status:
   splits with 3/3 functional coverage. The remaining failure is online
   mixing: a slot that absorbs both roles early cannot be unmixed afterward —
   replay/EM re-sorting (stage 2) provably inherits that mixing through its
-  initialization (negative result, preserved). Open problem for phase 10:
-  prevent mixing at formation time, e.g. context-primed settling so the two
-  senses land in different attractor basins dynamically.
+  initialization (negative result, preserved).
+- Phase 10 (`phase10_context_primed_settling.py`) — context becomes
+  organism-native: the field state carried over between words IS the context
+  (no alpha blend, so the dilution theorem never applies). Full functional
+  disambiguation (3/3 role coverage, 10/10 grammatically correct dual-slot
+  successors), stable across seeds; the no-carry control never splits. Twice-
+  confirmed negative result: attractor pull during perception suppresses
+  splitting in both orderings — perception should read the field, not bend
+  it. Open: exact 2/1 slot structure (same-role duplicates persist at
+  merge thresholds that don't endanger the cross-role split).
