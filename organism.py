@@ -43,13 +43,26 @@ class Organism:
         return (M.conj() @ z) / self.N
 
     # ---- PHASE 1: perceive + form memories + learn transitions -------------
-    def perceive(self, stream, g_in=4.0, dt=0.05, eta=0.02, recruit=0.55, p_decay=0.0):
+    def perceive(self, stream, g_in=4.0, dt=0.05, eta=0.02, recruit=0.55, p_decay=0.0,
+                 confirm=0, probation=6000):
         """p_decay: exponential forgetting of transition counts, applied once
         per observed transition (synaptic decay). 0.0 = original behavior
         (counts accumulate forever); 1/p_decay is the effective memory in
-        transitions. Added in phase 11 to fix concept-drift inertia."""
+        transitions. Added in phase 11 to fix concept-drift inertia.
+
+        confirm / probation (phase 14, noise-robust recruitment): confirm > 0
+        makes new slots PROVISIONAL -- they must be re-entered on `confirm`
+        separate visits (non-contiguous confident matches) within `probation`
+        frames to become permanent, else they are recycled. Provisional slots
+        are excluded from transition learning, so one-off noise states can
+        neither persist as memories nor contaminate P. Rationale: real
+        patterns recur, i.i.d. noise does not. confirm=0 = original behavior.
+        Biology: synaptic tagging -- traces need reactivation to consolidate."""
         z = self.z
         prev_active = -1
+        prov = np.zeros(self.K, bool)
+        hits = np.zeros(self.K); age = np.zeros(self.K)
+        last_k = -1
         for x in stream:
             x = normalize(x, self.norm)
             dz = 1j * self.omega * z + g_in * (x - z)     # input-driven (no retrieval: avoids collapse)
@@ -59,17 +72,33 @@ class Organism:
             if m[k] < recruit and not self.used.all():    # novel -> recruit a free slot
                 f = int(np.argmin(self.used.astype(float)))
                 self.xi[f] = normalize(z, self.norm); self.used[f] = True; k = f
+                if confirm > 0:
+                    prov[f] = True; hits[f] = 0; age[f] = 0
             else:                                          # familiar -> refine memory
                 z_al = z * np.exp(-1j * np.angle(o[k]))
                 self.xi[k] = normalize(self.xi[k] + eta * (z_al - self.xi[k]), self.norm)
                 self.used[k] = True
+            if confirm > 0:
+                age[prov] += 1
+                if prov[k] and m[k] > 0.6 and k != last_k:  # a fresh visit, not the same dwell
+                    hits[k] += 1
+                    if hits[k] >= confirm:
+                        prov[k] = False                     # graduated: pattern recurs
+                expired = prov & (age > probation)
+                if expired.any():                           # never re-confirmed: recycle
+                    self.used[expired] = False; self.count[expired] = 0
+                    prov[expired] = False
             if m[k] > 0.6:
                 self.count[k] += 1
-                if k != prev_active and prev_active >= 0:
-                    if p_decay > 0:
-                        self.P *= (1.0 - p_decay)
-                    self.P[prev_active, k] += 1            # Hebbian transition learning
-                prev_active = k
+                if not prov[k]:
+                    if k != prev_active and prev_active >= 0:
+                        if p_decay > 0:
+                            self.P *= (1.0 - p_decay)
+                        self.P[prev_active, k] += 1        # Hebbian transition learning
+                    prev_active = k
+            last_k = k
+        if confirm > 0:                                    # purge still-unconfirmed slots
+            self.used[prov] = False; self.count[prov] = 0
         self.z = z
 
     # ---- consolidate: merge duplicate memories, drop unused ---------------
