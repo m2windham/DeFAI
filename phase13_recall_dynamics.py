@@ -35,6 +35,28 @@ Protocol: each failing case, four variants on the SAME trained organism --
   both       : recall2(topk=8, debounce=20)
 Scores: grammaticality, within-category hop fraction (the crowding
 signature), junk-slot hop fraction (the noise signature), hops emitted.
+
+RESULT (recorded from the committed run):
+  - PLATEAU: SOLVED. 0.617 -> 0.995 with hop commitment alone; within-
+    category flicker 0.163 -> 0.005. Note the result EXCEEDS the corpus's
+    0.88 grammaticality: 0.88 was the noise level of the training stream,
+    not a bound on generation -- the learned transition structure is
+    cleaner than the corpus, and committed recall reproduces it.
+  - CROWDING: SOLVED. 0.045 -> 0.779 at 301 memories; the baseline's
+    failure signature was confirmed exactly (94.7% of its hops were
+    within-category flicker). The ablation shows BOTH mechanisms are
+    required at scale: commitment alone emits only 9 hops in 60k steps
+    (the blended blob pull keeps the argmax flickering below the debounce
+    bar -- near-frozen dynamics); inhibition alone reaches 0.694 with
+    flicker still at 0.241; together 0.779 at full hop rate.
+  - NOISE: IMPROVED, STILL OPEN. 0.263 -> 0.466, junk hops halved
+    (0.395 -> 0.195). The residual failure is not recall's: the junk
+    memories were STORED during noisy perception (42 slots for 26 words),
+    and no recall policy can fix what memory contains. Next lever is
+    perception-side (recruit hygiene / consolidation under noise).
+  - Recommendation: recall2(topk=8, debounce=20, commit=0.6) as the
+    default generation dynamics going forward; recall() retained for
+    reproducibility of phases 1-12.
 """
 
 import numpy as np
