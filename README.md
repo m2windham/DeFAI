@@ -41,6 +41,8 @@ python organism.py          # core demo: memories + structure + recall
 | Phase 12 | `phase12_capacity_scaling.py` | Storage scales perfectly to 1000 words (coverage/purity 1.00, N=128); generation under crowded embeddings is the scaling casualty, not slot count. |
 | Phase 13 | `phase13_recall_dynamics.py` | Recall overhaul (`recall2`: lateral inhibition + hop commitment): plateau 0.62 → 0.995, crowding collapse 0.05 → 0.78; noise case improved 0.26 → 0.47, residual is perception-side. |
 | Phase 14 | `phase14_noise_robust_perception.py` | Probationary recruitment: junk memories eliminated, strict win to σ=0.2, with an analytic boundary at σ*≈0.24 where single-shot recruitment provably fails (revisits fall below the confirmation bar). |
+| Phase 15 | `phase15_action_conditioned.py` | Action-conditioned transitions (efference copy): forward model 1.00 vs 0.31 action-blind; navigation by planning entirely inside the learned model, 1.00 vs 0.34 random. |
+| Phase 16 | `phase16_phase_binding.py` | Phase-superposition binding is a real code: perfect identity readout to ~5 items (N=256), 1.00 pair-grouping by relative phase; constraint measured — the recall pull collapses superpositions in 9–56 steps, so binding needs protection, not readout. |
 
 Side experiment: `strain_propagation.py` (Kuramoto "code bath" refactor-wave test).
 

@@ -28,6 +28,25 @@ works at all -- and where it stops:
 All statements are measured over 200 trials; labels are used only for
 scoring. This is deliberately pure numerics plus the recall update rule --
 no learning, no corpus: it bounds what any future mechanism can exploit.
+
+RESULT (recorded from the committed run, 200 trials per point):
+  - IDENTITY: perfect top-k readout to k=5-6 items at N=256 (1.000), and
+    near-perfect at N=64 (1.000 at k=2-3, 0.925 at k=6). The code has real
+    capacity: several concepts coexist in one field state, individually
+    readable, without blend slots.
+  - BINDING TAG: relative phases recover to 0.07-0.12 rad at N=256
+    (0.13-0.24 at N=64) -- an order of magnitude finer than the pi/2
+    separation used for grouping.
+  - GROUPING: two bound pairs at opposite phases recover with 1.000 pairing
+    accuracy at both field sizes. Phase IS a readable association channel.
+  - PERSISTENCE is the constraint: under the recall attractor pull a 2-item
+    superposition collapses to one attractor in 9-56 steps (faster with
+    sharper competition: beta=10 halves the lifetime vs beta=5). Attractor
+    dynamics and superposition working memory are directly opposed --
+    any binding mechanism must HOLD superpositions outside the pull (gate
+    the pull off, or exclude held items from competition), not fight it.
+  - Verdict: phase superposition is a real, high-fidelity code for ~2-5
+    simultaneous items; the engineering problem is protection, not readout.
 """
 
 import numpy as np
