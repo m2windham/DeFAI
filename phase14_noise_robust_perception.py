@@ -129,32 +129,33 @@ def run(sigma, confirm, prune_frac=None, label=None):
     return r
 
 
-results = {}
-for sigma in (0.0, 0.3, 0.6):
-    print(f"\n=== sigma={sigma} (26 words, 4000-word stream, recall2 generation) ===")
-    for confirm in (0, 2, 3):
-        results[(sigma, confirm)] = run(sigma, confirm)
-print("\n=== blunt alternative at sigma=0.3: no gating, 10% prune ===")
-results['blunt'] = run(0.3, 0, prune_frac=0.10, label="confirm=0 + prune 10%")
+if __name__ == '__main__':
+    results = {}
+    for sigma in (0.0, 0.3, 0.6):
+        print(f"\n=== sigma={sigma} (26 words, 4000-word stream, recall2 generation) ===")
+        for confirm in (0, 2, 3):
+            results[(sigma, confirm)] = run(sigma, confirm)
+    print("\n=== blunt alternative at sigma=0.3: no gating, 10% prune ===")
+    results['blunt'] = run(0.3, 0, prune_frac=0.10, label="confirm=0 + prune 10%")
 
-print("\n" + "="*70)
-print("PHASE 14 SUMMARY -- generation grammaticality (chance ~0.33)")
-print(f"{'sigma':>6} {'confirm=0':>10} {'confirm=2':>10} {'confirm=3':>10}")
-for sigma in (0.0, 0.3, 0.6):
-    print(f"{sigma:>6} " + " ".join(f"{results[(sigma, c)]['gram']:>10.3f}" for c in (0, 2, 3)))
-print(f"\nblunt 10%-prune arm at sigma=0.3: {results['blunt']['gram']:.3f} "
-      f"({results['blunt']['slots']} slots pre-prune)")
+    print("\n" + "="*70)
+    print("PHASE 14 SUMMARY -- generation grammaticality (chance ~0.33)")
+    print(f"{'sigma':>6} {'confirm=0':>10} {'confirm=2':>10} {'confirm=3':>10}")
+    for sigma in (0.0, 0.3, 0.6):
+        print(f"{sigma:>6} " + " ".join(f"{results[(sigma, c)]['gram']:>10.3f}" for c in (0, 2, 3)))
+    print(f"\nblunt 10%-prune arm at sigma=0.3: {results['blunt']['gram']:.3f} "
+          f"({results['blunt']['slots']} slots pre-prune)")
 
-clean_ok = results[(0.0, 2)]['gram'] >= results[(0.0, 0)]['gram'] - 0.03
-best_c = max((2, 3), key=lambda c: results[(0.3, c)]['gram'])
-gain = results[(0.3, best_c)]['gram'] - results[(0.3, 0)]['gram']
-if clean_ok and gain > 0.15:
-    print(f"\nverdict: probationary recruitment WORKS -- confirm={best_c} lifts sigma=0.3 "
-          f"generation {results[(0.3,0)]['gram']:.2f} -> {results[(0.3,best_c)]['gram']:.2f} "
-          "with the clean case unharmed; adopt for noisy deployments")
-elif clean_ok:
-    print("\nverdict: hygiene is clean-safe but the noise gain is modest -- "
-          "junk storage was not the (only) binding constraint; re-diagnose")
-else:
-    print("\nverdict: gating taxes clean learning -- not accepted as-is; "
-          "tune probation/confirm or re-diagnose")
+    clean_ok = results[(0.0, 2)]['gram'] >= results[(0.0, 0)]['gram'] - 0.03
+    best_c = max((2, 3), key=lambda c: results[(0.3, c)]['gram'])
+    gain = results[(0.3, best_c)]['gram'] - results[(0.3, 0)]['gram']
+    if clean_ok and gain > 0.15:
+        print(f"\nverdict: probationary recruitment WORKS -- confirm={best_c} lifts sigma=0.3 "
+              f"generation {results[(0.3,0)]['gram']:.2f} -> {results[(0.3,best_c)]['gram']:.2f} "
+              "with the clean case unharmed; adopt for noisy deployments")
+    elif clean_ok:
+        print("\nverdict: hygiene is clean-safe but the noise gain is modest -- "
+              "junk storage was not the (only) binding constraint; re-diagnose")
+    else:
+        print("\nverdict: gating taxes clean learning -- not accepted as-is; "
+              "tune probation/confirm or re-diagnose")
