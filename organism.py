@@ -43,7 +43,11 @@ class Organism:
         return (M.conj() @ z) / self.N
 
     # ---- PHASE 1: perceive + form memories + learn transitions -------------
-    def perceive(self, stream, g_in=4.0, dt=0.05, eta=0.02, recruit=0.55):
+    def perceive(self, stream, g_in=4.0, dt=0.05, eta=0.02, recruit=0.55, p_decay=0.0):
+        """p_decay: exponential forgetting of transition counts, applied once
+        per observed transition (synaptic decay). 0.0 = original behavior
+        (counts accumulate forever); 1/p_decay is the effective memory in
+        transitions. Added in phase 11 to fix concept-drift inertia."""
         z = self.z
         prev_active = -1
         for x in stream:
@@ -62,6 +66,8 @@ class Organism:
             if m[k] > 0.6:
                 self.count[k] += 1
                 if k != prev_active and prev_active >= 0:
+                    if p_decay > 0:
+                        self.P *= (1.0 - p_decay)
                     self.P[prev_active, k] += 1            # Hebbian transition learning
                 prev_active = k
         self.z = z
