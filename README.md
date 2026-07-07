@@ -86,3 +86,19 @@ distinct contexts separate cleanly and independently of `alpha`. Status:
   splitting in both orderings — perception should read the field, not bend
   it. Open: exact 2/1 slot structure (same-role duplicates persist at
   merge thresholds that don't endanger the cross-role split).
+
+## Capability envelope (measured)
+
+`simulate_scenarios.py` exercises the stock organism under local-AI usage
+patterns (26-word world, cyclic grammar; oracle ceiling 0.88, chance ~0.33):
+
+| Scenario | Result |
+|---|---|
+| Cold start | 85% vocabulary coverage after only **500 words**; generated-sequence grammaticality plateaus at ~0.55–0.62 regardless of further data — the ceiling is architectural (recall dynamics), not data-limited. |
+| Noise | Memory formation survives sigma=0.3 corruption (92% coverage) but **generation collapses** (0.19); at sigma=0.6 coverage degrades (65%). Perception is robust; recall is noise-fragile. |
+| Concept drift | Grammar reversal mid-stream: the organism adapts online (0.12 → 0.44 on the new regime after 4000 words) but with heavy inertia — Hebbian counts never decay, so old evidence outvotes new roughly in proportion to its volume. |
+| Continual learning | The standout: second vocabulary learned to 100% coverage with only **15% forgetting** of the first, and combined generation at 0.70 grammaticality — the architecture's strongest deployment property (consistent with `phase2_forgetting.py` beating a neural net). |
+
+Actionable gaps this exposes: transition-count decay (drift inertia),
+recall robustness under input noise, and closing the ~0.6 → 0.88
+grammaticality gap without the oracle grammar mask.
