@@ -40,6 +40,7 @@ python organism.py          # core demo: memories + structure + recall
 | Phase 11 | `phase11_transition_decay.py` | Transition-count decay fixes concept-drift inertia: adaptation 0.44 → 0.87 at `p_decay=0.001`, generation unaffected. |
 | Phase 12 | `phase12_capacity_scaling.py` | Storage scales perfectly to 1000 words (coverage/purity 1.00, N=128); generation under crowded embeddings is the scaling casualty, not slot count. |
 | Phase 13 | `phase13_recall_dynamics.py` | Recall overhaul (`recall2`: lateral inhibition + hop commitment): plateau 0.62 → 0.995, crowding collapse 0.05 → 0.78; noise case improved 0.26 → 0.47, residual is perception-side. |
+| Phase 14 | `phase14_noise_robust_perception.py` | Probationary recruitment: junk memories eliminated, strict win to σ=0.2, with an analytic boundary at σ*≈0.24 where single-shot recruitment provably fails (revisits fall below the confirmation bar). |
 
 Side experiment: `strain_propagation.py` (Kuramoto "code bath" refactor-wave test).
 
@@ -113,7 +114,10 @@ Actionable gaps this exposed — status after phases 11–12:
   debounced hop commitment) takes the clean small world to 0.995 — above
   the corpus's own 0.88 noise level — and the V=300 crowding collapse from
   0.05 to 0.78. Both mechanisms are required at scale.
-- Open: recall under input noise improved (0.26 → 0.47) but the residual
-  failure is perception-side — junk memories stored from noisy tokens
-  (42 slots for 26 words) that no recall policy can compensate for.
-  Next lever: recruit hygiene / consolidation under noise.
+- Noise: **solved to a measured boundary** (phase 14). Probationary
+  recruitment (`perceive(confirm=3)`) eliminates junk memories and strictly
+  improves prediction and generation up to σ=0.2. The boundary is analytic:
+  token-vs-memory overlap 1/√(1+σ²N) crosses the 0.6 confirmation bar at
+  σ*≈0.24, beyond which genuine revisits are unrecognizable and any
+  single-shot recruitment scheme must fail. Open beyond σ*: pool evidence
+  across occurrences *before* the keep/discard decision.

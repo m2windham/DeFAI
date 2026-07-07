@@ -33,6 +33,29 @@ Protocol (small world, 4000 words, recall2 generation throughout):
 Success criteria: at sigma=0.3, slots ~= vocabulary and generation well
 above phase 13's 0.466; the clean case must be UNHARMED (a hygiene
 mechanism that taxes normal learning is not accepted).
+
+RESULT (recorded from the committed runs, incl. the boundary sweep):
+  - JUNK ELIMINATION WORKS: junk hops 0.487 -> 0.010 at sigma=0.3; the
+    clean case is essentially unharmed (0.990 -> 0.960/0.975).
+  - STRICT WIN UP TO sigma=0.2: at 0.15, prediction 0.710 -> 0.827 and
+    generation 0.885 -> 0.932 at full coverage; at 0.2, generation
+    0.564 -> 0.672 with junk hops halved and prediction 0.727 -> 0.885.
+    RECOMMENDED: confirm=3 for noisy deployments in this regime.
+  - ANALYTIC BOUNDARY at sigma* ~= 0.24: a noisy token's overlap with its
+    clean memory is 1/sqrt(1 + sigma^2 N), which crosses the 0.6
+    confirmation bar at sigma ~= 0.24 (N=30). Measured collapse lands
+    between 0.20 (coverage 1.00) and 0.25 (coverage 0.73): beyond the
+    bar, genuine revisits are unrecognizable, so gating recycles real
+    words -- coverage 0.50-0.62 at sigma=0.3.
+  - DISCOVERY: the ungated baseline's full coverage at high noise was an
+    ACCIDENT of the capacity ceiling -- once all K slots filled, forced
+    nearest-slot updates began cross-token averaging, which denoised the
+    word memories. Gating keeps capacity open and disables that averaging.
+  - Open beyond sigma*: denoising must pool across occurrences BEFORE the
+    keep/discard decision (single-shot recruitment is information-
+    theoretically insufficient at token SNR < ~1). Candidate: recruit into
+    a fast-averaging probational pool matched at a lower bar, graduate on
+    pooled-trace stability.
 """
 
 import numpy as np
