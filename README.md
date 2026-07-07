@@ -39,6 +39,7 @@ python organism.py          # core demo: memories + structure + recall
 | Phase 10 | `phase10_context_primed_settling.py` | Context as field carry-over: full functional disambiguation with no alpha parameter, seed-stable; attractor pull during perception is harmful (negative result, both orderings). |
 | Phase 11 | `phase11_transition_decay.py` | Transition-count decay fixes concept-drift inertia: adaptation 0.44 → 0.87 at `p_decay=0.001`, generation unaffected. |
 | Phase 12 | `phase12_capacity_scaling.py` | Storage scales perfectly to 1000 words (coverage/purity 1.00, N=128); generation under crowded embeddings is the scaling casualty, not slot count. |
+| Phase 13 | `phase13_recall_dynamics.py` | Recall overhaul (`recall2`: lateral inhibition + hop commitment): plateau 0.62 → 0.995, crowding collapse 0.05 → 0.78; noise case improved 0.26 → 0.47, residual is perception-side. |
 
 Side experiment: `strain_propagation.py` (Kuramoto "code bath" refactor-wave test).
 
@@ -107,8 +108,12 @@ Actionable gaps this exposed — status after phases 11–12:
   (phase 11) restores near-ceiling adaptation for a 7pp stationary cost.
 - Capacity: **not a bottleneck** — storage is perfect at 1000 words / N=128
   (phase 12); prediction degrades gracefully (0.89 → 0.79).
-- Open: generation under crowded embeddings (collapses at 300 structured
-  words while near-orthogonal embeddings generate at 0.93), recall
-  robustness under input noise, and the ~0.6 → 0.88 grammaticality gap
-  without the oracle mask — all three point at the recall dynamics as the
-  next frontier.
+- ~~Generation under crowded embeddings~~ and ~~the grammaticality
+  plateau~~ **fixed** (phase 13): `recall2` (top-k lateral inhibition +
+  debounced hop commitment) takes the clean small world to 0.995 — above
+  the corpus's own 0.88 noise level — and the V=300 crowding collapse from
+  0.05 to 0.78. Both mechanisms are required at scale.
+- Open: recall under input noise improved (0.26 → 0.47) but the residual
+  failure is perception-side — junk memories stored from noisy tokens
+  (42 slots for 26 words) that no recall policy can compensate for.
+  Next lever: recruit hygiene / consolidation under noise.
