@@ -37,6 +37,8 @@ python organism.py          # core demo: memories + structure + recall
 | Phase 8 | `phase8_true_polysemy.py` | Genuinely dual-role words (`fish`/`duck`/`bear` as both ANIMAL and ACTION, identical embedding). **Negative result, root-caused.** |
 | Phase 9 | `phase9_centroid_consolidation.py` | Occurrence-centroid consolidation (2/3 exact splits, best yet) + replay refinement (negative result: EM inherits online mixing). |
 | Phase 10 | `phase10_context_primed_settling.py` | Context as field carry-over: full functional disambiguation with no alpha parameter, seed-stable; attractor pull during perception is harmful (negative result, both orderings). |
+| Phase 11 | `phase11_transition_decay.py` | Transition-count decay fixes concept-drift inertia: adaptation 0.44 → 0.87 at `p_decay=0.001`, generation unaffected. |
+| Phase 12 | `phase12_capacity_scaling.py` | Storage scales perfectly to 1000 words (coverage/purity 1.00, N=128); generation under crowded embeddings is the scaling casualty, not slot count. |
 
 Side experiment: `strain_propagation.py` (Kuramoto "code bath" refactor-wave test).
 
@@ -99,6 +101,14 @@ patterns (26-word world, cyclic grammar; oracle ceiling 0.88, chance ~0.33):
 | Concept drift | Grammar reversal mid-stream: the organism adapts online (0.12 → 0.44 on the new regime after 4000 words) but with heavy inertia — Hebbian counts never decay, so old evidence outvotes new roughly in proportion to its volume. |
 | Continual learning | The standout: second vocabulary learned to 100% coverage with only **15% forgetting** of the first, and combined generation at 0.70 grammaticality — the architecture's strongest deployment property (consistent with `phase2_forgetting.py` beating a neural net). |
 
-Actionable gaps this exposes: transition-count decay (drift inertia),
-recall robustness under input noise, and closing the ~0.6 → 0.88
-grammaticality gap without the oracle grammar mask.
+Actionable gaps this exposed — status after phases 11–12:
+
+- ~~Transition-count decay (drift inertia)~~ **fixed**: `p_decay=0.001`
+  (phase 11) restores near-ceiling adaptation for a 7pp stationary cost.
+- Capacity: **not a bottleneck** — storage is perfect at 1000 words / N=128
+  (phase 12); prediction degrades gracefully (0.89 → 0.79).
+- Open: generation under crowded embeddings (collapses at 300 structured
+  words while near-orthogonal embeddings generate at 0.93), recall
+  robustness under input noise, and the ~0.6 → 0.88 grammaticality gap
+  without the oracle mask — all three point at the recall dynamics as the
+  next frontier.

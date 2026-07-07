@@ -32,6 +32,27 @@ Metrics per config:
 Generation (recall) is evaluated only up to V=300: recall wall-clock scales
 with K and the point of this phase is storage/structure capacity, not
 generation speed.
+
+RESULT (recorded from the committed run):
+  - STORAGE SCALES. Coverage and slot purity are 1.00 at every vocabulary
+    size up to V=1000, in BOTH embedding regimes (997-1001 slots recruited
+    for 1000 words). The slot mechanism is not the capacity bottleneck at
+    this scale. Crosstalk grows slowly (0.30 -> 0.39 structured).
+  - PREDICTION DEGRADES GRACEFULLY: 0.885 -> 0.786 from V=30 to V=1000
+    (ceiling 0.88).
+  - GENERATION is the scaling casualty, and the two regimes localize it:
+    structured embeddings collapse recall at V=300 (0.05) while SPREAD
+    embeddings generate excellently at the same size (0.927). The limit is
+    representational crowding (within-category attractor proximity
+    interacting with the 0.84 consolidation merge and recall dynamics tuned
+    for small K), NOT slot count.
+  - FIELD SIZE scales sublinearly: N=128 suffices for V=1000; N=64 loses
+    coverage (0.95) at V=300.
+  - Wall-clock: 1000-word vocabulary learns a 10k-word stream in about a
+    minute on CPU. (Per-config timings in the log are contaminated by a
+    concurrent run for the first few rows -- treat as indicative only.)
+  - Tier-3 implication: vocabulary storage is a non-problem; the work is in
+    generation-under-crowding and the binding/hierarchy list.
 """
 
 import time
