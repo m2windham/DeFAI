@@ -37,6 +37,30 @@ Controls and accuracy checks:
     how much work the attractor pull does.
   - The best config is re-run on 3 seeds; a split that does not survive
     seed variation is reported as unstable, not as a result.
+
+RESULT (recorded from the committed runs; STABLE across seeds 0/1/2):
+  - Pure carry-over priming (g_mem=0, thr=0.65) reaches full FUNCTIONAL
+    disambiguation -- 3/3 dual words form role-covered slots and 10/10
+    dual-word slots have grammatically correct role-conditioned successor
+    statistics -- with NO alpha parameter and NO engineered composite.
+    The organism's own inter-word field carry-over is the context signal.
+    This matches phase 9's functional result with a strictly simpler,
+    organism-native mechanism, and is the recommended architecture going
+    forward.
+  - The no-carry control (z reset to the input at onset) forms exactly
+    1 slot per word, 0 splits: the context signal, not the gate, drives
+    all splitting.
+  - NEGATIVE result, twice: attractor pull during perception (g_mem>0)
+    suppresses splitting in BOTH orderings. Pull-before-gate drags the
+    state into the nearest existing basin and erases the context evidence
+    (0/3 coverage). Pull-after-gate still collapses to one slot per dual
+    word -- consistent with the pulled state feeding each slot's stale
+    historical context back into the carry chain, blurring the signal the
+    NEXT word needs. Perception should read the field, not bend it.
+  - Still open (unchanged from phase 9): exact 2/1 slot structure. Roles
+    split reliably but a role sometimes spreads over 2-3 same-role slots
+    that centroid merging at safe thresholds does not pool (0/3 exact,
+    stable across seeds).
 """
 
 import numpy as np
