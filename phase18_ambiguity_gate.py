@@ -43,14 +43,21 @@ RESULT (recorded from the committed run):
     exactly (26 slots, coverage 1.00, generation 0.985).
   - STRICT WIN EXTENDED AT sigma=0.2: generation 0.810 -> 0.862 with
     exactly 26 slots (phase 17 carried 28); every metric at ceiling.
-  - sigma=0.25: amb=0.3 lifts generation 0.509 -> 0.734 at full
-    coverage -- the largest single gain, right at sigma*.
+  - sigma=0.25: the largest gains, right at sigma*: amb=0.3 lifts
+    generation 0.509 -> 0.659 (coverage 0.96, junk 0.198 -> 0.070) and
+    amb=1.0 reaches 0.672 junk-free -- both beat every phase-17 arm.
   - AT sigma=0.3 THE GATE DOMINATES BOTH PREDECESSORS: amb=0.3 keeps
     coverage 1.00 and beats phase 17 on generation (0.406 vs 0.271)
     and prediction (0.579 vs 0.504); amb=1.0 beats the phase-14 gate
     on BOTH axes at once (generation 0.584 vs 0.489, coverage 0.69 vs
     0.50, junk 0.000) -- the "abandon vocabulary for purity" corner is
     no longer the gate's to claim.
+  - BEYOND THE STORAGE BOUNDARY the gate still helps but cannot save
+    generation: at sigma=0.4 amb=0.3 improves every phase-17 metric
+    (coverage 0.62 -> 0.73, generation 0.243 -> 0.286, prediction
+    0.285 -> 0.351); at 0.35 it trades coverage for generation like
+    everything else. Part A says why: pool maturation no longer
+    outruns the error rate there.
   - THE FRONTIER IS THE RESIDUAL: amb tunes a purity-coverage frontier
     (0.406/1.00 at 0.3 through 0.584/0.69 at 1.0) that Part A shows is
     information-limited at the single-token level: at sigma=0.3 with
