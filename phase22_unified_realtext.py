@@ -39,7 +39,43 @@ Stages (every one unsupervised; ground truth is never consulted):
      bigrams that occur verbatim in the corpus -- both vs a
      random-word baseline.
 
-RESULT: recorded in the follow-up commit, from the committed run.
+RESULT (recorded from the committed run):
+  - PERCEIVE: the language-track recipe wins; re-sweeping its recruit
+    floor on the extended corpus lifts coverage 320 -> 335/376 at
+    recruit=0.85 (0.9 over-fragments, 316). The core pooled/ambiguity
+    stack COLLAPSES on real text (100/376 in one pass, and more epochs
+    do not help) -- root cause measured: 68% of PPMI/SVD embeddings
+    have a neighbor above the 0.7 online-fusion bar, and transitive
+    fusion linkage alone collapses the vocabulary to 162 components.
+    Pool-mode constants assume near-orthogonal patterns; real word
+    embeddings are not. Open: embedding decorrelation or
+    correlation-aware calibration of the fusion/acceptance bars.
+  - CATEGORIES: no real structure at this corpus scale -- best
+    silhouette 0.011 across k=3..8 even on word-level aggregated
+    PPMI profiles, with a 291/335-word blob at k=3. Selector
+    comparison (open thread): silhouette-argmax picks k=8,
+    balance-argmax k=5; neither reproduces phase 21's k=3, and with
+    silhouettes this flat neither should be trusted. This is the
+    language track's own scale wall (its phases 19-20): category
+    statistics need ~100x more text than 2.4K tokens.
+  - POLYSEMY: the per-word permutation null (methodological upgrade
+    over phase 21's pooled uniform-draw floor -- it preserves both
+    marginals) leaves 12 testable candidates (n>=20), of which one
+    ('for', gain 0.628 vs own p99 0.405) clears its null. With a
+    degenerate category blob the conditioning variable is nearly
+    constant, so detection power here is near zero by construction;
+    the statistic, not the mechanism, is starved.
+  - GENERATE: word-level structure transfers cleanly -- 20.1% of
+    generated bigrams occur verbatim in the corpus vs 1.8% random
+    (11x), with 221/376 words used. The category-likelihood score is
+    UNINFORMATIVE under a blob (random -0.799 outscores generated
+    -1.023 by living inside the dominant category) -- recorded as a
+    scoring lesson, not a generation failure.
+  - VERDICT: the loop is WIRED -- all four stages run end-to-end
+    unsupervised on real text -- and the binding constraint is now a
+    single measured quantity: corpus scale for category emergence.
+    Next lever: run this exact loop at the language track's 547K-word
+    scale, where categories are known to form (its phase 21).
 """
 
 import re
