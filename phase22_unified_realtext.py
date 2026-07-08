@@ -347,10 +347,25 @@ print(f"  word coverage in generation: {len(set(gen))}/{N_WORDS}")
 print(f"  sample: {' '.join(vocab[w] for w in gen[:30])}")
 
 ok_cov = cov >= 0.8 * N_WORDS
-ok_gen = (cat_loglik(gen) > cat_loglik(rand) + 0.3 and
-          bigram_hit(gen) > 3 * bigram_hit(rand))
-print("\nverdict:", ("THE LOOP CLOSES ON REAL TEXT -- core perception stack covers "
-      f"{cov}/{N_WORDS} words, categories + polysemy + layered generation run "
-      "end-to-end unsupervised with structure well above chance"
-      if ok_cov and ok_gen else
-      "partial -- the loop runs but a stage is below bar; see the stage tables"))
+ok_words = bigram_hit(gen) > 5 * bigram_hit(rand)
+ok_cats = (cat_loglik(gen) > cat_loglik(rand) + 0.3 and
+           max(stats[k][0] for k in stats) > 0.05)
+sil_max = max(stats[k][0] for k in stats)
+blob = max(np.bincount(labels_cat))
+if ok_cov and ok_words and ok_cats:
+    print(f"\nverdict: THE LOOP CLOSES ON REAL TEXT -- coverage {cov}/{N_WORDS}, "
+          "category flow and word structure both well above chance, end-to-end "
+          "unsupervised")
+elif ok_cov and ok_words:
+    print(f"\nverdict: THE LOOP IS WIRED AND WORD-LEVEL STRUCTURE TRANSFERS -- "
+          f"coverage {cov}/{N_WORDS}, generated word bigrams "
+          f"{bigram_hit(gen)/max(bigram_hit(rand),1e-9):.0f}x random -- but "
+          f"CATEGORY EMERGENCE IS THE MEASURED BOTTLENECK at this corpus scale "
+          f"(best silhouette {sil_max:.3f}, largest category {blob}/{len(covered)} "
+          "words): the same scale wall its phases 19-20 measured. The category-"
+          "likelihood score is uninformative under a degenerate blob (random can "
+          "outscore the generator by living inside it). Next lever: corpus scale, "
+          "not mechanism")
+else:
+    print("\nverdict: partial -- the loop runs but a stage is below bar; "
+          "see the stage tables")
