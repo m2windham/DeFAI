@@ -44,7 +44,8 @@ class Organism:
 
     # ---- PHASE 1: perceive + form memories + learn transitions -------------
     def perceive(self, stream, g_in=4.0, dt=0.05, eta=0.02, recruit=0.55, p_decay=0.0,
-                 confirm=0, probation=6000, pool=False, active_bar=0.6, s_hat=0.0):
+                 confirm=0, probation=6000, pool=False, active_bar=0.6, s_hat=0.0,
+                 amb=0.0):
         """p_decay: exponential forgetting of transition counts, applied once
         per observed transition (synaptic decay). 0.0 = original behavior
         (counts accumulate forever); 1/p_decay is the effective memory in
@@ -141,6 +142,42 @@ class Organism:
             memory keeps resonating with the stream that made it; dead
             structure fades and frees its slot.
 
+        amb (phase 18, mixture hygiene at the source): phase 17's residual
+        was frozen MIXTURE slots born in bootstrap routing chaos -- with
+        many young pools at loose bars, greedy routing is fluctuation-
+        dominated, and no per-slot statistic can undo the mixing after
+        the fact (five cures tried, all failed; see phase 17). The gate
+        acts BEFORE the mixing instead, and it is SOFT: while the winning
+        pool is still provisional, its evidence is weighted by an
+        attribution CONFIDENCE conf = clip(margin/amb, 0, 1), where
+        margin is the winner's lead over the runner-up across all live
+        slots. Confidence scales the whole absorption -- evidence mass
+        (nvis += conf), the running-mean step (weight max(conf/n,
+        conf*eta)), the visit-quality EMA, and staying alive
+        (age *= 1-conf instead of age = 0, so a pool that subsists on
+        contested scraps expires while one with regular confident wins
+        stays young). Rationale: assignment errors are precisely the
+        low-margin events -- a wrong best-of-many RIVALS the right
+        match, it rarely dominates it -- so mixing events barely move
+        any pool, while a word's ~150 recurrences arrive mostly at
+        decent margins. Mature (confirmed) winners absorb at full
+        weight: their annealed bar already rejects wrong-word tokens,
+        and down-weighting them only starves adaptation. At sigma=0
+        margins are huge (same-word ~1.0 vs cross ~0.15), so conf
+        saturates at 1 and the clean case is untouched by construction.
+        amb=0.0 reproduces phase-17 behavior exactly.
+
+        Variants tried and rejected (measured at sigma=0.3, phase 18):
+        a HARD margin gate (drop contested tokens) re-traces the
+        coverage-for-purity collapse of phase 17's wide dead zones
+        (coverage 1.00 -> 0.69 by amb=0.15); routing deeply ambiguous
+        tokens to RECRUITMENT fragments evidence into endless fresh
+        pools (coverage 0.27 at rec=0.1); removing the weak-tail dead
+        zone lets orphaned words recruit again but their pools then
+        subsist on low-confidence evidence and never graduate. The soft
+        gate with the dead zone kept is the only variant that moved the
+        purity-coverage frontier outward instead of sliding along it.
+
         active_bar is also the confidence bar for counting and transition
         learning (0.6 = original); beyond sigma* it must sit below the
         token-vs-memory overlap or P never learns. pool=False with
@@ -161,16 +198,24 @@ class Organism:
                     mm[~self.used] = -1.0                  # random init is not a match
                     bars = 0.8 / np.sqrt((1 + s_hat) * (1 + s_hat / np.maximum(nvis, 1.0)))
                     cand = mm > bars
-                    if cand.any():                         # strongest accepting slot wins
+                    conf = 1.0
+                    if amb > 0 and cand.any():             # ambiguity gate (phase 18)
+                        kk = int(np.argmax(np.where(cand, mm, -1.0)))
+                        if prov[kk]:                       # mature winners absorb freely
+                            rest = np.where(self.used, mm, -1.0)
+                            rest[kk] = -1.0
+                            conf = min(1.0, max(0.0, (mm[kk] - rest.max(initial=-1.0)) / amb))
+                    if cand.any() and conf > 0.0:          # strongest accepting slot wins
                         kk = int(np.argmax(np.where(cand, mm, -1.0)))
                         o_s = (self.xi[kk].conj() @ z) / self.N
                         z_al = z * np.exp(-1j * np.angle(o_s))
-                        nvis[kk] += 1; age[kk] = 0         # accepting evidence = staying alive
-                        wv = max(1.0 / nvis[kk], eta)      # running mean, plasticity floor
+                        nvis[kk] += conf                   # accepting evidence = staying alive,
+                        age[kk] *= (1.0 - conf)            # in proportion to its confidence
+                        wv = max(conf / nvis[kk], eta * conf)  # running mean, plasticity floor
                         self.xi[kk] = normalize(
                             self.xi[kk] + wv * (z_al - self.xi[kk]), self.norm)
                         if prov[kk]:                       # visit-quality EMA: sustained
-                            hits[kk] += (mm[kk] - hits[kk]) / 3.0  # confidence, not lucky draws
+                            hits[kk] += conf * (mm[kk] - hits[kk]) / 3.0  # confidence, not lucky draws
                             if hits[kk] > active_bar and nvis[kk] > confirm:
                                 prov[kk] = False           # graduated: stable pooled trace
                         oo = np.abs(self.overlaps(self.xi[kk], self.xi))

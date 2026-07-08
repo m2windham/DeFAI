@@ -44,6 +44,7 @@ python organism.py          # core demo: memories + structure + recall
 | Phase 15 | `phase15_action_conditioned.py` | Action-conditioned transitions (efference copy): forward model 1.00 vs 0.31 action-blind; navigation by planning entirely inside the learned model, 1.00 vs 0.34 random. |
 | Phase 16 | `phase16_phase_binding.py` | Phase-superposition binding is a real code: perfect identity readout to ~5 items (N=256), 1.00 pair-grouping by relative phase; constraint measured — the recall pull collapses superpositions in 9–56 steps, so binding needs protection, not readout. |
 | Phase 17 | `phase17_pooled_recruitment.py` | Pooled probationary recruitment (`perceive(pool=True)`): evidence pooled across occurrences *before* keep/discard. Strict win through σ=0.25 (past σ\*≈0.24; at σ=0.2: zero junk hops, generation 0.67 → 0.81), clean case improved (coverage 0.88 → 1.00), storage crosses σ\* to a new boundary at σ≈0.4 exactly where the pairwise-margin analysis predicts. Honest residual: generation beyond σ\* is polluted by frozen mixture slots from bootstrap routing chaos — five cures tried, each failure measured. |
+| Phase 18 | `phase18_ambiguity_gate.py` | Soft ambiguity-gated routing (`perceive(amb=...)`): evidence into provisional pools weighted by attribution confidence (margin over the runner-up), acting *before* bootstrap mixing instead of trying to undo it. Clean case identical; σ=0.2 win extended (0.810 → 0.862, exactly 26 slots); at σ=0.25 generation 0.509 → 0.66–0.67; at σ=0.3 dominates phase 17 at full coverage (0.271 → 0.406) *and* the phase-14 gate on both axes (0.584/0.69 vs 0.489/0.50). Measured constraint: 77% of greedy assignments are wrong at σ=0.3 during bootstrap and margins barely discriminate — `amb` tunes an information-limited purity–coverage frontier; every hard variant slides along it. |
 
 Side experiment: `strain_propagation.py` (Kuramoto "code bath" refactor-wave test).
 
@@ -117,7 +118,8 @@ Actionable gaps this exposed — status after phases 11–12:
   debounced hop commitment) takes the clean small world to 0.995 — above
   the corpus's own 0.88 noise level — and the V=300 crowding collapse from
   0.05 to 0.78. Both mechanisms are required at scale.
-- Noise: **boundary pushed twice, now split by capability** (phases 14, 17).
+- Noise: **boundary pushed three times, now split by capability**
+  (phases 14, 17, 18).
   Phase 14's probationary recruitment (`perceive(confirm=3)`) eliminates
   junk and wins strictly to σ=0.2, with an analytic wall at σ*≈0.24 where
   token-vs-memory overlap 1/√(1+σ²N) falls below the 0.6 confirmation bar
@@ -128,8 +130,16 @@ Actionable gaps this exposed — status after phases 11–12:
   dominates phase 14 at every σ measured: strict win through σ=0.25,
   **storage** (coverage/purity) intact to σ=0.35 with the new wall at
   σ≈0.4, exactly where same-word token-token overlap stops clearing the
-  cross-word fluctuation floor. Open beyond σ*: **generation** — frozen
-  mixture slots from the bootstrap routing chaos pollute recall
-  (grammaticality 0.27 at σ=0.3), and no per-slot statistic tried so far
-  (co-claim fusion, convergence fusion, dead zones, starvation recycling,
-  recruitment caps) can undo bootstrap-era mixing after the fact.
+  cross-word fluctuation floor. Phase 17's residual — frozen mixture slots
+  from bootstrap routing chaos polluting **generation** (0.27 at σ=0.3),
+  which no post-hoc per-slot statistic could undo — is attacked at the
+  source by phase 18: evidence routing weighted by attribution confidence
+  (`perceive(amb=...)`). Clean case identical, σ=0.2 win extended
+  (0.810 → 0.862), σ=0.25 generation 0.51 → 0.66–0.67, and at σ=0.3 it
+  dominates phase 17 at full coverage (0.27 → 0.41) and the phase-14 gate
+  on both axes (0.584/0.69 vs 0.489/0.50). Open: the purity–coverage
+  frontier itself — Part A of phase 18 measures 77% greedy-assignment
+  error during bootstrap at σ=0.3 with near-uninformative margins, so
+  single-token attribution is information-limited; the conjectured way
+  off the frontier is temporal-context attribution (let the learned
+  transition prior lend confidence to ambiguous tokens).
