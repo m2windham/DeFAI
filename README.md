@@ -48,7 +48,33 @@ python organism.py          # core demo: memories + structure + recall
 
 Side experiment: `strain_propagation.py` (Kuramoto "code bath" refactor-wave test).
 
-## Current frontier: polysemy (phase 8)
+## Language track (parallel line — own phase numbering)
+
+A second research line forked at phase 4–5 and was developed independently
+(branch `claude/defai-investigation-gsn2oy`, merged back 2026-07); its files
+(`phase9_track_a_residual.py` … `phase21_working_polysemy_detection.py`,
+`polysemy_organism.py`, `real_text_corpus.py`) use their **own phase
+numbering** — see `FABLE_HANDOFF.md` for the full brief and its commit
+messages for the lab notebook. Headline results:
+
+- **Predictive (Myhill–Nerode) polysemy test** (its phase 12): split senses
+  by whether context changes *successor predictions*, not by representation
+  distance. 0.30-bit margin, zero false positives, fully online
+  (reproduced post-merge: `phase12_predictive_split_test.py`).
+- **Category discovery fixed for real corpora** (`discover_categories_v2`):
+  PPMI-transform the transition profile before clustering — fragmentation at
+  small scale and the 2-blob collapse at 547K words were both
+  frequency-magnitude bias, not data problems.
+- **First unsupervised polysemy detection in real natural language** (its
+  phase 21): "right" (622 occurrences over 8 books) clears a directly
+  measured noise floor (0.070 vs 99th-percentile null 0.043), plus 37
+  plausible multi-role English words — the honest full ranking.
+- **Hybrid generation** (its phase 18/18b): pure continuous generation fails
+  (role signal ~3% of similarity scale); grammar as a small unsupervised
+  discrete FSM + everything else continuous reaches 0.818 grammaticality at
+  full coverage with live disambiguation.
+
+## Polysemy (core track, phases 8–10): functionally solved
 
 Goal: one word-form occurring in two senses should recruit **two** memory
 slots, driven only by context. Phase 8 shows the additive context blend
@@ -94,6 +120,12 @@ distinct contexts separate cleanly and independently of `alpha`. Status:
   splitting in both orderings — perception should read the field, not bend
   it. Open: exact 2/1 slot structure (same-role duplicates persist at
   merge thresholds that don't endanger the cross-role split).
+
+The language track then carried polysemy to real text with a different,
+prediction-based criterion (see its phases 12 and 21 above) — the two
+approaches are complementary: phase 10 splits *representations* online
+inside the field; the language track *detects* sense structure from
+corpus statistics and now needs the field mechanism to act on it.
 
 ## Capability envelope (measured)
 
@@ -143,3 +175,29 @@ Actionable gaps this exposed — status after phases 11–12:
   single-token attribution is information-limited; the conjectured way
   off the frontier is temporal-context attribution (let the learned
   transition prior lend confidence to ambiguous tokens).
+
+## Current target
+
+The project's standing goal: one continuously-running oscillator field
+that perceives, remembers, learns world structure, and generates — now
+validated on synthetic worlds (core track, phases 1–18) with first
+footholds on real language (language track, through its phase 21). The
+open threads, roughly ordered by leverage:
+
+1. **Unify the tracks on real text**: wire the language track's validated
+   polysemy detection (predictive gain + PPMI categories) into the core
+   organism's context-primed settling and the hybrid generation loop —
+   close perceive → disambiguate → generate on real corpora the way it is
+   already closed on synthetic data.
+2. **Temporal-context attribution** (core phase 18's residual): let the
+   learned transition prior lend confidence to ambiguous tokens during
+   routing — the conjectured way off the information-limited
+   purity–coverage frontier beyond σ*.
+3. **Automatic k-selection for category discovery** (language track):
+   silhouette-argmax picks k=19 where balance-checked k=3 is right on the
+   547K-word corpus; needs a principled criterion, not a manual override.
+4. **Exact polysemy slot structure** (core phase 10): same-role duplicates
+   persist at merge thresholds that keep the cross-role split safe.
+5. **Phase-binding protection** (core phase 16): superpositions are a real
+   code but the recall pull collapses them in 9–56 steps; binding needs a
+   protection mechanism before it can be used.
