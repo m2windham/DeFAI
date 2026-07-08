@@ -43,6 +43,7 @@ python organism.py          # core demo: memories + structure + recall
 | Phase 14 | `phase14_noise_robust_perception.py` | Probationary recruitment: junk memories eliminated, strict win to σ=0.2, with an analytic boundary at σ*≈0.24 where single-shot recruitment provably fails (revisits fall below the confirmation bar). |
 | Phase 15 | `phase15_action_conditioned.py` | Action-conditioned transitions (efference copy): forward model 1.00 vs 0.31 action-blind; navigation by planning entirely inside the learned model, 1.00 vs 0.34 random. |
 | Phase 16 | `phase16_phase_binding.py` | Phase-superposition binding is a real code: perfect identity readout to ~5 items (N=256), 1.00 pair-grouping by relative phase; constraint measured — the recall pull collapses superpositions in 9–56 steps, so binding needs protection, not readout. |
+| Phase 17 | `phase17_pooled_recruitment.py` | Pooled probationary recruitment (`perceive(pool=True)`): evidence pooled across occurrences *before* keep/discard. Strict win through σ=0.25 (past σ\*≈0.24; at σ=0.2: zero junk hops, generation 0.67 → 0.81), clean case improved (coverage 0.88 → 1.00), storage crosses σ\* to a new boundary at σ≈0.4 exactly where the pairwise-margin analysis predicts. Honest residual: generation beyond σ\* is polluted by frozen mixture slots from bootstrap routing chaos — five cures tried, each failure measured. |
 
 Side experiment: `strain_propagation.py` (Kuramoto "code bath" refactor-wave test).
 
@@ -116,10 +117,19 @@ Actionable gaps this exposed — status after phases 11–12:
   debounced hop commitment) takes the clean small world to 0.995 — above
   the corpus's own 0.88 noise level — and the V=300 crowding collapse from
   0.05 to 0.78. Both mechanisms are required at scale.
-- Noise: **solved to a measured boundary** (phase 14). Probationary
-  recruitment (`perceive(confirm=3)`) eliminates junk memories and strictly
-  improves prediction and generation up to σ=0.2. The boundary is analytic:
-  token-vs-memory overlap 1/√(1+σ²N) crosses the 0.6 confirmation bar at
-  σ*≈0.24, beyond which genuine revisits are unrecognizable and any
-  single-shot recruitment scheme must fail. Open beyond σ*: pool evidence
-  across occurrences *before* the keep/discard decision.
+- Noise: **boundary pushed twice, now split by capability** (phases 14, 17).
+  Phase 14's probationary recruitment (`perceive(confirm=3)`) eliminates
+  junk and wins strictly to σ=0.2, with an analytic wall at σ*≈0.24 where
+  token-vs-memory overlap 1/√(1+σ²N) falls below the 0.6 confirmation bar
+  and any single-shot scheme must fail. Phase 17 implements the conjectured
+  fix — pool evidence across occurrences *before* keep/discard
+  (`perceive(pool=True)`: saccade-gated evidence, annealed acceptance bars,
+  running-mean pooling, held-out graduation, online fusion) — and it
+  dominates phase 14 at every σ measured: strict win through σ=0.25,
+  **storage** (coverage/purity) intact to σ=0.35 with the new wall at
+  σ≈0.4, exactly where same-word token-token overlap stops clearing the
+  cross-word fluctuation floor. Open beyond σ*: **generation** — frozen
+  mixture slots from the bootstrap routing chaos pollute recall
+  (grammaticality 0.27 at σ=0.3), and no per-slot statistic tried so far
+  (co-claim fusion, convergence fusion, dead zones, starvation recycling,
+  recruitment caps) can undo bootstrap-era mixing after the fact.

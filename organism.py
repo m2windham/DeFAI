@@ -44,7 +44,7 @@ class Organism:
 
     # ---- PHASE 1: perceive + form memories + learn transitions -------------
     def perceive(self, stream, g_in=4.0, dt=0.05, eta=0.02, recruit=0.55, p_decay=0.0,
-                 confirm=0, probation=6000):
+                 confirm=0, probation=6000, pool=False, active_bar=0.6, s_hat=0.0):
         """p_decay: exponential forgetting of transition counts, applied once
         per observed transition (synaptic decay). 0.0 = original behavior
         (counts accumulate forever); 1/p_decay is the effective memory in
@@ -57,19 +57,154 @@ class Organism:
         are excluded from transition learning, so one-off noise states can
         neither persist as memories nor contaminate P. Rationale: real
         patterns recur, i.i.d. noise does not. confirm=0 = original behavior.
-        Biology: synaptic tagging -- traces need reactivation to consolidate."""
+        Biology: synaptic tagging -- traces need reactivation to consolidate.
+
+        pool / active_bar (phase 17, recruitment beyond sigma*): beyond
+        sigma* the phase-14 gate fails analytically -- a genuine revisit's
+        overlap 1/sqrt(1+sigma^2 N) sits below the hard 0.6 confirmation
+        bar, so evidence must be pooled across occurrences BEFORE the
+        keep/discard decision. pool=True makes provisional slots EVIDENCE
+        POOLS and defers every recruit/keep decision to SETTLED evidence:
+
+          - an input saccade (a jump in the incoming frame) marks the end
+            of a token; the field state at that moment -- fully settled on
+            the finished token -- is ONE unit of evidence. Mid-settle
+            states never recruit: below sigma* they are the junk source
+            (phase 14's mid-transition slots), and with the lowered bar
+            they would spawn an unmergeable duplicate on nearly every
+            token;
+          - each slot accepts evidence at an ANNEALED bar matched to
+            what its own evidence should look like at its size: 80% of
+            the expected same-pattern overlap 1/sqrt((1+s)(1+s/n)) with
+            s = s_hat (the noise energy sigma^2 N) and n the slot's
+            pooled visits. At n=1 that is the raw token-token overlap
+            (a young pool must bootstrap loosely); as the pool denoises
+            it tightens toward the memory-grade bar, quenching the
+            contamination that loose matching admits. This matters
+            because greedy routing against MANY young pools is
+            fluctuation-dominated -- the best of ~40 wrong matches
+            rivals the one right match, and static bars leave every
+            pool a mixture. Evidence goes to the strongest slot that
+            clears its own bar. If none does, it recruits a new pool --
+            UNLESS a confirmed memory matches it inside that memory's
+            dead zone (80% of `active_bar`): such evidence is probably
+            the memory's own weak tail, and routing it into a fresh
+            pool hands that pool a selection-biased evidence stream.
+            (A wider, spread-scaled zone kills duplicates outright but
+            locks late words out of recruitment entirely: with many
+            confirmed neighbors, the MAX zone fluctuation blocks every
+            attempt, and each uncovered word poisons P with skip
+            transitions. The narrow zone + slot lifecycle below is the
+            working balance.) Young pools cast no dead zone -- shadowing
+            novel evidence with half-formed structure starves real
+            words of their pools. The match is judged against the slot
+            BEFORE the update (held-out: judging a pool against
+            evidence it already absorbed is self-fulfilling and lets
+            junk confirm itself);
+          - accepted evidence updates the slot by running mean with a
+            plasticity floor, weight max(1/n, eta): early visits average
+            (the trace's noise shrinks ~1/n while the keep/discard
+            decision is still open), mature memories keep adapting on an
+            ~1/eta-token window. Per-frame refinement is disabled -- at
+            high sigma its few-token effective window re-noisifies every
+            memory it touches, which is what kept duplicates unmergeable
+            and matches flaky below sigma*;
+          - a pool graduates when its VISIT QUALITY -- an EMA (1/3) of
+            the held-out match quality of its accepted visits -- exceeds
+            `active_bar`, with at least `confirm` visits. A young pool's
+            per-visit quality is the raw token-token overlap, whose
+            distribution has a fat tail: a simple per-visit threshold
+            graduates half-denoised duplicates on a few lucky draws.
+            Only genuine denoising lifts the SUSTAINED average past the
+            bar, so graduation certifies pooled-trace stability: real
+            words rise to it, one-off states, mixtures, and evidence-
+            starved duplicates never do;
+          - slots FUSE online when they converge: noisy assignment
+            inevitably splits a word's evidence across duplicate pools,
+            but duplicates of the same pattern approach each other as
+            they denoise (the plasticity floor re-centers a maturing
+            pool on its recent, bar-filtered, nearly-pure evidence, so
+            early contamination washes out), while different patterns
+            never do -- so when two slots overlap above 0.7 (higher
+            than any plausible different-pattern overlap) they merge,
+            pooling their evidence, counts, and transitions. Splitting
+            is thereby harmless instead of fatal: the halves find each
+            other;
+          - USE IT OR LOSE IT: any slot -- provisional or confirmed --
+            that goes a full probation window without accepting a
+            single visit is recycled, and its transition rows cleared.
+            This is the lifecycle answer to the one duplicate that
+            survives everything else: a contaminated pool that
+            graduates and then FREEZES (its annealed bar rises past
+            what its mixed content can attract, so it accepts nothing,
+            forever) while still soaking up activity counts. A real
+            memory keeps resonating with the stream that made it; dead
+            structure fades and frees its slot.
+
+        active_bar is also the confidence bar for counting and transition
+        learning (0.6 = original); beyond sigma* it must sit below the
+        token-vs-memory overlap or P never learns. pool=False with
+        active_bar=0.6 reproduces phase-14 behavior exactly."""
         z = self.z
         prev_active = -1
         prov = np.zeros(self.K, bool)
-        hits = np.zeros(self.K); age = np.zeros(self.K)
+        hits = np.zeros(self.K); age = np.zeros(self.K); nvis = np.zeros(self.K)
+        prev_x = None
         last_k = -1
         for x in stream:
             x = normalize(x, self.norm)
+            if pool and confirm > 0:
+                if prev_x is not None and np.linalg.norm(x - prev_x) > 0.5 * self.norm:
+                    # saccade: z is the finished token's settled state -- the
+                    # unit of evidence; all recruit/pool decisions live here
+                    mm = np.abs(self.overlaps(z, self.xi))
+                    mm[~self.used] = -1.0                  # random init is not a match
+                    bars = 0.8 / np.sqrt((1 + s_hat) * (1 + s_hat / np.maximum(nvis, 1.0)))
+                    cand = mm > bars
+                    if cand.any():                         # strongest accepting slot wins
+                        kk = int(np.argmax(np.where(cand, mm, -1.0)))
+                        o_s = (self.xi[kk].conj() @ z) / self.N
+                        z_al = z * np.exp(-1j * np.angle(o_s))
+                        nvis[kk] += 1; age[kk] = 0         # accepting evidence = staying alive
+                        wv = max(1.0 / nvis[kk], eta)      # running mean, plasticity floor
+                        self.xi[kk] = normalize(
+                            self.xi[kk] + wv * (z_al - self.xi[kk]), self.norm)
+                        if prov[kk]:                       # visit-quality EMA: sustained
+                            hits[kk] += (mm[kk] - hits[kk]) / 3.0  # confidence, not lucky draws
+                            if hits[kk] > active_bar and nvis[kk] > confirm:
+                                prov[kk] = False           # graduated: stable pooled trace
+                        oo = np.abs(self.overlaps(self.xi[kk], self.xi))
+                        oo[kk] = 0.0; oo[~self.used] = 0.0
+                        j = int(np.argmax(oo))
+                        if oo[j] > 0.7:                    # converged duplicates: fuse
+                            keep, drop = (kk, j) if (prov[j], nvis[kk]) > (prov[kk], nvis[j]) else (j, kk)
+                            w_d = nvis[drop] / (nvis[keep] + nvis[drop])
+                            o_kd = (self.xi[keep].conj() @ self.xi[drop]) / self.N
+                            al = self.xi[drop] * np.exp(-1j * np.angle(o_kd))
+                            self.xi[keep] = normalize(
+                                self.xi[keep] + w_d * (al - self.xi[keep]), self.norm)
+                            nvis[keep] += nvis[drop]
+                            hits[keep] = max(hits[keep], hits[drop])
+                            prov[keep] = prov[keep] and prov[drop]
+                            self.count[keep] += self.count[drop]
+                            self.P[keep] += self.P[drop]; self.P[:, keep] += self.P[:, drop]
+                            self.used[drop] = False; prov[drop] = False
+                            self.count[drop] = 0; self.P[drop] = 0; self.P[:, drop] = 0
+                            if prev_active == drop:
+                                prev_active = keep
+                    elif (mm[self.used & ~prov].max(initial=0.0) < 0.8 * active_bar
+                          and not self.used.all()):        # novel (not a memory's weak tail)
+                        f = int(np.argmin(self.used.astype(float)))
+                        self.xi[f] = normalize(z, self.norm); self.used[f] = True
+                        prov[f] = True; hits[f] = 0; age[f] = 0; nvis[f] = 1
+                prev_x = x
             dz = 1j * self.omega * z + g_in * (x - z)     # input-driven (no retrieval: avoids collapse)
             z = normalize(z + dt * dz, self.norm)
             o = self.overlaps(z, self.xi); m = np.abs(o)
             k = int(np.argmax(m))
-            if m[k] < recruit and not self.used.all():    # novel -> recruit a free slot
+            if pool and confirm > 0:
+                pass                                       # all updates happen at saccades
+            elif m[k] < recruit and not self.used.all():  # novel -> recruit a free slot
                 f = int(np.argmin(self.used.astype(float)))
                 self.xi[f] = normalize(z, self.norm); self.used[f] = True; k = f
                 if confirm > 0:
@@ -79,16 +214,28 @@ class Organism:
                 self.xi[k] = normalize(self.xi[k] + eta * (z_al - self.xi[k]), self.norm)
                 self.used[k] = True
             if confirm > 0:
-                age[prov] += 1
-                if prov[k] and m[k] > 0.6 and k != last_k:  # a fresh visit, not the same dwell
+                if not pool and prov[k] and m[k] > 0.6 and k != last_k:  # a fresh visit, not the same dwell
                     hits[k] += 1
                     if hits[k] >= confirm:
                         prov[k] = False                     # graduated: pattern recurs
-                expired = prov & (age > probation)
-                if expired.any():                           # never re-confirmed: recycle
+                if pool:
+                    # use it or lose it: ANY slot that stops accepting
+                    # evidence -- an unconfirmed one-off, or a frozen
+                    # mixture whose annealed bar outgrew its mixed
+                    # content -- is dead structure and is recycled
+                    age[self.used] += 1
+                    expired = self.used & (age > probation)
+                else:
+                    age[prov] += 1
+                    expired = prov & (age > probation)
+                if expired.any():                           # recycle
                     self.used[expired] = False; self.count[expired] = 0
                     prov[expired] = False
-            if m[k] > 0.6:
+                    if pool:
+                        self.P[expired] = 0; self.P[:, expired] = 0
+                        if prev_active >= 0 and expired[prev_active]:
+                            prev_active = -1
+            if m[k] > active_bar and self.used[k]:
                 self.count[k] += 1
                 if not prov[k]:
                     if k != prev_active and prev_active >= 0:
