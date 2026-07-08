@@ -107,6 +107,14 @@ for _ in range(15):
     o.perceive(list(stream(train_seq)), g_in=5.0, dt=0.05, eta=0.02, recruit=0.75)
 orgs['recipe (p19: recruit=0.75, 15 epochs)'] = o
 
+# the recruit floor re-swept on THIS corpus (phase 19 tuned 0.75 on an
+# earlier, smaller version of the text): 0.85 is the new peak, 0.9 over-
+# fragments and coverage falls back
+o = PolysemyOrganism(N=N, K=K_CAP, omega=0.15, beta=10.0, seed=0)
+for _ in range(15):
+    o.perceive(list(stream(train_seq)), g_in=5.0, dt=0.05, eta=0.02, recruit=0.85)
+orgs['recipe, recruit=0.85'] = o
+
 o = PolysemyOrganism(N=N, K=K_CAP, omega=0.15, beta=10.0, seed=0)
 o.perceive(list(stream(train_seq)), g_in=5.0, dt=0.05, eta=0.05, confirm=3,
            pool=True, s_hat=0.0, probation=12000, amb=0.3)
@@ -152,8 +160,20 @@ print(f"  root cause of the core arms' collapse: {int((nn > 0.7).sum())}/{N_WORD
 # ---------------------------------------------------------------- Stage B
 print("\n(B) emergent categories: silhouette-argmax vs balance-argmax (k in 3..8)")
 from polysemy_organism import _ppmi_transform, _kmeans_real, _silhouette_real
-raw_counts = org.P[np.ix_(org.kept_idx, org.kept_idx)]
-prof = _ppmi_transform(raw_counts)
+# WORD-level transition profiles: aggregate slot-level Hebbian counts by
+# each slot's attributed word. Clustering raw slots (its phases 19/21) is
+# hostage to slot duplication -- the recruit=0.85 arm carries ~2 slots per
+# word, and duplicate slots' sparse split profiles smear into one giant
+# blob. Aggregation makes stage B invariant to how perception divides a
+# word across slots.
+covered = sorted(set(slot_word.values()))
+w_of = {w: i for i, w in enumerate(covered)}
+raw_slot = org.P[np.ix_(org.kept_idx, org.kept_idx)]
+word_counts_P = np.zeros((len(covered), len(covered)))
+for si, wa in slot_word.items():
+    for sj, wb in slot_word.items():
+        word_counts_P[w_of[wa], w_of[wb]] += raw_slot[si, sj]
+prof = _ppmi_transform(word_counts_P)
 prof = np.concatenate([prof, prof.T], axis=1)
 prof /= (np.linalg.norm(prof, axis=1, keepdims=True) + 1e-9)
 stats = {}
@@ -178,55 +198,60 @@ K_CATS = 3
 labels_cat = stats[K_CATS][2]
 print(f"  -> stages C/D use k={K_CATS} (its phase-21 criterion: smallest k keeps "
       "the gain noise floor low)")
-org.word_slot_to_cat = {i: int(labels_cat[i]) for i in range(len(labels_cat))}
-org.cat_attractor = {c: normalize(org.mem[[i for i in range(len(labels_cat))
-                                           if labels_cat[i] == c]].mean(0), NORM)
-                     for c in sorted(set(labels_cat.tolist()))}
-word_to_cat = {}
-for s, w in slot_word.items():
-    word_to_cat.setdefault(w, org.word_slot_to_cat.get(s))
+word_to_cat = {covered[i]: int(labels_cat[i]) for i in range(len(covered))}
+org.cat_attractor = {}
+for c in sorted(set(labels_cat.tolist())):
+    slots_c = [s for s, w in slot_word.items() if word_to_cat.get(w) == c]
+    if slots_c:
+        org.cat_attractor[c] = normalize(org.mem[slots_c].mean(0), NORM)
 for c in sorted(set(word_to_cat.values())):
     ws = sorted(vocab[w] for w, cc in word_to_cat.items() if cc == c)
     print(f"  category {c} ({len(ws)} words): {ws[:14]}{' ...' if len(ws) > 14 else ''}")
 
 # ---------------------------------------------------------------- Stage C
-print("\n(C) predictive-gain polysemy vs measured noise floor")
-def split_gain(word_idx, min_occ=6):
+print("\n(C) predictive-gain polysemy vs per-word permutation null")
+def cond_gain(pred, succ):
+    H_u = _entropy(np.bincount(succ, minlength=K_CATS))
+    n = len(succ); H_c = 0.0
+    for pc in set(pred.tolist()):
+        sub = succ[pred == pc]
+        H_c += len(sub) / n * _entropy(np.bincount(sub, minlength=K_CATS))
+    return max(H_u - H_c, 0.0)
+
+def split_gain(word_idx, min_occ=20, n_perm=500, rng=None):
+    """Gain plus the word's OWN permutation null: shuffling the predecessor
+    labels against the successor labels preserves both marginals exactly,
+    which the phase-21 uniform-draw null did not -- with a skewed category
+    marginal the uniform null overstates achievable spurious gain and
+    buries real signal. min_occ=20: below that even the permutation null's
+    p99 exceeds the entropy ceiling and no word could ever clear it."""
     occ = [t for t, w in enumerate(train_seq) if w == word_idx]
     pairs = [(word_to_cat.get(train_seq[t - 1]), word_to_cat.get(train_seq[t + 1]))
              for t in occ if 0 < t < len(train_seq) - 1]
     pairs = [(p, s) for p, s in pairs if p is not None and s is not None]
     if len(pairs) < min_occ:
         return None
-    succ = [s for _, s in pairs]; pred = [p for p, _ in pairs]
-    H_u = _entropy(np.bincount(succ, minlength=K_CATS))
-    n = len(pairs); H_c = 0.0
-    for pc in set(pred):
-        sub = [succ[i] for i in range(n) if pred[i] == pc]
-        H_c += len(sub) / n * _entropy(np.bincount(sub, minlength=K_CATS))
-    return dict(n=n, gain=max(H_u - H_c, 0.0))
+    pred = np.array([p for p, _ in pairs]); succ = np.array([s for _, s in pairs])
+    g = cond_gain(pred, succ)
+    null = []
+    for _ in range(n_perm):
+        null.append(cond_gain(rng.permutation(pred), succ))
+    return dict(n=len(pairs), gain=g, p99=float(np.percentile(null, 99)))
 
-gains = {w: r for w in range(N_WORDS) if (r := split_gain(w))}
 rng = np.random.default_rng(5)
-ns = [r['n'] for r in gains.values()]
-null = []
-for _ in range(3000):
-    n = int(rng.choice(ns))
-    succ = rng.integers(0, K_CATS, size=n); pred = rng.integers(0, K_CATS, size=n)
-    H_u = _entropy(np.bincount(succ, minlength=K_CATS))
-    H_c = sum((pred == pc).sum() / n *
-              _entropy(np.bincount(succ[pred == pc], minlength=K_CATS))
-              for pc in set(pred.tolist()))
-    null.append(max(H_u - H_c, 0.0))
-p99 = float(np.percentile(null, 99))
-ranked = sorted(gains.items(), key=lambda kv: -kv[1]['gain'])
-above = [(vocab[w], r['n'], r['gain']) for w, r in ranked if r['gain'] > p99]
-print(f"  noise floor (99th pct of 3000 matched null draws): {p99:.4f}")
-print(f"  words above floor ({len(above)}):")
-for w, n, g in above[:12]:
-    print(f"    {w:<12} n={n:>4}  gain={g:.3f}")
-LOW_GAIN = {w for w, r in gains.items() if r['gain'] <= p99}
-beta_gain = {w: (gains[w]['gain'] / ranked[0][1]['gain'] if w in gains else 0.0)
+gains = {w: r for w in range(N_WORDS) if (r := split_gain(w, rng=rng))}
+ranked = sorted(gains.items(), key=lambda kv: -(kv[1]['gain'] - kv[1]['p99']))
+above = [(vocab[w], r['n'], r['gain'], r['p99']) for w, r in ranked
+         if r['gain'] > r['p99']]
+print(f"  candidates with n>=20 occurrences: {len(gains)}")
+print(f"  words above their own permutation-null p99 ({len(above)}):")
+for w, n, g, p in above[:12]:
+    print(f"    {w:<12} n={n:>4}  gain={g:.3f}  null p99={p:.3f}")
+# untested rare words (n<20) count as unambiguous: no evidence of polysemy
+LOW_GAIN = {w for w in range(N_WORDS)
+            if w not in gains or gains[w]['gain'] <= gains[w]['p99']}
+max_gain = max((r['gain'] for r in gains.values()), default=1.0) or 1.0
+beta_gain = {w: (gains[w]['gain'] / max_gain if w in gains else 0.0)
              for w in range(N_WORDS)}
 
 # ---------------------------------------------------------------- Stage D
