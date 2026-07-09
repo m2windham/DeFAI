@@ -89,6 +89,46 @@ emergence is the measured bottleneck at this corpus scale** (best silhouette
 0.011, 291-word blob) — the same scale wall the language track measured in
 its phases 19–20, so the next lever is corpus scale, not mechanism.
 
+`phase23_unified_large_corpus.py` pulls that lever: the *same four stages,
+same scorers* on ~547K words of public-domain prose (the 8-book phase 20/21
+corpus, re-fetched from Gutenberg into `/tmp/gutenberg_corpus/`; the script
+prints the `curl` block if the corpus is missing). The pre-registered
+question was narrow — does ~100× more text turn phase 22's *wired* verdict
+into *closed*? The category-emergence bottleneck it named is **relieved**:
+
+- **Perception** covers 378/395 words at recruit=0.75 (phase 22's fables-tuned
+  0.85 peak does *not* transfer — it drops to 375; the core pooled/ambiguity
+  stack still collapses, 85/395, confirming the correlated-embedding cause
+  persists at scale).
+- **Categories** go from phase 22's single 87% blob to a **balanced 3-way
+  split** (largest 42%) that is grammatically legible — a verb/modal cluster
+  (`am, are, be, been, can, come, could`) and a noun-phrase cluster (`a,
+  another, beautiful, bed, big, bird, boy`). Silhouette only doubles
+  (0.011 → 0.024) and stays below any conventional cluster-validity bar:
+  silhouette measures geometric separation, the wrong certificate for soft
+  distributional categories.
+- **Polysemy** is now robust: **114 words clear their own per-word permutation
+  null**, `right` reproduced with a ~3× tighter null than phase 21
+  (gain 0.115 vs p99 0.015; phase 21 was 0.070 vs 0.043), and the top of the
+  ranking is highly plausible (`long, soon, end, dead, right, young, old,
+  like`). Honest caveat: predictive gain measures *distributional*
+  context-sensitivity, broader than lexical polysemy (function words like
+  `not`, `with`, `or` also clear).
+- **Generation** reuses **57.6% of corpus bigrams verbatim** (vs 0.234
+  random — the sparse-vocab 5× multiplicative gate is a scoring artifact and
+  is corrected in the verdict) and its **category flow now beats random**
+  (−1.334 vs −1.607), reversing the phase-22 blob artifact where random
+  outscored the generator.
+
+**Verdict: the scale lever works — relief, not unqualified closure.** Every
+stage now clears chance end-to-end and unsupervised; the residual honest
+constraints move from "categories don't form" to (a) they form and are
+grammatically legible but not geometrically well-separated (silhouette stays
+low), and (b) predictive gain conflates lexical polysemy with grammatical
+context-sensitivity. Two of phase 22's verdict gates were shown to be
+calibrated for the sparse fables vocabulary and recalibrated in the script,
+transparently (see its verdict block).
+
 ## Polysemy (core track, phases 8–10): functionally solved
 
 Goal: one word-form occurring in two senses should recruit **two** memory
@@ -199,14 +239,21 @@ validated on synthetic worlds (core track, phases 1–18) with first
 footholds on real language (language track, through its phase 21). The
 open threads, roughly ordered by leverage:
 
-1. **Unify the tracks on real text** — *wired* (phase 22): the full loop
-   runs unsupervised on the fables corpus and word-level structure
-   transfers; category emergence is the measured bottleneck at 2.4K
-   tokens. Next lever: run the loop at the language track's 547K-word
-   scale (`phase20_large_corpus.py`'s corpus), where categories are known
-   to form. Also open from phase 22: pool-mode constants (fusion 0.7,
-   0.8-scale bars) need decorrelation or embedding-aware calibration
-   before the core perception stack works on real embeddings.
+1. **Unify the tracks on real text** — *wired* (phase 22) then *scaled*
+   (phase 23): the full loop runs unsupervised, and at the language track's
+   547K-word scale (`phase23_unified_large_corpus.py`, the 8-book Gutenberg
+   corpus) the category-emergence bottleneck is **relieved** — the 87% blob
+   becomes a balanced, grammatically legible 3-way split, 114 words clear
+   per-word polysemy nulls (`right` reproduced with a ~3× tighter null), and
+   generation reuses 57.6% of corpus bigrams with category flow now beating
+   random. Relief, not closure: silhouette stays below any cluster-validity
+   bar (the wrong, geometric certificate for soft distributional categories —
+   an open metric problem), and predictive gain conflates lexical polysemy
+   with grammatical context-sensitivity (needs disentangling). Also still
+   open from phase 22: pool-mode constants (fusion 0.7, 0.8-scale bars) need
+   decorrelation or embedding-aware calibration before the core perception
+   stack works on real embeddings — phase 23 confirmed the collapse (85/395)
+   persists at scale.
 2. **Temporal-context attribution** (core phase 18's residual): let the
    learned transition prior lend confidence to ambiguous tokens during
    routing — the conjectured way off the information-limited
