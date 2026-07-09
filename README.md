@@ -74,6 +74,21 @@ messages for the lab notebook. Headline results:
   discrete FSM + everything else continuous reaches 0.818 grammaticality at
   full coverage with live disambiguation.
 
+## Unified track (phase 22+, numbering continues from the language track)
+
+`phase22_unified_realtext.py` wires both tracks into one end-to-end loop on
+the committed fables corpus (2.4K tokens, 376 words): perceive → emergent
+categories → polysemy vs a per-word permutation null → layered generation,
+zero labels anywhere. Findings: perception covers 335/376 words
+(recruit floor re-swept to 0.85; the core pooled/ambiguity stack collapses
+here — measured cause: 68% of real PPMI/SVD embeddings have a neighbor above
+the 0.7 online-fusion bar, so pool-mode constants calibrated for
+near-orthogonal patterns merge distinct words); generated word bigrams hit
+the corpus at ~11× random with 221/376 words covered; and **category
+emergence is the measured bottleneck at this corpus scale** (best silhouette
+0.011, 291-word blob) — the same scale wall the language track measured in
+its phases 19–20, so the next lever is corpus scale, not mechanism.
+
 ## Polysemy (core track, phases 8–10): functionally solved
 
 Goal: one word-form occurring in two senses should recruit **two** memory
@@ -184,11 +199,14 @@ validated on synthetic worlds (core track, phases 1–18) with first
 footholds on real language (language track, through its phase 21). The
 open threads, roughly ordered by leverage:
 
-1. **Unify the tracks on real text**: wire the language track's validated
-   polysemy detection (predictive gain + PPMI categories) into the core
-   organism's context-primed settling and the hybrid generation loop —
-   close perceive → disambiguate → generate on real corpora the way it is
-   already closed on synthetic data.
+1. **Unify the tracks on real text** — *wired* (phase 22): the full loop
+   runs unsupervised on the fables corpus and word-level structure
+   transfers; category emergence is the measured bottleneck at 2.4K
+   tokens. Next lever: run the loop at the language track's 547K-word
+   scale (`phase20_large_corpus.py`'s corpus), where categories are known
+   to form. Also open from phase 22: pool-mode constants (fusion 0.7,
+   0.8-scale bars) need decorrelation or embedding-aware calibration
+   before the core perception stack works on real embeddings.
 2. **Temporal-context attribution** (core phase 18's residual): let the
    learned transition prior lend confidence to ambiguous tokens during
    routing — the conjectured way off the information-limited
