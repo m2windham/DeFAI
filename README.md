@@ -129,6 +129,37 @@ context-sensitivity. Two of phase 22's verdict gates were shown to be
 calibrated for the sparse fables vocabulary and recalibrated in the script,
 transparently (see its verdict block).
 
+`phase24_category_validity.py` attacks phase 23's sharpest residual — the
+categories are grammatically legible but silhouette (geometric) can neither
+certify them nor pick *k*. It replaces silhouette with the project's own
+prediction-first framing (phase 12's "good splits change what you predict";
+phase 18b's "grammar is a small state machine"), using an oracle POS tagging
+**for evaluation only, never in any mechanism**. Result — **both threads
+close, with a measured negative between them**:
+
+- **Validity** — class-bigram mutual information `I(C_t; C_{t+1})` (the Brown-
+  clustering objective) against a **directly measured permutation null**
+  clears it by **14–98σ** at every k≥4 (z=65 at the selected k), where
+  silhouette is flat (~0.03–0.044): the certificate silhouette couldn't give.
+- **k-selection, the informative failure** — two-part MDL *and* held-out
+  class-bigram perplexity **both run monotonically to the finest k (k=12)**.
+  Measured cause: a class-based bigram model with k²+V params never overfits
+  at 408K pairs, so a finer partition always predicts at least as well —
+  k-selection is a **parsimony** problem, not a prediction one.
+- **k-selection, the fix** — category-profile **distinctness** (min pairwise
+  distance between categories' transition profiles) **peaks at k=6** then
+  collapses when a split creates a predictively-redundant category.
+- **Oracle confirmation (eval only)** — distinctness's k=6 **equals** the
+  V-measure-argmax against universal-POS tags (0.547), which the label-free
+  criterion never saw; silhouette's k=7 scores 0.458, MDL's k=12 scores 0.511.
+
+So **open threads #1 (wrong metric) and #3 (automatic k-selection) close
+together**: MI-vs-null certifies validity, distinctness selects k, and both
+drop into the unified loop's stage B. The experiment is deliberately isolated
+from the oscillator (the criterion is a property of a category assignment plus
+corpus bigram statistics — the same stage-B object), the same isolation
+discipline as phase 3.
+
 ## Polysemy (core track, phases 8–10): functionally solved
 
 Goal: one word-form occurring in two senses should recruit **two** memory
@@ -247,20 +278,28 @@ open threads, roughly ordered by leverage:
    per-word polysemy nulls (`right` reproduced with a ~3× tighter null), and
    generation reuses 57.6% of corpus bigrams with category flow now beating
    random. Relief, not closure: silhouette stays below any cluster-validity
-   bar (the wrong, geometric certificate for soft distributional categories —
-   an open metric problem), and predictive gain conflates lexical polysemy
-   with grammatical context-sensitivity (needs disentangling). Also still
-   open from phase 22: pool-mode constants (fusion 0.7, 0.8-scale bars) need
-   decorrelation or embedding-aware calibration before the core perception
-   stack works on real embeddings — phase 23 confirmed the collapse (85/395)
-   persists at scale.
+   bar — but that was the *wrong* certificate, and *phase 24* replaced it
+   (see thread #3). The remaining residual: predictive gain conflates lexical
+   polysemy with grammatical context-sensitivity (needs disentangling). Also
+   still open from phase 22: pool-mode constants (fusion 0.7, 0.8-scale bars)
+   need decorrelation or embedding-aware calibration before the core
+   perception stack works on real embeddings — phase 23 confirmed the collapse
+   (85/395) persists at scale.
 2. **Temporal-context attribution** (core phase 18's residual): let the
    learned transition prior lend confidence to ambiguous tokens during
    routing — the conjectured way off the information-limited
    purity–coverage frontier beyond σ*.
-3. **Automatic k-selection for category discovery** (language track):
-   silhouette-argmax picks k=19 where balance-checked k=3 is right on the
-   547K-word corpus; needs a principled criterion, not a manual override.
+3. ~~**Automatic k-selection + a category-validity metric**~~ **resolved
+   (phase 24)**: silhouette is geometric — the wrong objective for soft
+   distributional categories (it's flat ~0.03–0.04 and picks k=7).
+   `phase24_category_validity.py` replaces it with two label-free criteria
+   grounded in the project's prediction-first framing: class-bigram *mutual
+   information vs a measured permutation null* certifies **validity** (14–98σ),
+   and category-profile *distinctness* (a parsimony criterion) selects **k=6**,
+   confirmed by an oracle POS V-measure (eval only) that the criterion never
+   saw. Measured en route: predictive/compression criteria (MDL, held-out
+   perplexity) monotonically over-split and cannot select k — k-selection is a
+   parsimony problem, not a prediction one. Both selectors drop into stage B.
 4. **Exact polysemy slot structure** (core phase 10): same-role duplicates
    persist at merge thresholds that keep the cross-role split safe.
 5. **Phase-binding protection** (core phase 16): superpositions are a real
