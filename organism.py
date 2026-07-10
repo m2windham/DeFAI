@@ -45,7 +45,7 @@ class Organism:
     # ---- PHASE 1: perceive + form memories + learn transitions -------------
     def perceive(self, stream, g_in=4.0, dt=0.05, eta=0.02, recruit=0.55, p_decay=0.0,
                  confirm=0, probation=6000, pool=False, active_bar=0.6, s_hat=0.0,
-                 amb=0.0):
+                 amb=0.0, qcal=0, qtile=0.995):
         """p_decay: exponential forgetting of transition counts, applied once
         per observed transition (synaptic decay). 0.0 = original behavior
         (counts accumulate forever); 1/p_decay is the effective memory in
@@ -181,22 +181,91 @@ class Organism:
         active_bar is also the confidence bar for counting and transition
         learning (0.6 = original); beyond sigma* it must sit below the
         token-vs-memory overlap or P never learns. pool=False with
-        active_bar=0.6 reproduces phase-14 behavior exactly."""
+        active_bar=0.6 reproduces phase-14 behavior exactly.
+
+        qcal / qtile (phase 26, percentile acceptance bars): every absolute
+        constant above (0.7 fusion, 0.6 active_bar, the 0.8/sqrt anneal via
+        caller-supplied s_hat) was calibrated where random cross-pattern
+        overlap is ~1/sqrt(N); phases 22/23/25 measured that on real
+        PPMI-SVD embeddings -- where 23% of words have a neighbor above the
+        0.7 fusion bar -- the same constants collapse coverage to 85/395,
+        and phase 25 showed decorrelating the embeddings recovers only part
+        of it. qcal > 0 (pool mode only) replaces the constants with values
+        CALIBRATED FROM THE STREAM ITSELF: the first `qcal` saccades are
+        observation-only (no recruiting, no learning); their settled states'
+        pairwise-overlap distribution yields
+
+          cross_hi  = the `qtile` quantile of the DIFFERENT-pattern overlap
+                      distribution, decontaminated by dropping each state's
+                      top plateau (entries within 2% of its best match --
+                      where same-pattern siblings sit whenever the same mode
+                      is high and tight, the only case where contamination
+                      can inflate the quantile);
+          same_pair = median best-match overlap among states whose best
+                      match clears cross_hi -- the same-pattern recurrence
+                      overlap, trusted only if SEPARATED from the cross
+                      ceiling by >25% of the remaining headroom (else the
+                      best match is just the max of ~qcal cross draws).
+
+        The regime decides everything (measured in the phase-26 development
+        runs: at sigma >= 0.2 on the phase-14 world, same and cross modes
+        INTERLEAVE at the single-settled-state level -- phase 17's own
+        result -- so no pairwise statistic can see the same mode there):
+
+          SEPARATED (clean or correlated embeddings, the real-text case):
+            s is MEASURED: same-pattern overlap = 1/(1+s), so s = 1/same_pair
+            - 1 -- generalizing s_hat, which a product fed arbitrary
+            embeddings could never hand-compute; active_bar = midpoint(
+            cross_hi, 1/sqrt(1+s)); the anneal keeps its analytic shape with
+            measured s but is floored at guard = midpoint(cross_hi, 1/(1+s)),
+            so young pools cannot absorb a correlated neighbor's evidence
+            just because the anneal (tuned to noise, not correlation) is low.
+          NOT SEPARATED (noise-dominated): s stays the caller's s_hat hook
+            (the experimenter injecting noise legitimately knows it; the
+            mechanism honestly cannot measure it here); active_bar =
+            0.85/sqrt(1+s) -- the hand recipe's own dimensionless form --
+            capped by the fusion bar instead of the absolute 0.6; no guard:
+            the working bar deliberately sits INSIDE the noise-fattened
+            cross tail, and pooling + the amb gate clean up after it.
+
+        Fusion in both regimes = midpoint(cross_hi, 1/(1+s/16)): duplicates
+        of one pattern converge to the pool-pool overlap at converged size
+        (~16 visits), not to 1.0. The surviving constants (0.995 quantile,
+        midpoints, 0.85/0.8 slack fractions, the 2% plateau) are
+        dimensionless and transfer across embedding sources; no absolute
+        overlap value remains. Calibration is a bounded prefix of the same
+        streaming pass -- no full-corpus pre-pass -- and its saccades are
+        excluded from learning (<=1% of a real corpus, 5% of the 4000-word
+        synthetic streams). Diagnostics land in self.qcal_info. qcal=0
+        reproduces prior behavior exactly, bar for bar."""
         z = self.z
         prev_active = -1
         prov = np.zeros(self.K, bool)
         hits = np.zeros(self.K); age = np.zeros(self.K); nvis = np.zeros(self.K)
         prev_x = None
         last_k = -1
+        fuse_bar = 0.7
+        bar_guard = 0.0
+        cal_left = int(qcal) if (pool and confirm > 0) else 0
+        cal_states = []
         for x in stream:
             x = normalize(x, self.norm)
             if pool and confirm > 0:
-                if prev_x is not None and np.linalg.norm(x - prev_x) > 0.5 * self.norm:
+                if (cal_left > 0 and prev_x is not None
+                        and np.linalg.norm(x - prev_x) > 0.5 * self.norm):
+                    cal_states.append(z.copy())     # observe only: calibration prefix
+                    cal_left -= 1
+                    if cal_left == 0:
+                        fuse_bar, active_bar, s_hat, bar_guard = \
+                            self._calibrate_bars(cal_states, qtile, s_hat)
+                elif prev_x is not None and np.linalg.norm(x - prev_x) > 0.5 * self.norm:
                     # saccade: z is the finished token's settled state -- the
                     # unit of evidence; all recruit/pool decisions live here
                     mm = np.abs(self.overlaps(z, self.xi))
                     mm[~self.used] = -1.0                  # random init is not a match
-                    bars = 0.8 / np.sqrt((1 + s_hat) * (1 + s_hat / np.maximum(nvis, 1.0)))
+                    bars = np.maximum(
+                        0.8 / np.sqrt((1 + s_hat) * (1 + s_hat / np.maximum(nvis, 1.0))),
+                        bar_guard)
                     cand = mm > bars
                     conf = 1.0
                     if amb > 0 and cand.any():             # ambiguity gate (phase 18)
@@ -221,7 +290,7 @@ class Organism:
                         oo = np.abs(self.overlaps(self.xi[kk], self.xi))
                         oo[kk] = 0.0; oo[~self.used] = 0.0
                         j = int(np.argmax(oo))
-                        if oo[j] > 0.7:                    # converged duplicates: fuse
+                        if oo[j] > fuse_bar:               # converged duplicates: fuse
                             keep, drop = (kk, j) if (prov[j], nvis[kk]) > (prov[kk], nvis[j]) else (j, kk)
                             w_d = nvis[drop] / (nvis[keep] + nvis[drop])
                             o_kd = (self.xi[keep].conj() @ self.xi[drop]) / self.N
@@ -292,6 +361,56 @@ class Organism:
         if confirm > 0:                                    # purge still-unconfirmed slots
             self.used[prov] = False; self.count[prov] = 0
         self.z = z
+
+    # ---- PHASE 26: percentile bar calibration (see perceive docstring) -----
+    def _calibrate_bars(self, cal_states, qtile, s_hat):
+        """Turn the calibration prefix's settled states into the bar set.
+        Every returned bar is a position between the two MEASURED modes of
+        the similarity distribution (cross-pattern ceiling, same-pattern
+        recurrence overlap) -- no absolute overlap constants survive. The
+        noise energy s is measured too, but only trusted when the two modes
+        are measurably SEPARATED; when they interleave (token SNR < ~1,
+        phase 17's regime, where no pairwise statistic can see the same
+        mode) it falls back to the caller's s_hat hook."""
+        S = np.array(cal_states)
+        C = S.shape[0]
+        ov = np.abs((S.conj() @ S.T)) / self.N
+        np.fill_diagonal(ov, 0.0)
+        nn = ov.max(1)
+        # decontaminate the cross sample: drop each row's TOP PLATEAU (all
+        # entries within 2% of its best match) -- when the same mode is high
+        # and tight (the only case where contamination can inflate the cross
+        # quantile) a state's same-pattern siblings all sit in that plateau;
+        # when modes interleave the plateau costs a sliver of real cross tail
+        # (a mild, conservative underestimate)
+        keep = ov < (0.98 * nn[:, None])
+        cross = ov[keep]
+        cross_hi = float(np.quantile(cross, qtile)) if cross.size else 0.0
+        rec = nn[nn > cross_hi]
+        recurrence_found = rec.size >= max(4, 0.02 * C)
+        same_pair = float(min(np.median(rec), 0.999)) if recurrence_found else 0.999
+        # separation test: the recurrence mode must clear the cross ceiling
+        # by a fraction of the remaining headroom, else nn is just the max
+        # of ~C cross draws and same_pair is a cross-tail artifact
+        separated = recurrence_found and (same_pair - cross_hi) > 0.25 * (1.0 - cross_hi)
+        s_use = max(1.0 / same_pair - 1.0, 0.0) if separated else s_hat
+        same_asym = 1.0 / np.sqrt(1.0 + s_use)         # token-vs-denoised-memory
+        same_tok = 1.0 / (1.0 + s_use)                 # token-vs-token
+        # duplicates of one pattern converge to ~1/(1+s/n) mutual overlap, not
+        # to 1.0, so the fusion bar's upper anchor is that expected overlap at
+        # converged size (n=16); at s=0 it reduces to midpoint(cross_hi, 1)
+        fuse_bar = 0.5 * (cross_hi + 1.0 / (1.0 + s_use / 16.0))
+        if separated:                                  # bars fit between the modes
+            act_bar = 0.5 * (cross_hi + same_asym)
+            guard = 0.5 * (cross_hi + same_tok)
+        else:                                          # noise-dominated: the working
+            act_bar = min(0.85 * same_asym, fuse_bar)  # bar sits INSIDE the cross
+            guard = 0.0                                # tail; pooling+amb clean up
+        self.qcal_info = dict(n_states=C, cross_hi=cross_hi, same_pair=same_pair,
+                              separated=bool(separated), s_use=float(s_use),
+                              fuse_bar=fuse_bar, active_bar=act_bar,
+                              bar_guard=guard, n_recurrent=int(rec.size))
+        return fuse_bar, act_bar, float(s_use), guard
 
     # ---- consolidate: merge duplicate memories, drop unused ---------------
     def consolidate(self, merge_thresh=0.8, prune_frac=0.05):
