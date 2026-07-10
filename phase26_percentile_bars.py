@@ -67,7 +67,17 @@ from phase17_pooled_recruitment import pool_bars
 from polysemy_organism import PolysemyOrganism
 
 CAL = 200          # calibration saccades (synthetic): 5% of the 4000-word stream
-SEEDS = (99, 7, 23)
+SEEDS = (99, 7, 23, 41, 5, 17, 61, 83)
+# 8 seeds, not the phases' usual single seed 99: the first committed attempt
+# (3 seeds) failed the sigma=0.3 coverage band by 0.077 -- diagnosis showed
+# every calibrated bar numerically ON the hand value there (act 0.4417 =
+# 0.4417, fuse 0.703 vs 0.700 after the n=16 -> 32 fusion-anchor fix; n=16
+# measurably over-fused), so the residual gap had to be trajectory chaos
+# beyond the storage boundary sigma* ~= 0.24, where one early routing
+# decision cascades. 8 seeds confirmed: gap 0.038 (inside the band), with
+# calibrated generation BETTER (0.337 vs 0.304). Recorded because "the
+# constants are identical but single seeds diverge" is exactly the kind of
+# result a future port will hit when its float reductions differ (see E1).
 
 
 # ================================================================= Part A

@@ -228,9 +228,9 @@ class Organism:
             the working bar deliberately sits INSIDE the noise-fattened
             cross tail, and pooling + the amb gate clean up after it.
 
-        Fusion in both regimes = midpoint(cross_hi, 1/(1+s/16)): duplicates
+        Fusion in both regimes = midpoint(cross_hi, 1/(1+s/32)): duplicates
         of one pattern converge to the pool-pool overlap at converged size
-        (~16 visits), not to 1.0. The surviving constants (0.995 quantile,
+        (~32 visits), not to 1.0. The surviving constants (0.995 quantile,
         midpoints, 0.85/0.8 slack fractions, the 2% plateau) are
         dimensionless and transfer across embedding sources; no absolute
         overlap value remains. Calibration is a bounded prefix of the same
@@ -398,8 +398,11 @@ class Organism:
         same_tok = 1.0 / (1.0 + s_use)                 # token-vs-token
         # duplicates of one pattern converge to ~1/(1+s/n) mutual overlap, not
         # to 1.0, so the fusion bar's upper anchor is that expected overlap at
-        # converged size (n=16); at s=0 it reduces to midpoint(cross_hi, 1)
-        fuse_bar = 0.5 * (cross_hi + 1.0 / (1.0 + s_use / 16.0))
+        # converged size (n=32, ~a fifth of a synthetic word's occurrences;
+        # n=16 measurably over-fused at sigma=0.3); at s=0 -- including the
+        # real-text case, where s is measured ~0 -- it reduces to
+        # midpoint(cross_hi, 1)
+        fuse_bar = 0.5 * (cross_hi + 1.0 / (1.0 + s_use / 32.0))
         if separated:                                  # bars fit between the modes
             act_bar = 0.5 * (cross_hi + same_asym)
             guard = 0.5 * (cross_hi + same_tok)
