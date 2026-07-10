@@ -20,7 +20,18 @@ deliberately — they are part of the scientific record.
 ```
 pip install -r requirements.txt
 python organism.py          # core demo: memories + structure + recall
+python regression_harness.py  # fast tier: pinned mechanism behaviors (multi-seed)
 ```
+
+## Roadmap
+
+`ROADMAP.md` holds the adopted plan (2026-07): research phases 25–29
+(decorrelation, percentile calibration, 5M-word scale, polysemy
+disentangling, recursive hierarchy) plus an engineering track (regression
+harness, Numba port, state serialization, GPU tier), and the strategic
+structure — this repo stays the research line (Path A); deployable products
+(episodic-memory module, agents) are separate forks that consume discoveries
+through a versioned engine.
 
 ## Project arc
 
