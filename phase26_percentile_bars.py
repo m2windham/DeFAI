@@ -162,7 +162,9 @@ def load_corpus():
     return re.findall(r"[a-zA-Z']+", "\n".join(all_text).lower())
 
 
-def part_b():
+def real_setup():
+    """Corpus + PPMI-SVD embeddings + the core-arm runner, identical to
+    phases 23/25; shared by parts B and C."""
     raw_tokens = load_corpus()
     MIN_COUNT = 150
     word_counts = Counter(raw_tokens)
@@ -170,10 +172,7 @@ def part_b():
     word_to_idx = {w: i for i, w in enumerate(vocab)}
     n_words = len(vocab)
     train_seq = [word_to_idx[w] for w in raw_tokens if w in word_to_idx]
-    print(f"\n(B) real text, phase-25 protocol verbatim, only the bars change "
-          f"({len(train_seq)} in-vocab tokens, {n_words} words)")
 
-    # PPMI + SVD, identical to phases 23/25
     WINDOW = 4
     cooc = np.zeros((n_words, n_words))
     for i, w in enumerate(train_seq):
@@ -191,11 +190,11 @@ def part_b():
         e = U[:, :DIM] * (S[:DIM] ** alpha)
         return e / (np.linalg.norm(e, axis=1, keepdims=True) + 1e-9)
 
-    def core_arm(emb_a, qcal):
+    def core_arm(emb_a, qcal, hold=4):
         n = DIM
         emb_c = emb_a.astype(complex)
 
-        def make_stream(seq, hold=4):
+        def make_stream(seq):
             for w in seq:
                 s = emb_c[w]
                 for _ in range(hold):
@@ -217,22 +216,59 @@ def part_b():
         cov = len(set(slot_word.values()))
         return cov, org.mem.shape[0], getattr(org, 'qcal_info', None)
 
+    return dict(make_embeddings=make_embeddings, core_arm=core_arm,
+                n_words=n_words, n_tokens=len(train_seq))
+
+
+def _print_info(info):
+    if info:
+        print(f"      calibrated: cross_hi={info['cross_hi']:.3f} "
+              f"same_pair={info['same_pair']:.3f} separated={info['separated']} "
+              f"s={info['s_use']:.3f} fuse={info['fuse_bar']:.3f} "
+              f"act={info['active_bar']:.3f} guard={info['bar_guard']:.3f}")
+
+
+def part_b(setup):
+    print(f"\n(B) real text, phase-25 protocol verbatim, only the bars change "
+          f"({setup['n_tokens']} in-vocab tokens, {setup['n_words']} words)")
     print("    phase-25 committed baselines: alpha=0.5 -> 85/395, "
           "alpha=0.25 -> 168, alpha=0.0 -> 216; plain arm (phase 23) 378/395")
     results = {}
     for alpha, qcal in ((0.5, 0), (0.5, 512), (0.0, 512)):
         t0 = time.time()
-        cov, n_mem, info = core_arm(make_embeddings(alpha), qcal)
+        cov, n_mem, info = setup['core_arm'](setup['make_embeddings'](alpha), qcal)
         results[(alpha, qcal)] = cov
         tag = "hand bars (phase-25 control)" if qcal == 0 else f"qcal={qcal}"
-        print(f"  alpha={alpha:.2f} {tag:<28} coverage={cov}/{n_words} "
+        print(f"  alpha={alpha:.2f} {tag:<28} coverage={cov}/{setup['n_words']} "
               f"memories={n_mem}  ({time.time() - t0:.0f}s)")
-        if info:
-            print(f"      calibrated: cross_hi={info['cross_hi']:.3f} "
-                  f"same_pair={info['same_pair']:.3f} separated={info['separated']} "
-                  f"s={info['s_use']:.3f} fuse={info['fuse_bar']:.3f} "
-                  f"act={info['active_bar']:.3f} guard={info['bar_guard']:.3f}")
-    return results, n_words
+        _print_info(info)
+    return results, setup['n_words']
+
+
+def part_c(setup):
+    """POST-HOC PROBE, not pre-registered -- added after the committed Part B
+    run and labeled as such. Part B's calibration diagnostics showed the real
+    bottleneck is upstream of the bars: at hold=4 the field settles only
+    ~1 - 0.75^4 = 68% onto each token (g_in*dt = 0.25/frame), so every
+    settled state carries ~30% predecessor residue, squeezing the same/cross
+    modes into a ~0.06-wide window (same_pair 0.932 vs cross_hi 0.876 at
+    alpha=0.5) -- while the SYNTHETIC protocol, where reproduction succeeded,
+    settles with HOLD=12 (97% settled). A protocol asymmetry, not a bars or
+    embeddings property. Hypothesis: deeper settling widens the measured
+    window and coverage follows; hold is a sensor dwell-time, not a
+    mechanism constant, so this is a legitimate knob -- but it multiplies
+    runtime, which is why phases 22/23/25 ran hold=4 (E2's problem)."""
+    print(f"\n(C) post-hoc settling-depth probe at alpha=0.5, qcal=512 "
+          f"(hold=4 above: coverage 184, window 0.056)")
+    out = {}
+    for hold in (8, 12):
+        t0 = time.time()
+        cov, n_mem, info = setup['core_arm'](setup['make_embeddings'](0.5), 512, hold=hold)
+        out[hold] = (cov, info)
+        print(f"  hold={hold:<2} coverage={cov}/{setup['n_words']} memories={n_mem} "
+              f"window={info['same_pair'] - info['cross_hi']:.3f}  ({time.time() - t0:.0f}s)")
+        _print_info(info)
+    return out
 
 
 if __name__ == '__main__':
@@ -241,7 +277,8 @@ if __name__ == '__main__':
     if not a_ok:
         print("Part A FAILED its reproduction bands -- Part B results below are "
               "reported but NOT to be believed until A passes.")
-    results, n_words = part_b()
+    setup = real_setup()
+    results, n_words = part_b(setup)
 
     print("\n" + "=" * 70)
     print("VERDICT")
@@ -261,11 +298,14 @@ if __name__ == '__main__':
             msg += ", and reaches within 10% of the plain arm: full closure"
         print(f"\n  {msg}.")
     elif a_ok and doubled:
-        print("\n  PARTIAL: calibration helps substantially but does not beat "
-              "decorrelation's plateau -- both causes are real and neither fix "
-              "alone suffices; compose them.")
+        print("\n  PARTIAL: calibration helps substantially but coverage plateaus "
+              "below the plain arm at every alpha -- and if the alpha=0.5 and "
+              "alpha=0.0 calibrated coverages are close, the bars have erased "
+              "the embedding-recipe dependence and the residual is a THIRD "
+              "cause upstream of both bars and embeddings (see part C).")
     elif a_ok:
         print("\n  NEGATIVE: calibrated bars do not recover coverage -- the "
               "acceptance-bar hypothesis from phases 22/25 is wrong or the "
               "calibration estimator misreads real-text similarity structure; "
               "inspect qcal_info above before re-theorizing.")
+    part_c(setup)
