@@ -18,6 +18,30 @@ Pipeline (one module, clean API):
 
 Honesty: we score the generated sequences against the TRUE transition graph and
 against a random-successor BASELINE.
+
+ARCHITECTURE (logic/language separation): the module is split into two systems
+with a narrow interface, mirroring the neuroscience finding that the brain's
+language network and its logical-reasoning system are functionally decoupled
+(aphasia patients keep full relational reasoning; language regions stay silent
+during logic tasks -- MIT/McGovern 2026):
+
+  PERCEPTION ("language"):  Organism.perceive -- field settling, saccade
+      segmentation, recruitment, pooling, fusion, recycling. Decides WHAT was
+      just seen. Owns all slot-lifecycle state (prov/hits/age/nvis).
+  LOGIC ("reasoning"):      TransitionGraph -- the relational structure
+      (which follows which). Knows nothing about fields, overlaps, or bars.
+  BOUNDARY:                 EventBoundary -- perception emits only committed,
+      confidence-gated symbol events across it; identity changes (fusion,
+      recycling) are explicit notifications, not in-place matrix surgery.
+
+  The payoff is the aphasia-lesion property: the perceptual front-end can be
+  swapped or damaged without touching the learned world graph, recognition
+  errors cannot silently rewrite relational knowledge (they are stopped at the
+  boundary's confidence gate), and each layer is testable alone -- the graph
+  on clean synthetic symbol streams, perception on ground-truth coverage.
+  Symbols are currently 1:1 bound to memory slots (downstream phase scripts
+  index org.P by slot); a stable symbol registry that survives slot churn is
+  the designed next step and would live entirely at the boundary.
 """
 
 import numpy as np
@@ -25,6 +49,78 @@ import numpy as np
 
 def normalize(v, norm):
     return v / (np.linalg.norm(v) + 1e-9) * norm
+
+
+class TransitionGraph:
+    """LOGIC LAYER: relational structure over symbols, decoupled from how
+    symbols are perceived. The only mutations are the four interface ops
+    below -- perception never touches the matrix directly, so every way the
+    world-graph can change is enumerable and auditable here."""
+
+    def __init__(self, K):
+        self.P = np.zeros((K, K))   # transition counts between symbols
+
+    def observe(self, a, b, decay=0.0):
+        """One committed transition a -> b. `decay` is exponential forgetting
+        applied once per observed transition (synaptic decay, phase 11)."""
+        if decay > 0.0:
+            self.P *= (1.0 - decay)
+        self.P[a, b] += 1
+
+    def merge(self, keep, drop):
+        """Two symbols turned out to be the same pattern (slot fusion):
+        `drop`'s relational history folds into `keep`, then `drop` is erased."""
+        self.P[keep] += self.P[drop]; self.P[:, keep] += self.P[:, drop]
+        self.retire(drop)
+
+    def retire(self, idx):
+        """Symbol(s) recycled (use it or lose it): dead structure carries no
+        relations. `idx` may be an int or a boolean mask."""
+        self.P[idx] = 0; self.P[:, idx] = 0
+
+    def fold(self, into, frm):
+        """Consolidation-time duplicate folding: add `frm`'s transitions into
+        `into` WITHOUT erasing `frm` -- callers snapshot/restore raw counts
+        around consolidation (see phase 19), so folding must be additive."""
+        self.P[into] += self.P[frm]; self.P[:, into] += self.P[:, frm]
+
+    def normalized(self, idx):
+        """Row-normalized transition probabilities restricted to symbols
+        `idx` -- the prior the recall dynamics consume."""
+        Pm = self.P[np.ix_(idx, idx)]
+        return Pm / (Pm.sum(1, keepdims=True) + 1e-9)
+
+
+class EventBoundary:
+    """BOUNDARY between perception and logic: the single call-site through
+    which recognitions become relational knowledge. Perception decides WHEN
+    a recognition is committed (confident, non-provisional -- the gate lives
+    on the perception side, so ambiguous states never reach the graph); the
+    boundary tracks symbol continuity and emits transitions. Identity events
+    (fusion, recycling) arrive as explicit notifications so the previous-
+    symbol anchor never dangles."""
+
+    def __init__(self, graph, p_decay=0.0):
+        self.graph = graph
+        self.p_decay = p_decay
+        self.prev = -1
+
+    def commit(self, k):
+        """A confident, confirmed recognition of symbol k. A change of active
+        symbol is a transition; a continued dwell only re-anchors."""
+        if k != self.prev and self.prev >= 0:
+            self.graph.observe(self.prev, k, self.p_decay)
+        self.prev = k
+
+    def remap(self, drop, keep):
+        """Slot fusion: `drop`'s identity continues as `keep`."""
+        if self.prev == drop:
+            self.prev = keep
+
+    def invalidate(self, expired):
+        """Recycled slots can no longer anchor a transition."""
+        if self.prev >= 0 and expired[self.prev]:
+            self.prev = -1
 
 
 class Organism:
@@ -36,8 +132,19 @@ class Organism:
                                       self.norm) for _ in range(K)])
         self.used = np.zeros(K, bool)
         self.count = np.zeros(K)            # how often each slot is the confident active memory
-        self.P = np.zeros((K, K))           # learned transition counts between memories
+        self.graph = TransitionGraph(K)     # LOGIC layer: learned transitions between memories
         self.z = normalize(self.rng.standard_normal(N) + 1j * self.rng.standard_normal(N), self.norm)
+
+    # transition counts live in the logic layer; exposed here (read AND write,
+    # slot-indexed) so downstream phase scripts that snapshot/restore or slice
+    # org.P keep working unchanged
+    @property
+    def P(self):
+        return self.graph.P
+
+    @P.setter
+    def P(self, value):
+        self.graph.P = value
 
     def overlaps(self, z, M):
         return (M.conj() @ z) / self.N
@@ -183,7 +290,7 @@ class Organism:
         token-vs-memory overlap or P never learns. pool=False with
         active_bar=0.6 reproduces phase-14 behavior exactly."""
         z = self.z
-        prev_active = -1
+        boundary = EventBoundary(self.graph, p_decay)
         prov = np.zeros(self.K, bool)
         hits = np.zeros(self.K); age = np.zeros(self.K); nvis = np.zeros(self.K)
         prev_x = None
@@ -232,11 +339,10 @@ class Organism:
                             hits[keep] = max(hits[keep], hits[drop])
                             prov[keep] = prov[keep] and prov[drop]
                             self.count[keep] += self.count[drop]
-                            self.P[keep] += self.P[drop]; self.P[:, keep] += self.P[:, drop]
+                            self.graph.merge(keep, drop)
                             self.used[drop] = False; prov[drop] = False
-                            self.count[drop] = 0; self.P[drop] = 0; self.P[:, drop] = 0
-                            if prev_active == drop:
-                                prev_active = keep
+                            self.count[drop] = 0
+                            boundary.remap(drop, keep)
                     elif (mm[self.used & ~prov].max(initial=0.0) < 0.8 * active_bar
                           and not self.used.all()):        # novel (not a memory's weak tail)
                         f = int(np.argmin(self.used.astype(float)))
@@ -277,17 +383,12 @@ class Organism:
                     self.used[expired] = False; self.count[expired] = 0
                     prov[expired] = False
                     if pool:
-                        self.P[expired] = 0; self.P[:, expired] = 0
-                        if prev_active >= 0 and expired[prev_active]:
-                            prev_active = -1
+                        self.graph.retire(expired)
+                        boundary.invalidate(expired)
             if m[k] > active_bar and self.used[k]:
                 self.count[k] += 1
-                if not prov[k]:
-                    if k != prev_active and prev_active >= 0:
-                        if p_decay > 0:
-                            self.P *= (1.0 - p_decay)
-                        self.P[prev_active, k] += 1        # Hebbian transition learning
-                    prev_active = k
+                if not prov[k]:                            # gate: only confirmed, confident
+                    boundary.commit(k)                     # recognitions cross into logic
             last_k = k
         if confirm > 0:                                    # purge still-unconfirmed slots
             self.used[prov] = False; self.count[prov] = 0
@@ -305,13 +406,12 @@ class Organism:
             if dup is None:
                 merged.append(k)
             else:                                          # fold transitions into the kept slot
-                self.P[dup] += self.P[k]; self.P[:, dup] += self.P[:, k]
+                self.graph.fold(dup, k)
         self.mem = self.xi[merged]
         self.kept_idx = merged   # indices into self.P/self.xi that survived -- lets
                                  # callers reconstruct RAW (unnormalized) transition
                                  # counts restricted to the kept memories later.
-        Pm = self.P[np.ix_(merged, merged)]
-        self.Pn = Pm / (Pm.sum(1, keepdims=True) + 1e-9)   # row-normalized transition probs
+        self.Pn = self.graph.normalized(merged)            # row-normalized transition probs
         return merged
 
     # ---- PHASE 13: recall with lateral inhibition + hop commitment ---------
