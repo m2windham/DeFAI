@@ -22,6 +22,11 @@ Sections (fast tier only; corpus-tier joins once E2/Numba makes it cheap):
      known ground-truth categories (the phase 10 style check).
   5. predictive gain (Myhill-Nerode) -- the phase 12 margin between a
      synthetic dual-role word and monosemous controls.
+  6. symbolic reasoning on the logic layer (phase 30) -- multi-step
+     inference, field-free rollout structure, and planning advantage over
+     undirected recall on the hub-and-branch world.
+  7. percentile acceptance bars (phase 26) -- the label-free spectral
+     noise-energy estimate and the calibrated-bar coverage/junk floor.
 
 Run: `python regression_harness.py`. Exit code is nonzero if any check fails
 its tolerance. Each check prints its own measured value, tolerance band, and
@@ -240,6 +245,98 @@ def section_5_predictive_gain():
           note="phase 12 established a clean, large margin (0.30-bit on its own setup)")
 
 
+# ============================== 6. symbolic reasoning (phase 30)
+def section_6_reasoning():
+    print("\n(6) symbolic reasoning on the logic layer (phase 30)")
+    H, N, K = 6, 128, 12
+    NORM = np.sqrt(N)
+    Ttrue = np.array([
+        [0.00, 0.45, 0.05, 0.45, 0.05, 0.00],
+        [0.10, 0.00, 0.85, 0.05, 0.00, 0.00],
+        [0.05, 0.05, 0.00, 0.00, 0.00, 0.90],
+        [0.10, 0.05, 0.00, 0.00, 0.85, 0.00],
+        [0.85, 0.00, 0.05, 0.10, 0.00, 0.00],
+        [0.90, 0.05, 0.00, 0.05, 0.00, 0.00],
+    ])
+    mask = ~np.eye(H, dtype=bool)
+    k2s, rolls, d_hops, d_succ, adv = [], [], [], [], []
+    for seed in range(2):
+        rng = np.random.default_rng(seed + 100)
+        Gr, _ = np.linalg.qr(rng.standard_normal((N, H)) + 1j * rng.standard_normal((N, H)))
+        G = Gr.T * NORM
+
+        def make_stream(n, dwell=60, noise=0.5):
+            h = 0; out = []
+            for i in range(n):
+                if i % dwell == 0 and i > 0:
+                    h = rng.choice(H, p=Ttrue[h])
+                out.append(G[h] + noise * NORM / np.sqrt(N) *
+                           (rng.standard_normal(N) + 1j * rng.standard_normal(N)))
+            return out
+
+        org = Organism(N=N, K=K, seed=seed)
+        org.perceive(make_stream(60000))
+        org.consolidate()
+        n_mem = org.mem.shape[0]
+        mem2reg = [int(np.argmax(np.abs(org.overlaps(org.mem[k], G)))) for k in range(n_mem)]
+
+        def to_reg(Pm):
+            R = np.zeros((H, H))
+            for i in range(n_mem):
+                for j in range(n_mem):
+                    R[mem2reg[i], mem2reg[j]] += Pm[i, j]
+            return R / (R.sum(1, keepdims=True) + 1e-9)
+
+        k2s.append(np.corrcoef(to_reg(org.graph.kstep(org.kept_idx, 2))[mask],
+                               np.linalg.matrix_power(Ttrue, 2)[mask])[0, 1])
+
+        seq_s = org.graph.rollout(org.kept_idx, 0, 10000, np.random.default_rng(5))
+        rs = np.array([mem2reg[s] for s in seq_s])
+        B = np.zeros((H, H))
+        for a, b in zip(rs[:-1], rs[1:]):
+            if a != b: B[a, b] += 1
+        Bn = B / (B.sum(1, keepdims=True) + 1e-9)
+        rolls.append(np.corrcoef(Bn[mask], Ttrue[mask])[0, 1])
+
+        da, ua = [], []
+        for goal in range(1, n_mem):
+            for _ in range(2):
+                seq, reached = org.recall_directed(goal, steps=8000)
+                da.append(len(seq) if reached else np.nan)
+                sequ = org.recall(8000)
+                wh = np.where(sequ == goal)[0]
+                ua.append(int(wh[0]) + 1 if len(wh) else np.nan)
+        d_hops.append(np.nanmean(da)); d_succ.append(np.mean(~np.isnan(da)))
+        adv.append(np.nanmean(ua) / max(np.nanmean(da), 1e-9))
+
+    check("2-step inference corr vs true law (mean, 2 seeds)", float(np.mean(k2s)), 0.90, 1.01,
+          note="phase 30: 0.987-0.998 over 5 seeds; permutation null 99th pct ~0.45")
+    check("field-free rollout bigram corr (mean, 2 seeds)", float(np.mean(rolls)), 0.90, 1.01,
+          note="imagination without the field preserves learned structure")
+    check("directed recall mean hops to goal", float(np.mean(d_hops)), 1.0, 3.0,
+          note="phase 30: exactly shortest-path (1.8) over 5 seeds")
+    check("directed recall success rate", float(np.mean(d_succ)), 0.95, 1.01)
+    check("planning advantage (undirected/directed hops)", float(np.mean(adv)), 2.0, 100.0,
+          note="undirected wandering varies 6-32 hops by seed; directed stays 1.8")
+
+
+# ========================== 7. percentile bars (phase 26)
+def section_7_percentile_bars():
+    print("\n(7) percentile acceptance bars (phase 26): calibrated, not handed")
+    from phase14_noise_robust_perception import N as N14, sample_stream, frames
+    from phase26_percentile_bars import calibrate, run_pool
+    for sigma, amb, lo_cov, hi_junk in [(0.2, 0.0, 0.95, 0.10), (0.3, 0.3, 0.85, 0.45)]:
+        cal = calibrate(frames(sample_stream(800, seed=7), sigma))
+        s_true = sigma ** 2 * N14
+        check(f"sigma={sigma} spectral noise-energy rel error",
+              abs(cal['s_cal'] - s_true) / s_true, 0.0, 0.25,
+              note="phase 26: label-free estimate of what perceive() used to be handed")
+        r = run_pool(sigma, amb, cal['active_bar'], cal['s_cal'], cal['fuse_bar'])
+        check(f"sigma={sigma} calibrated-bars coverage", r['cov'], lo_cov, 1.01)
+        check(f"sigma={sigma} calibrated-bars junk", r['junk'], 0.0, hi_junk,
+              note="phase 26 measured 0.37 at sigma=0.3 (oracle 0.34)" if sigma == 0.3 else "")
+
+
 if __name__ == "__main__":
     t0 = time.time()
     print("REGRESSION HARNESS -- fast tier (E1)")
@@ -251,6 +348,8 @@ if __name__ == "__main__":
     section_3_pool_amb()
     section_4_categories()
     section_5_predictive_gain()
+    section_6_reasoning()
+    section_7_percentile_bars()
 
     dt = time.time() - t0
     print(f"\n{'='*70}")

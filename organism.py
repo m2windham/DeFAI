@@ -206,7 +206,7 @@ class Organism:
     # ---- PHASE 1: perceive + form memories + learn transitions -------------
     def perceive(self, stream, g_in=4.0, dt=0.05, eta=0.02, recruit=0.55, p_decay=0.0,
                  confirm=0, probation=6000, pool=False, active_bar=0.6, s_hat=0.0,
-                 amb=0.0):
+                 amb=0.0, fuse_bar=0.7):
         """p_decay: exponential forgetting of transition counts, applied once
         per observed transition (synaptic decay). 0.0 = original behavior
         (counts accumulate forever); 1/p_decay is the effective memory in
@@ -339,6 +339,11 @@ class Organism:
         gate with the dead zone kept is the only variant that moved the
         purity-coverage frontier outward instead of sliding along it.
 
+        fuse_bar (phase 26, percentile calibration): the duplicate-fusion
+        threshold, previously the hardcoded constant 0.7. Exposed so it can
+        be placed from the measured similarity distribution instead of
+        assumed; 0.7 default reproduces prior behavior exactly.
+
         active_bar is also the confidence bar for counting and transition
         learning (0.6 = original); beyond sigma* it must sit below the
         token-vs-memory overlap or P never learns. pool=False with
@@ -382,7 +387,7 @@ class Organism:
                         oo = np.abs(self.overlaps(self.xi[kk], self.xi))
                         oo[kk] = 0.0; oo[~self.used] = 0.0
                         j = int(np.argmax(oo))
-                        if oo[j] > 0.7:                    # converged duplicates: fuse
+                        if oo[j] > fuse_bar:               # converged duplicates: fuse
                             keep, drop = (kk, j) if (prov[j], nvis[kk]) > (prov[kk], nvis[j]) else (j, kk)
                             w_d = nvis[drop] / (nvis[keep] + nvis[drop])
                             o_kd = (self.xi[keep].conj() @ self.xi[drop]) / self.N
