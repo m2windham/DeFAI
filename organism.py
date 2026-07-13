@@ -18,6 +18,30 @@ Pipeline (one module, clean API):
 
 Honesty: we score the generated sequences against the TRUE transition graph and
 against a random-successor BASELINE.
+
+ARCHITECTURE (logic/language separation): the module is split into two systems
+with a narrow interface, mirroring the neuroscience finding that the brain's
+language network and its logical-reasoning system are functionally decoupled
+(aphasia patients keep full relational reasoning; language regions stay silent
+during logic tasks -- MIT/McGovern 2026):
+
+  PERCEPTION ("language"):  Organism.perceive -- field settling, saccade
+      segmentation, recruitment, pooling, fusion, recycling. Decides WHAT was
+      just seen. Owns all slot-lifecycle state (prov/hits/age/nvis).
+  LOGIC ("reasoning"):      TransitionGraph -- the relational structure
+      (which follows which). Knows nothing about fields, overlaps, or bars.
+  BOUNDARY:                 EventBoundary -- perception emits only committed,
+      confidence-gated symbol events across it; identity changes (fusion,
+      recycling) are explicit notifications, not in-place matrix surgery.
+
+  The payoff is the aphasia-lesion property: the perceptual front-end can be
+  swapped or damaged without touching the learned world graph, recognition
+  errors cannot silently rewrite relational knowledge (they are stopped at the
+  boundary's confidence gate), and each layer is testable alone -- the graph
+  on clean synthetic symbol streams, perception on ground-truth coverage.
+  Symbols are currently 1:1 bound to memory slots (downstream phase scripts
+  index org.P by slot); a stable symbol registry that survives slot churn is
+  the designed next step and would live entirely at the boundary.
 """
 
 import numpy as np
@@ -25,6 +49,132 @@ import numpy as np
 
 def normalize(v, norm):
     return v / (np.linalg.norm(v) + 1e-9) * norm
+
+
+class TransitionGraph:
+    """LOGIC LAYER: relational structure over symbols, decoupled from how
+    symbols are perceived. The only mutations are the four interface ops
+    below -- perception never touches the matrix directly, so every way the
+    world-graph can change is enumerable and auditable here."""
+
+    def __init__(self, K):
+        self.P = np.zeros((K, K))   # transition counts between symbols
+
+    def observe(self, a, b, decay=0.0):
+        """One committed transition a -> b. `decay` is exponential forgetting
+        applied once per observed transition (synaptic decay, phase 11)."""
+        if decay > 0.0:
+            self.P *= (1.0 - decay)
+        self.P[a, b] += 1
+
+    def merge(self, keep, drop):
+        """Two symbols turned out to be the same pattern (slot fusion):
+        `drop`'s relational history folds into `keep`, then `drop` is erased."""
+        self.P[keep] += self.P[drop]; self.P[:, keep] += self.P[:, drop]
+        self.retire(drop)
+
+    def retire(self, idx):
+        """Symbol(s) recycled (use it or lose it): dead structure carries no
+        relations. `idx` may be an int or a boolean mask."""
+        self.P[idx] = 0; self.P[:, idx] = 0
+
+    def fold(self, into, frm):
+        """Consolidation-time duplicate folding: add `frm`'s transitions into
+        `into` WITHOUT erasing `frm` -- callers snapshot/restore raw counts
+        around consolidation (see phase 19), so folding must be additive."""
+        self.P[into] += self.P[frm]; self.P[:, into] += self.P[:, frm]
+
+    def normalized(self, idx):
+        """Row-normalized transition probabilities restricted to symbols
+        `idx` -- the prior the recall dynamics consume."""
+        Pm = self.P[np.ix_(idx, idx)]
+        return Pm / (Pm.sum(1, keepdims=True) + 1e-9)
+
+    # ---- PHASE 30: reasoning ops -- pure symbol-space, no field anywhere ----
+    def kstep(self, idx, k):
+        """Multi-step inference: P(symbol after k hops | symbol now), chained
+        from one-step knowledge. These are relational conclusions the organism
+        never directly observed -- transitivity, computed without the field."""
+        return np.linalg.matrix_power(self.normalized(idx), k)
+
+    def rollout(self, idx, start, steps, rng):
+        """Symbolic imagination: sample a trajectory purely in symbol space.
+        No settling, no attractors, no habituation -- thinking without the
+        'language' system. Stops early at a symbol with no outgoing mass."""
+        Pn = self.normalized(idx)
+        seq = []; cur = int(start)
+        for _ in range(steps):
+            row = Pn[cur]; s = row.sum()
+            if s <= 0:
+                break
+            cur = int(rng.choice(len(row), p=row / s))
+            seq.append(cur)
+        return np.array(seq, int)
+
+    def next_hops(self, idx, goal, eps=1e-12):
+        """Planning: for every symbol, the first hop on the most-probable
+        path to `goal` (Dijkstra on -log transition probability, run backward
+        from the goal). Returns (nxt, dist): nxt[i] = -1 if goal unreachable
+        from i, dist[i] = -log P(best path i -> goal)."""
+        Pn = self.normalized(idx); n = Pn.shape[0]
+        W = -np.log(Pn + eps)
+        dist = np.full(n, np.inf); dist[goal] = 0.0
+        nxt = np.full(n, -1, int); nxt[goal] = goal
+        done = np.zeros(n, bool)
+        for _ in range(n):
+            u = int(np.argmin(np.where(done, np.inf, dist)))
+            if not np.isfinite(dist[u]) or done[u]:
+                break
+            done[u] = True
+            relax = (Pn[:, u] > eps) & (dist[u] + W[:, u] < dist)
+            nxt[relax] = u
+            dist[relax] = dist[u] + W[relax, u]
+        return nxt, dist
+
+    def plan(self, idx, a, b):
+        """Most-probable path a -> b as a list of symbols (inclusive), or
+        None if b is unreachable from a."""
+        nxt, _ = self.next_hops(idx, b)
+        if nxt[a] < 0:
+            return None
+        path = [int(a)]
+        while path[-1] != b:
+            path.append(int(nxt[path[-1]]))
+            if len(path) > len(nxt):        # defensive: no cycles possible,
+                return None                  # but never loop forever
+        return path
+
+
+class EventBoundary:
+    """BOUNDARY between perception and logic: the single call-site through
+    which recognitions become relational knowledge. Perception decides WHEN
+    a recognition is committed (confident, non-provisional -- the gate lives
+    on the perception side, so ambiguous states never reach the graph); the
+    boundary tracks symbol continuity and emits transitions. Identity events
+    (fusion, recycling) arrive as explicit notifications so the previous-
+    symbol anchor never dangles."""
+
+    def __init__(self, graph, p_decay=0.0):
+        self.graph = graph
+        self.p_decay = p_decay
+        self.prev = -1
+
+    def commit(self, k):
+        """A confident, confirmed recognition of symbol k. A change of active
+        symbol is a transition; a continued dwell only re-anchors."""
+        if k != self.prev and self.prev >= 0:
+            self.graph.observe(self.prev, k, self.p_decay)
+        self.prev = k
+
+    def remap(self, drop, keep):
+        """Slot fusion: `drop`'s identity continues as `keep`."""
+        if self.prev == drop:
+            self.prev = keep
+
+    def invalidate(self, expired):
+        """Recycled slots can no longer anchor a transition."""
+        if self.prev >= 0 and expired[self.prev]:
+            self.prev = -1
 
 
 class Organism:
@@ -36,8 +186,19 @@ class Organism:
                                       self.norm) for _ in range(K)])
         self.used = np.zeros(K, bool)
         self.count = np.zeros(K)            # how often each slot is the confident active memory
-        self.P = np.zeros((K, K))           # learned transition counts between memories
+        self.graph = TransitionGraph(K)     # LOGIC layer: learned transitions between memories
         self.z = normalize(self.rng.standard_normal(N) + 1j * self.rng.standard_normal(N), self.norm)
+
+    # transition counts live in the logic layer; exposed here (read AND write,
+    # slot-indexed) so downstream phase scripts that snapshot/restore or slice
+    # org.P keep working unchanged
+    @property
+    def P(self):
+        return self.graph.P
+
+    @P.setter
+    def P(self, value):
+        self.graph.P = value
 
     def overlaps(self, z, M):
         return (M.conj() @ z) / self.N
@@ -183,7 +344,7 @@ class Organism:
         token-vs-memory overlap or P never learns. pool=False with
         active_bar=0.6 reproduces phase-14 behavior exactly."""
         z = self.z
-        prev_active = -1
+        boundary = EventBoundary(self.graph, p_decay)
         prov = np.zeros(self.K, bool)
         hits = np.zeros(self.K); age = np.zeros(self.K); nvis = np.zeros(self.K)
         prev_x = None
@@ -232,11 +393,10 @@ class Organism:
                             hits[keep] = max(hits[keep], hits[drop])
                             prov[keep] = prov[keep] and prov[drop]
                             self.count[keep] += self.count[drop]
-                            self.P[keep] += self.P[drop]; self.P[:, keep] += self.P[:, drop]
+                            self.graph.merge(keep, drop)
                             self.used[drop] = False; prov[drop] = False
-                            self.count[drop] = 0; self.P[drop] = 0; self.P[:, drop] = 0
-                            if prev_active == drop:
-                                prev_active = keep
+                            self.count[drop] = 0
+                            boundary.remap(drop, keep)
                     elif (mm[self.used & ~prov].max(initial=0.0) < 0.8 * active_bar
                           and not self.used.all()):        # novel (not a memory's weak tail)
                         f = int(np.argmin(self.used.astype(float)))
@@ -277,17 +437,12 @@ class Organism:
                     self.used[expired] = False; self.count[expired] = 0
                     prov[expired] = False
                     if pool:
-                        self.P[expired] = 0; self.P[:, expired] = 0
-                        if prev_active >= 0 and expired[prev_active]:
-                            prev_active = -1
+                        self.graph.retire(expired)
+                        boundary.invalidate(expired)
             if m[k] > active_bar and self.used[k]:
                 self.count[k] += 1
-                if not prov[k]:
-                    if k != prev_active and prev_active >= 0:
-                        if p_decay > 0:
-                            self.P *= (1.0 - p_decay)
-                        self.P[prev_active, k] += 1        # Hebbian transition learning
-                    prev_active = k
+                if not prov[k]:                            # gate: only confirmed, confident
+                    boundary.commit(k)                     # recognitions cross into logic
             last_k = k
         if confirm > 0:                                    # purge still-unconfirmed slots
             self.used[prov] = False; self.count[prov] = 0
@@ -305,13 +460,12 @@ class Organism:
             if dup is None:
                 merged.append(k)
             else:                                          # fold transitions into the kept slot
-                self.P[dup] += self.P[k]; self.P[:, dup] += self.P[:, k]
+                self.graph.fold(dup, k)
         self.mem = self.xi[merged]
         self.kept_idx = merged   # indices into self.P/self.xi that survived -- lets
                                  # callers reconstruct RAW (unnormalized) transition
                                  # counts restricted to the kept memories later.
-        Pm = self.P[np.ix_(merged, merged)]
-        self.Pn = Pm / (Pm.sum(1, keepdims=True) + 1e-9)   # row-normalized transition probs
+        self.Pn = self.graph.normalized(merged)            # row-normalized transition probs
         return merged
 
     # ---- PHASE 13: recall with lateral inhibition + hop commitment ---------
@@ -357,6 +511,43 @@ class Organism:
             else:
                 streak = 0; cand = -1
         return np.array(seq)
+
+    # ---- PHASE 30: goal-directed recall -- logic proposes, field renders ---
+    def recall_directed(self, goal, steps=40000, dt=0.05, tau_h=18.0, lam=2.0,
+                        gamma=2.5, g_rec=5.0, Dn=0.004):
+        """Reasoning driving generation across the boundary: the LOGIC layer
+        plans the most-probable route to `goal` (a kept-memory index) on the
+        learned graph, and at each moment proposes only the next hop; the
+        field's job reduces to rendering and settling on the proposal. Same
+        dynamics as recall() -- habituation, softmax pull, noise -- with the
+        undirected prior Pn[cur] replaced by the plan's one-hot next hop.
+        Stops when the goal is committed. Returns (seq, reached)."""
+        M = self.mem; Ku = M.shape[0]
+        z = normalize(self.rng.standard_normal(self.N) + 1j * self.rng.standard_normal(self.N), self.norm)
+        h = np.zeros(Ku); seq = []; cur = 0
+        nxt, _ = self.graph.next_hops(self.kept_idx, goal)
+        for s in range(steps):
+            o = self.overlaps(z, M); m = np.abs(o)
+            fat = np.maximum(1 - lam * h, 0.0)
+            prior = np.zeros(Ku)
+            if nxt[cur] >= 0:
+                prior[nxt[cur]] = 1.0       # the plan's proposal for this moment
+            score = m * fat + gamma * prior * fat
+            w = np.exp(self.beta * (score - score.max())); w /= w.sum()
+            phase = o / (m + 1e-9)
+            T = (w * phase) @ M
+            noise = np.sqrt(2 * Dn * dt) * (self.rng.standard_normal(self.N) +
+                                            1j * self.rng.standard_normal(self.N)) / np.sqrt(2)
+            z = normalize(z + dt * (1j * self.omega * z + g_rec * (T - z)) + noise, self.norm)
+            h = h + dt / tau_h * (m - h)
+            a = int(np.argmax(m))
+            if m[a] > 0.5:
+                if a != cur:
+                    seq.append(a)
+                cur = a
+                if cur == goal:
+                    return np.array(seq), True
+        return np.array(seq), False
 
     # ---- PHASE 2: recall = generate learned trajectories ------------------
     def recall(self, steps=40000, dt=0.05, tau_h=18.0, lam=2.0, gamma=2.5,
