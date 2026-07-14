@@ -27,6 +27,8 @@ Sections (fast tier only; corpus-tier joins once E2/Numba makes it cheap):
      undirected recall on the hub-and-branch world.
   7. percentile acceptance bars (phase 26) -- the label-free spectral
      noise-energy estimate and the calibrated-bar coverage/junk floor.
+  8. state serialization (E3) -- lossless mid-stream save/restore
+     (bitwise vs never stopping), deterministic replay, cross-backend load.
 
 Run: `python regression_harness.py`. Exit code is nonzero if any check fails
 its tolerance. Each check prints its own measured value, tolerance band, and
@@ -346,6 +348,54 @@ def section_7_percentile_bars():
               note="phase 26 measured 0.37 at sigma=0.3 (oracle 0.34)" if sigma == 0.3 else "")
 
 
+# ========================== 8. state serialization (E3)
+def section_8_serialization():
+    print("\n(8) state serialization (E3): lossless restore + deterministic replay")
+    import os as _os, tempfile
+    from organism_state import save_state, load_state
+    rng = np.random.default_rng(3)
+    N, H, K = 64, 3, 6
+    NORM = np.sqrt(N)
+    Gr, _ = np.linalg.qr(rng.standard_normal((N, H)) + 1j * rng.standard_normal((N, H)))
+    G = Gr.T * NORM
+    Tt = np.array([[0.0, 0.8, 0.2], [0.2, 0.0, 0.8], [0.8, 0.2, 0.0]])
+
+    def stream(n, seed):
+        r = np.random.default_rng(seed)
+        h = 0; out = []
+        for i in range(n):
+            if i % 40 == 0 and i > 0:
+                h = r.choice(H, p=Tt[h])
+            out.append(G[h] + 0.4 * (r.standard_normal(N) + 1j * r.standard_normal(N)))
+        return out
+
+    s1, s2 = stream(8000, 1), stream(8000, 2)
+    a = Organism(N=N, K=K, seed=0)
+    a.perceive(s1); a.perceive(s2); a.consolidate()
+    b = Organism(N=N, K=K, seed=0)
+    b.perceive(s1)
+    path = _os.path.join(tempfile.gettempdir(), "e3_harness.npz")
+    save_state(b, path)
+    c = load_state(path, cls=Organism)
+    c.perceive(s2); c.consolidate()
+    check("restore-and-continue max |dxi| vs never-stopped",
+          float(np.abs(a.xi - c.xi).max()), 0.0, 1e-12,
+          note="same backend: bitwise lossless")
+    check("restore-and-continue max |dP|", float(np.abs(a.P - c.P).max()), 0.0, 1e-12)
+    ra, rc = a.recall(5000), c.recall(5000)
+    ident = 1.0 if (len(ra) == len(rc) and bool(np.all(ra == rc))) else 0.0
+    check("deterministic replay (recall sequence identity)", ident, 1.0, 1.01,
+          note="rng generator state round-trips")
+    # cross-backend restore: reference state must load into the E2 backend
+    # and keep working (tolerance, not bitwise: reduction order differs)
+    from organism_numba import NumbaOrganism
+    d = load_state(path, cls=NumbaOrganism)
+    d.perceive(s2); d.consolidate()
+    cap = float(np.mean([max(np.abs(d.overlaps(G[h], d.mem))) for h in range(H)]))
+    check("cross-backend restore regime capture", cap, 0.70, 1.01,
+          note="reference-saved state continues on the numba backend")
+
+
 if __name__ == "__main__":
     t0 = time.time()
     print("REGRESSION HARNESS -- fast tier (E1)")
@@ -359,6 +409,7 @@ if __name__ == "__main__":
     section_5_predictive_gain()
     section_6_reasoning()
     section_7_percentile_bars()
+    section_8_serialization()
 
     dt = time.time() - t0
     print(f"\n{'='*70}")
