@@ -33,11 +33,20 @@ its tolerance. Each check prints its own measured value, tolerance band, and
 verdict -- same "honest verdict" discipline as the phase scripts.
 """
 
+import os
 import sys
 import time
 import numpy as np
-from organism import Organism, normalize
+from organism import normalize
 from polysemy_organism import PolysemyOrganism, _entropy
+
+# E2 backend switch: DEFAI_BACKEND=numba runs every direct-Organism check
+# through the JIT backend (PolysemyOrganism section stays on the reference
+# implementation -- its loops aren't ported yet). Same 23 checks, same bands.
+if os.environ.get('DEFAI_BACKEND') == 'numba':
+    from organism_numba import NumbaOrganism as Organism
+else:
+    from organism import Organism
 
 FAILURES = []
 
