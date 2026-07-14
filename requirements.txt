@@ -7,3 +7,7 @@ scikit-learn>=1.4
 # Neural-net baselines and rollout-training experiments only
 # (train_*.py, scaled_model.py, integrated_model.py, phase2_forgetting.py)
 torch>=2.2
+
+# E2 numba backend (organism_numba.py) -- opt-in JIT of the perceive/recall
+# hot loops; reference implementation in organism.py needs numpy only
+numba>=0.60
