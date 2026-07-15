@@ -33,6 +33,19 @@ still bind everything here.
   release tag on main (the graduation rule's third requirement) and create
   the Path B product repository.
 
+## Demonstration & outreach track (decided 2026-07-14; feeds Path B adoption and sustainability)
+
+Four public-demonstration concepts were triaged. All are honest by
+construction — each renders capabilities that already have pinned harness
+numbers; nothing is staged.
+
+| # | Concept | Disposition |
+|---|---|---|
+| D1 — "It learns you" | Interactive page where the ORGANISM ingests the visitor's own interaction stream live: memories crystallize from their behavior in ~2 minutes, then it starts predicting their next move. E3 persistence makes "it will remember you if you come back" literally true. The interactive front door to D3. | **Earmarked** — first interactive demo to build |
+| D2 — "It remembers becoming itself" | Feed the organism its own repo history (commits, 30 phases of lab notebook) as a perceptual stream; render its learned map of the research process that produced it. | **Marketing** — launch essay / announcement material |
+| D3 — The living organism | One continuous organism life on a server, ingesting a public stream, its memories/world-graph/anomalies on a public page, E3 snapshots making the life unbroken across restarts ("born <date>, has never forgotten"). Donations = keeping it alive. | **Public-facing usage scenario** — with planned pivots of the ingestion feed: codebase/commit feeds, API/event feeds, etc. The feed adapter is the only new engineering; the organism needs nothing new |
+| D4 — Self-lesion, live | Ablate the perceptual field on stage; reasoning continues (the phase-30/aphasia property, performed); restore from disk intact. | **Research first** — run as a proper phase (pre-registered lesion protocol + measured verdicts) at the appropriate point, demo second |
+
 ## Research track (this repo)
 
 | Phase | Question | Status |
@@ -42,6 +55,7 @@ still bind everything here.
 | 27 — 5M-word scale run | 50–100 Gutenberg books, with phase 24's MI-vs-null + distinctness criteria wired into stage B. Pre-registered: does category structure sharpen (MI z up, distinctness-selected k stable or gracefully growing), and do the polysemy detections hold under tighter nulls? Depends on E2 for runtime. | planned |
 | 28 — polysemy vs grammatical context-sensitivity | The disentangling test: cluster each detected word's occurrences by context signature (prev/next category), ask whether the clusters land in *different* induced categories (lexical polysemy) or the same category with shifted successors (grammatical context-sensitivity). Evaluated against gold-POS occurrence entropy — oracle for evaluation only, per standing rules. Closes handoff threads: the phase-23 conflation residual *and* the POS precision/recall thread, in one run. Scope caveat pre-registered: same-POS polysemes (bank/bank) will be classed as context-sensitivity; the claim narrows to POS-level multi-role detection. | planned |
 | 30 — symbolic reasoning on the logic layer (out-of-sequence; spun off the 2026-07 logic/language architecture split, PR #20) | With transition learning extracted into a decoupled `TransitionGraph` behind a confidence-gated `EventBoundary` (the MIT/McGovern language/logic separation applied to the pipeline), test the decoupling's prediction: reasoning should run on the graph alone, field absent. Three ops added to the logic layer — `kstep` (multi-step inference), `rollout` (field-free imagination), `next_hops`/`plan` + `recall_directed` (planning; logic proposes the next hop, the field renders). **Run 2026-07-11 on a 6-regime hub-and-branch world (a real fork, so planning has a decision), truth used for eval only: k-step inference corr 0.995–0.999 vs permutation-null 99th pct ~0.45; rollout bigram corr 0.999 vs field recall 0.939 at ~20× speed; directed recall reaches every goal at exactly true shortest-path length (1.8 hops, 100%) vs 23.2 hops undirected.** Refactor itself is behavior-identical (demo bitwise, harness values unchanged). Next step designed but deferred: stable symbol IDs decoupled from slot indices (downstream scripts index org.P by slot). | `phase30_symbolic_reasoning.py` — done; pinned in harness §6 |
+| 31 — lesion study (from demo triage D4) | Pre-registered self-lesion protocol: ablate the perceptual field (zero/noise the input coupling, damage xi) at graded severities and measure what survives on the logic layer — kstep inference, rollout structure, plan/goal-reaching — vs matched perception-side metrics, plus recovery after E3 restore. The quantitative version of the aphasia property phase 30 demonstrated qualitatively. Timing: at an appropriate point after Phase 27/28; the public demo version comes only after the phase script pins the numbers. | planned |
 | 29 — recursive hierarchy | Run the recruit/consolidate primitive one level up: "tokens" are category n-gram signatures, recruitment discovers recurring category-sequence motifs (phrase-level states). Certified by the same level-agnostic MI-vs-permutation-null machinery from phase 24; oracle eval only against shallow-parse chunk boundaries. Pre-registered risk: at k≈6 there are only ~36 category bigrams — the honest negative is "level 2 learns nothing beyond the level-1 transition matrix," which would push toward hierarchy-aware k-selection. This is the direct answer to the strongest external critique (no structure above the category FSM). | planned |
 
 ## Engineering track (parallel; feeds both paths)
