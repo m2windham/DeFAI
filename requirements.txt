@@ -1,13 +1,17 @@
 # Core -- every experiment needs numpy
 numpy>=1.26
 
+# E2 fastpath (fastpath.py, exposed as Organism(backend=...) and the
+# NumbaOrganism alias): JIT backend for the perceive/recall hot loops.
+# Optional -- organism.py falls back to the pure-NumPy loops without it --
+# but corpus-scale runs (phase 23+) are ~interpreter-bound without the JIT.
+# scipy is required by numba's BLAS-backed np.dot.
+numba>=0.60
+scipy>=1.11
+
 # Phase 2/3 digit experiments (load_digits, KMeans, roc_auc_score)
 scikit-learn>=1.4
 
 # Neural-net baselines and rollout-training experiments only
 # (train_*.py, scaled_model.py, integrated_model.py, phase2_forgetting.py)
 torch>=2.2
-
-# E2 numba backend (organism_numba.py) -- opt-in JIT of the perceive/recall
-# hot loops; reference implementation in organism.py needs numpy only
-numba>=0.60

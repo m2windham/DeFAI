@@ -154,8 +154,8 @@ def _silhouette_real(X, labels):
 
 
 class PolysemyOrganism(Organism):
-    def __init__(self, N=128, K=8, omega=0.25, beta=12.0, seed=0):
-        super().__init__(N=N, K=K, omega=omega, beta=beta, seed=seed)
+    def __init__(self, N=128, K=8, omega=0.25, beta=12.0, seed=0, backend=None):
+        super().__init__(N=N, K=K, omega=omega, beta=beta, seed=seed, backend=backend)
         # populated by discover_categories()
         self.cat_attractor = {}          # emergent_category_id -> attractor vector (complex, norm=sqrt(N))
         self.word_slot_to_cat = {}       # baseline word-slot index -> emergent_category_id
