@@ -68,7 +68,8 @@ Since 2026-07 (PR #20), `organism.py` is split into two systems with a narrow bo
 
 ## Practical notes
 
-- Large-corpus runs (`phase20_large_corpus.py`) take ~15 minutes (3 training epochs over ~408K tokens) — run in background, don't block on it.
+- **Backends (E2)**: `Organism`/`PolysemyOrganism` take `backend=` (`"auto"`/`"numba"`/`"numpy"`; env override `DEFAI_BACKEND`). Default `auto` uses the Numba JIT fastpath (`fastpath.py`) when numba is installed — a line-for-line port of perceive/recall/recall2 validated by `test_fastpath_equivalence.py` (state agreement to ~1e-15 on short streams; identical recall RNG consumption) and by the E1 harness on both backends. Float results are not bitwise identical to numpy (BLAS/fastmath reduction order); tolerance bands are the bar, per E1's design. To get the historical pure-NumPy reference numbers, run with `DEFAI_BACKEND=numpy`. `organism_numba.py`'s `NumbaOrganism` survives as a thin alias forcing `backend="numba"` (two sessions built E2 in parallel on 2026-07-13/15; the implementations were unified — the ROADMAP E2 row records both).
+- Large-corpus runs (`phase20_large_corpus.py`) took ~15 minutes pre-E2 (3 training epochs over ~408K tokens); with the fastpath the same perceive load measures 1.40 min (13.0×, `e2_benchmark.py`).
 - Corpus source: `real_text_corpus.py` (small, hand-written fables) and `/tmp/gutenberg_corpus/*.txt` (8 public-domain books, fetched live via curl from Gutenberg — not committed to the repo since they're large and re-fetchable; re-run the `curl` block near the top of `phase20_large_corpus.py`'s history if `/tmp` has been cleared).
 - Saved intermediate state from the large-corpus run lives in `/tmp/phase20_*.{npy,pkl}` — also ephemeral, regenerate by rerunning `phase20_large_corpus.py` if needed.
 

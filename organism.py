@@ -44,7 +44,11 @@ during logic tasks -- MIT/McGovern 2026):
   the designed next step and would live entirely at the boundary.
 """
 
+import os
+
 import numpy as np
+
+import fastpath
 
 
 def normalize(v, norm):
@@ -178,7 +182,18 @@ class EventBoundary:
 
 
 class Organism:
-    def __init__(self, N=128, K=8, omega=0.25, beta=12.0, seed=0):
+    def __init__(self, N=128, K=8, omega=0.25, beta=12.0, seed=0, backend=None):
+        """backend: 'numba' (require the E2 JIT fastpath), 'numpy' (the
+        original interpreted loops), or 'auto' (fastpath when numba is
+        importable, numpy otherwise). Default comes from the DEFAI_BACKEND
+        env var, falling back to 'auto'. Both backends are pinned by the E1
+        regression harness (statistical tolerances -- the JIT legitimately
+        reorders float reductions, so bitwise equality is not the bar)."""
+        self.backend = backend if backend is not None else os.environ.get("DEFAI_BACKEND", "auto")
+        if self.backend not in ("auto", "numba", "numpy"):
+            raise ValueError(f"unknown backend {self.backend!r}")
+        if self.backend == "numba" and not fastpath.HAVE_NUMBA:
+            raise RuntimeError("backend='numba' requested but numba is not installed")
         self.N, self.K, self.omega, self.beta = N, K, omega, beta
         self.norm = np.sqrt(N)
         self.rng = np.random.default_rng(seed)
@@ -202,6 +217,13 @@ class Organism:
 
     def overlaps(self, z, M):
         return (M.conj() @ z) / self.N
+
+    def _use_fastpath(self):
+        if self.backend == "numpy":
+            return False
+        if self.backend == "numba":
+            return True
+        return fastpath.HAVE_NUMBA
 
     # ---- PHASE 1: perceive + form memories + learn transitions -------------
     def perceive(self, stream, g_in=4.0, dt=0.05, eta=0.02, recruit=0.55, p_decay=0.0,
@@ -348,6 +370,12 @@ class Organism:
         learning (0.6 = original); beyond sigma* it must sit below the
         token-vs-memory overlap or P never learns. pool=False with
         active_bar=0.6 reproduces phase-14 behavior exactly."""
+        if self._use_fastpath():
+            return fastpath.perceive_fast(
+                self, stream, g_in=g_in, dt=dt, eta=eta, recruit=recruit,
+                p_decay=p_decay, confirm=confirm, probation=probation,
+                pool=pool, active_bar=active_bar, s_hat=s_hat, amb=amb,
+                fuse_bar=fuse_bar)
         z = self.z
         boundary = EventBoundary(self.graph, p_decay)
         prov = np.zeros(self.K, bool)
@@ -458,12 +486,17 @@ class Organism:
         # prune junk slots (rarely the confident active memory -> recruited mid-transition)
         keepable = self.count > prune_frac * self.count.max()
         idx = list(np.where(self.used & keepable)[0])
-        merged = []
-        for k in idx:
-            dup = next((j for j in merged
-                        if abs(self.overlaps(self.xi[k], self.xi[j:j+1])[0]) > merge_thresh), None)
+        # all pairwise overlaps in one matmul; the greedy first-duplicate scan
+        # below then touches only scalars (the per-pair Python-level dot made
+        # this O(K^2) in interpreter dispatch at corpus scale)
+        Xk = self.xi[idx] if idx else self.xi[:0]
+        O = np.abs(Xk @ Xk.conj().T) / self.N
+        merged = []; merged_pos = []
+        for pk, k in enumerate(idx):
+            dup = next((j for pj, j in zip(merged_pos, merged)
+                        if O[pk, pj] > merge_thresh), None)
             if dup is None:
-                merged.append(k)
+                merged.append(k); merged_pos.append(pk)
             else:                                          # fold transitions into the kept slot
                 self.graph.fold(dup, k)
         self.mem = self.xi[merged]
@@ -485,6 +518,10 @@ class Organism:
           exceeds `commit` overlap AND stays the argmax for `debounce`
           consecutive steps -- mid-flight states no longer count as hops.
           debounce=1, commit=0.5 reproduces recall()'s acceptance rule."""
+        if self._use_fastpath():
+            return fastpath.recall2_fast(self, steps=steps, dt=dt, tau_h=tau_h,
+                                         lam=lam, gamma=gamma, g_rec=g_rec, Dn=Dn,
+                                         topk=topk, commit=commit, debounce=debounce)
         M = self.mem; Ku = M.shape[0]
         z = normalize(self.rng.standard_normal(self.N) + 1j * self.rng.standard_normal(self.N), self.norm)
         h = np.zeros(Ku); seq = []; cur = 0
@@ -557,6 +594,9 @@ class Organism:
     # ---- PHASE 2: recall = generate learned trajectories ------------------
     def recall(self, steps=40000, dt=0.05, tau_h=18.0, lam=2.0, gamma=2.5,
                g_rec=5.0, Dn=0.004):
+        if self._use_fastpath():
+            return fastpath.recall_fast(self, steps=steps, dt=dt, tau_h=tau_h,
+                                        lam=lam, gamma=gamma, g_rec=g_rec, Dn=Dn)
         M = self.mem; Ku = M.shape[0]
         z = normalize(self.rng.standard_normal(self.N) + 1j * self.rng.standard_normal(self.N), self.norm)
         h = np.zeros(Ku); seq = []; cur = 0
