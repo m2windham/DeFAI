@@ -27,11 +27,24 @@ still bind everything here.
 - **Fork gate for Path B** (event-driven, not a date): E1 + E2 + E3 done and
   Phase 26 landed — the earliest moment the engine is fast, persistent,
   calibration-robust, and regression-guarded.
-  **GATE OPEN as of 2026-07-13**: E1 (27 pinned checks), Phase 26 (synthetic
-  gate), E2 (8× perceive, both backends green), E3 (bitwise-lossless
-  persistence) are all landed. Remaining before the first fork commit: cut a
-  release tag on main (the graduation rule's third requirement) and create
-  the Path B product repository.
+  **Engineering gate OPEN as of 2026-07-13**: E1 (27 pinned checks), Phase 26
+  (synthetic gate), E2 (unified fastpath, 13.0× at phase-23 corpus shape,
+  both backends green), E3 (bitwise-lossless persistence) are all landed.
+- **RELEASE HOLD — owner decision, 2026-07-15**: the engineering gate is
+  necessary but NOT sufficient. Phase 33's readiness benchmark returned an
+  honest NOT-SOTA verdict (organism ACC 0.665 vs 0.872 for a supervised
+  prototype baseline on class-incremental split-digits), and the owner's
+  standing bar is "at least SOTA / cost-effective or we are not ready."
+  **No release tag is to be cut and no Path B repository created until the
+  phase-33 gate passes.** The measured paths to closing the gap are already
+  in phase 33's findings: (1) task-1 slot flooding at K=40 forces later
+  classes to learn by slot drift — a slot-budget/eviction policy is needed
+  (the pool-mode use-it-or-lose-it machinery is the natural home); (2) the
+  frozen-label readout artifact (fixed in-phase with online label evidence)
+  must become mechanism, not evaluation patch. These are product-critical
+  fixes for the episodic-memory module itself, not benchmark tuning. Re-run
+  the phase-33 ladder after each; the gate re-opens when the organism is at
+  least SOTA or demonstrably cost-effective at equal accuracy.
 
 ## Demonstration & outreach track (decided 2026-07-14; feeds Path B adoption and sustainability)
 
