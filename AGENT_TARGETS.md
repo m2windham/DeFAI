@@ -238,7 +238,7 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
 - **Done when**: eviction ledger + verdict naming which hypothesis the
   data supports; feeds the victim-selection refinement into T1.5's sweep
   if H1 holds.
-- **Outcome (2026-08-05)**: `phase33e_eviction_ledger.py` (33d reserved
+- **Outcome (2026-08-05)**: `phase33f_eviction_ledger.py` (33d reserved
   for T1.5) + a debug-only `perceive(evict_debug=...)` ledger hook in
   organism.py/fastpath.py — equivalence proven (all 33c anchors exact
   with the ledger attached; ledger on/off bitwise identical; numpy/numba

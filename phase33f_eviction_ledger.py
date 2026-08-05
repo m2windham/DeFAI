@@ -1,5 +1,5 @@
 """
-PHASE 33e (T1.7): TASK-1 REGRESSION DIAGNOSTIC -- the eviction ledger.
+PHASE 33f (T1.7): TASK-1 REGRESSION DIAGNOSTIC -- the eviction ledger.
 (33d is reserved for T1.5's capacity sweep; this diagnostic feeds it.)
 
 The regression under diagnosis (phase 33c, committed 2026-08-05): folding
@@ -258,7 +258,7 @@ def route(org, readout, states):
 
 
 if __name__ == "__main__":
-    print("PHASE 33e (T1.7): task-1 regression diagnostic -- eviction ledger\n")
+    print("PHASE 33f (T1.7): task-1 regression diagnostic -- eviction ledger\n")
 
     T1_CLASSES = TASKS[1]
     te1 = np.isin(yte, T1_CLASSES)
