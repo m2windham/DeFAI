@@ -137,7 +137,15 @@ def _kmeans_real(X, k, n_iter=100, seed=0, n_restarts=6):
 def _silhouette_real(X, labels):
     """Silhouette score on real-valued features (Euclidean)."""
     n = X.shape[0]
-    D = np.sqrt(np.maximum(((X[:, None, :] - X[None, :, :]) ** 2).sum(-1), 0.0))
+    # pairwise distances in row chunks: the one-shot (n, n, d) broadcast is
+    # ~12 GB at slot-level scale (n~900, d~1900, phase 36); chunking bounds
+    # the intermediate at ~200 MB with per-element arithmetic unchanged
+    D = np.empty((n, n))
+    chunk = max(1, int(2e8 / max(n * X.shape[1] * 8, 1)))
+    for i0 in range(0, n, chunk):
+        blk = X[i0:i0 + chunk]
+        D[i0:i0 + chunk] = np.sqrt(np.maximum(
+            ((blk[:, None, :] - X[None, :, :]) ** 2).sum(-1), 0.0))
     uniq = sorted(set(labels.tolist()))
     if len(uniq) < 2:
         return -1.0
