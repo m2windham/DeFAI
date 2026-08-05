@@ -71,13 +71,24 @@ the collapse is fixable at inference time. These targets are sequential.
   31/31 both backends (new §9); equivalence check 6; E3 bitwise. See
   ROADMAP row 33b + `phase33b_slot_budget.py`.
 
-### T1.3 — Online label-evidence readout as mechanism  `[claimed: —]`
+### T1.3 — Online label-evidence readout as mechanism  `[DONE 2026-08-05: claude/phase-33-label-evidence-eval-zac8hq, PR #28]`
 - **Objective**: phase 33 fixed its frozen-label readout artifact in-phase
   (ACC 0.25 → 0.665); promote online per-slot label evidence to a proper
   mechanism (readout layer, labels still never inside perception/learning).
 - **Context**: `phase33_industry_baselines.py` (the artifact + in-phase fix).
 - **Done when**: readout lives outside the phase script, documented as
   eval-side; phase-33 script consumes it.
+- **Outcome (2026-08-05)**: `label_readout.py` — `LabelEvidenceReadout`,
+  documented eval-side (labels enter at the readout only; observe/predict
+  are pinned to leave organism state bitwise unchanged). Phase-33 script
+  consumes it and reproduces the committed run exactly (ACC 0.665 /
+  FORG 0.200, task-accuracy matrix bit-identical to the pre-refactor
+  inline logic); torch is now optional there, so the organism/prototype
+  arms run on baseline-less hosts. `test_label_readout.py` pins inline
+  equivalence, eval-side purity, and the remap/invalidate lifecycle
+  (EventBoundary's contract, mirrored) — T1.2's eviction can forward
+  notifications to it at phase-script level; no organism.py hook needed
+  (organism.py untouched). Harness 27/27 both backends post-change.
 
 ### T1.4 — Re-run the phase-33 ladder (gate re-test)  `[claimed: —]`
 - **Objective**: after T1.1–T1.3, re-run the full ladder (naive SGD, EWC,

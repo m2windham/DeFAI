@@ -35,18 +35,28 @@ on raw accuracy here (0.894 vs 0.708). The question this phase answers is
 the full picture -- where the organism lands on the ladder, at what cost,
 and which of its claims are load-bearing (unsupervised + structure +
 persistence, not benchmark dominance).
+
+Since T1.3 (2026-08-05) the organism arm's readout is `label_readout.py`
+(the online per-slot label-evidence mechanism, formerly inline here) and
+torch is optional: without it the MLP baseline arms are skipped and the
+prototype + organism arms still run, bit-identically (the MLP arms never
+touch the numpy rng).
 """
 
 import time
 import numpy as np
-import torch
-import torch.nn as nn
+try:                    # baselines only -- the organism arm runs without torch
+    import torch
+    import torch.nn as nn
+    torch.manual_seed(0)
+except ImportError:
+    torch = nn = None
 from sklearn.datasets import load_digits
+from label_readout import LabelEvidenceReadout
 from organism import normalize
 from organism_numba import NumbaOrganism
 
 rng = np.random.default_rng(0)
-torch.manual_seed(0)
 
 d = load_digits()
 X = ((d.data - d.data.mean(0)) / (d.data.std(0) + 1e-6)).astype(np.float32)
@@ -76,13 +86,14 @@ def eval_tasks(predict):
     return out
 
 
-class MLP(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.net = nn.Sequential(nn.Linear(N, 128), nn.ReLU(), nn.Linear(128, 10))
+if torch is not None:
+    class MLP(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.net = nn.Sequential(nn.Linear(N, 128), nn.ReLU(), nn.Linear(128, 10))
 
-    def forward(self, x):
-        return self.net(x)
+        def forward(self, x):
+            return self.net(x)
 
 
 def mlp_predict(mlp):
@@ -173,9 +184,12 @@ def run_organism(hold=8, epochs=3):
     are represented by old slots drifting toward them; a frozen first-task
     label misattributes exactly those (measured: ACC 0.25 with frozen
     labels vs phase 2's 0.708 with end-labeling -- the drift, not the
-    memory, was being scored)."""
+    memory, was being scored). The readout is `label_readout.py` (T1.3;
+    formerly inline here) -- eval-side only, labels never enter
+    perception/learning; `test_label_readout.py` pins its equivalence to
+    the original inline logic on this exact protocol."""
     org = NumbaOrganism(N=N, K=40, omega=0.15, beta=10.0, seed=0)
-    evidence = np.zeros((40, 10))
+    readout = LabelEvidenceReadout(K=40, n_classes=10)
     A = np.zeros((len(TASKS), len(TASKS)))
     t0 = time.time()
     for ti, task in enumerate(TASKS):
@@ -185,23 +199,8 @@ def run_organism(hold=8, epochs=3):
             for i in rng.permutation(idx):
                 seq.extend([normalize(Xtr[i].astype(complex), NORM)] * hold)
         org.perceive(seq, g_in=4.0, eta=0.015, recruit=0.6)
-        states = np.array([normalize(Xtr[i].astype(complex), NORM) for i in idx])
-        used = np.where(org.used)[0]
-        ov = np.abs(org.xi[used].conj() @ states.T) / N
-        near = np.argmax(ov, axis=0)
-        for s_i, slot in enumerate(used):
-            claimed = ytr[idx[near == s_i]]
-            for c in claimed:
-                evidence[slot, c] += 1.0
-
-        def pred(Xe):
-            st = np.array([normalize(x.astype(complex), NORM) for x in Xe])
-            used_ = np.array([s for s in np.where(org.used)[0]
-                              if evidence[s].sum() > 0])
-            lab = evidence[used_].argmax(1)
-            ovv = np.abs(org.xi[used_].conj() @ st.T) / N
-            return lab[np.argmax(ovv, axis=0)]
-        A[ti] = eval_tasks(pred)
+        readout.observe(org, Xtr[idx], ytr[idx])
+        A[ti] = eval_tasks(lambda Xe: readout.predict(org, Xe))
     state_bytes = org.xi.nbytes + org.P.nbytes + org.count.nbytes
     return A, time.time() - t0, state_bytes, int(org.used.sum())
 
@@ -209,12 +208,17 @@ def run_organism(hold=8, epochs=3):
 if __name__ == "__main__":
     print("PHASE 33: industry-standard continual-learning ladder (split-digits)\n")
     rows = []
-    for name, fn in [
+    mlp_arms = [
         ('mlp-seq', lambda: run_mlp('seq')),
         ('mlp-ewc', lambda: run_mlp('ewc')),
         ('mlp-replay', lambda: run_mlp('replay')),
         ('mlp-joint*', lambda: run_mlp('joint')),
-    ]:
+    ]
+    if torch is None:       # numpy rng untouched by the MLP arms, so the
+        mlp_arms = []       # organism numbers are identical either way
+        print("  torch not installed -- skipping the four MLP baseline arms")
+        print("  (committed ladder numbers: ROADMAP row 33)\n")
+    for name, fn in mlp_arms:
         A, t, bytes_ = fn()
         acc, forg = task_acc_matrix_to_metrics(A)
         rows.append((name, acc, forg, t, bytes_, '-'))
@@ -238,11 +242,16 @@ if __name__ == "__main__":
 
     org_row = rows[-1]
     proto_row = rows[-2]
-    seq_row = rows[0]
     print("\nverdict (against the owner's gate 'SOTA or not ready'):")
-    print(f"  vs gradient forgetting: organism ACC {org_row[1]:.2f} vs naive SGD {seq_row[1]:.2f} and")
-    print(f"    EWC {rows[1][1]:.2f} -- the continual-retention claim SURVIVES (2x the")
-    print(f"    gradient arms), but FORG {org_row[2]:.2f} exposes a real mechanism: at K=40 the")
+    if mlp_arms:
+        seq_row = rows[0]
+        print(f"  vs gradient forgetting: organism ACC {org_row[1]:.2f} vs naive SGD {seq_row[1]:.2f} and")
+        print(f"    EWC {rows[1][1]:.2f} -- the continual-retention claim SURVIVES (2x the")
+        print(f"    gradient arms), but FORG {org_row[2]:.2f} exposes a real mechanism: at K=40 the")
+    else:
+        print("  vs gradient forgetting: MLP arms skipped this run (no torch) -- the")
+        print(f"    committed comparison is in ROADMAP row 33. FORG {org_row[2]:.2f} exposes a real")
+        print("    mechanism either way: at K=40 the")
     print("    first task floods every slot and later classes are learned by slot DRIFT,")
     print("    which is itself a slow forgetting channel. Capacity headroom matters.")
     print(f"  vs memory methods: prototypes ACC {proto_row[1]:.2f} > organism {org_row[1]:.2f} -- on RAW")
