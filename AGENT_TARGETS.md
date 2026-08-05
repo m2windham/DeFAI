@@ -52,7 +52,7 @@ the collapse is fixable at inference time. These targets are sequential.
 - **Done when**: measured re-run of the phase-33 flooding diagnostic shows
   later classes recruiting fresh slots; harness green; E3 round-trip green.
 
-### T1.3 — Online label-evidence readout as mechanism  `[DONE 2026-08-05: claude/phase-33-label-evidence-eval-zac8hq]`
+### T1.3 — Online label-evidence readout as mechanism  `[DONE 2026-08-05: claude/phase-33-label-evidence-eval-zac8hq, PR #28]`
 - **Objective**: phase 33 fixed its frozen-label readout artifact in-phase
   (ACC 0.25 → 0.665); promote online per-slot label evidence to a proper
   mechanism (readout layer, labels still never inside perception/learning).
