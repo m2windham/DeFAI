@@ -259,6 +259,35 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
   two measured recovery targets (routing margin 0.061 for a soft top-m
   vote; preserved-but-outvoted label mass). Full row: ROADMAP 33e.
 
+### T1.8 — Representation-width byte reduction (phase 33g)  `[claimed: —]`
+- **Objective**: T1.5 measured the cost-branch failure as representation
+  width, not memory count (K=120 vs 120 protos: ACC -0.018 at 7.8× bytes;
+  complex128 `xi` + dense K×K P). Cut bytes without touching behavior:
+  (i) complex64 storage for `xi`/`mem` (compute may stay float64),
+  (ii) sparse/pruned P above a count floor, (iii) optional low-rank mem
+  factorization. Consolidation-as-COMPRESSION only — nothing re-attributes
+  occurrences to slots, so phase 9's closed negative (post-hoc re-sorting
+  inherits online mixing) does NOT apply and must not be re-opened.
+- **Context**: `phase33d_capacity_sweep.py` (cost curve + state-bytes
+  accounting — reuse its measurement verbatim), `organism_state.py` (E3
+  schema versioning — compressed state needs a schema bump, old saves must
+  load), `fastpath.py` (kernel dtype assumptions), ROADMAP row 33d.
+- **Pre-registered predictions**: (a) complex64 xi halves the dominant
+  term with ACC drift within harness tolerance bands (attractor capture is
+  ~0.99 overlaps; 7 significant digits is plenty); (b) P sparsification
+  above a count floor cuts the K×K term by >5× at K=160 (measure the
+  count distribution first); (c) honest negative: if compressed-state
+  ACC at K=160 drops below the 0.872 bar, report the byte-accuracy
+  frontier and where it crosses; (d) target: K=160-equivalent accuracy
+  inside ~2× the prototype bar's bytes — landing near replay's ~90KB
+  footprint would make the cost branch arguable.
+- **Done when**: `phase33g_*.py` re-runs the 33d cost curve with
+  compressed arms; harness green BOTH backends + equivalence + E3
+  round-trip incl. schema migration; ROADMAP row with the new curve.
+- **Constraint**: inference/storage engineering only — no mechanism or
+  learning-rule changes; the 33c/33d anchors must stay reproducible in
+  uncompressed mode.
+
 ---
 
 ## Category 2 — Scale & real text
