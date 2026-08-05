@@ -24,7 +24,7 @@ The Path B RELEASE HOLD (owner, 2026-07-15) is lifted only when the
 phase-33 gate passes ("at least SOTA / cost-effective"). Phase 35 showed
 the collapse is fixable at inference time. These targets are sequential.
 
-### T1.1 — Phase 36: un-oracle hierarchical recall  `[claimed: claude/claim-execute-t1-1-wthzip, 2026-08-05]`
+### T1.1 — Phase 36: un-oracle hierarchical recall  `[DONE 2026-08-05: claude/claim-execute-t1-1-wthzip, PR #27]`
 - **Objective**: replace phase 35's ground-truth category labels with
   `discover_categories_v2` (PPMI + distinctness k-selection) in the
   hierarchical router; re-run the 50→800-word sweep with identical scorers.
@@ -38,6 +38,14 @@ the collapse is fixable at inference time. These targets are sequential.
   which hierarchy loses to flat — measure the floor either way.
 - **Done when**: `phase36_*.py` prints setup/baselines/verdict; sweep rows
   + verdict recorded in ROADMAP; harness still green both backends.
+- **Outcome (2026-08-05)**: PASS at ρ = 1.02 — discovered-label routing
+  matches/beats the oracle router at every vocab (0.858 vs 0.845 at 800
+  words; flat 0.284); distinctness picked the true k=5 at all scales,
+  purity/V-measure 1.000, MI-null z up to 25 624; phase-35 anchors
+  reproduced exactly. Caveat: the purity floor (prediction b) was never
+  exercised — discovery was perfect on this synthetic grammar; whether
+  routing survives real-text impurity (phase-24 quality, V ≈ 0.55) is
+  open and attaches to T2.1/T2.3. Full row in ROADMAP 36.
 
 ### T1.2 — Slot-budget / eviction policy  `[claimed: —]`
 - **Objective**: stop task-1 slot flooding (phase 33: K=40 exhausted by the
