@@ -90,7 +90,7 @@ the collapse is fixable at inference time. These targets are sequential.
   notifications to it at phase-script level; no organism.py hook needed
   (organism.py untouched). Harness 27/27 both backends post-change.
 
-### T1.4 — Re-run the phase-33 ladder (gate re-test)  `[claimed: —]`
+### T1.4 — Re-run the phase-33 ladder (gate re-test)  `[DONE 2026-08-05: claude/t1-4-tg2wpu, PR #30]`
 - **Objective**: after T1.1–T1.3, re-run the full ladder (naive SGD, EWC,
   replay, joint oracle, growing prototypes, organism-on-numba) on
   class-incremental split-digits; report ACC/FORG vs the 0.872 supervised
@@ -98,6 +98,19 @@ the collapse is fixable at inference time. These targets are sequential.
 - **Blocked by**: T1.1, T1.2, T1.3. **Owner decision point**: gate re-opens
   only at ≥SOTA or demonstrated cost-effectiveness at equal accuracy.
 - **Note**: needs torch installed (baselines only).
+- **Outcome (2026-08-05)**: `phase33c_gate_retest.py` — full ladder with
+  T1.2 (evict=250) + T1.3 (`LabelEvidenceReadout`, eviction invalidations
+  forwarded at phase-script level) folded into the organism arm; evict=0
+  kept as reproduction anchor. All anchors reproduced exactly (prototypes
+  0.872/0.021, organism evict=0 0.665/0.200 incl. the flood, budget arm
+  0.712/0.169, census [9,7,4,6,14]); torch arms on record: SGD 0.323/0.842,
+  EWC 0.322/0.844, replay 0.913/0.105, joint\* 0.974/0.000. **Verdict:
+  NOT SOTA** — 0.712 vs the 0.872 bar (23% of the gap closed by T1.2;
+  FORG 0.200→0.169; task-0 retention 0.732→0.939). Recorded miss of one
+  pre-registered clause: replay beats the organism on both axes and tops
+  the whole ladder. Equal-accuracy cost-effectiveness branch not
+  claimable. Full row: ROADMAP 33c. **The RELEASE HOLD stands — owner
+  decision point reached, not passed.**
 
 ---
 
@@ -224,6 +237,8 @@ staged. Order decided in triage (ROADMAP): D1 first.
 ### T5.1 — Release tag + episodic-memory product fork  `[claimed: —]`
 - **Status**: **BLOCKED by RELEASE HOLD** until T1.4 passes the owner's
   bar. Engineering gate (E1+E2+E3+Phase 26 synthetic) already OPEN.
+  (T1.4 ran 2026-08-05: bar NOT met — 0.712 vs 0.872, ROADMAP row 33c;
+  the hold stands pending the owner's decision.)
 - **When unblocked**: cut release tag on main → create separate product
   repo (hard fork, never a branch) → discoveries flow only via the
   versioned engine (phase script + pinned harness numbers + release tag).
