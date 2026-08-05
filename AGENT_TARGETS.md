@@ -171,7 +171,7 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
   temptation to feed readout confidence back into perception is out of
   scope (and out of premise).
 
-### T1.7 — Task-1 regression diagnostic  `[claimed: —]`
+### T1.7 — Task-1 regression diagnostic  `[claimed: claude/eviction-ledger-task1-diagnostic-37exsm, 2026-08-05]`
 - **Objective**: evict=250 lifted task-0 retention 0.732→0.939 but DROPPED
   task-1 final accuracy 0.464→0.393, and the era census [9,7,4,6,14] shows
   task 1 holding the fewest surviving slots. Explain it: log per-eviction
