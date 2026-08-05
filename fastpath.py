@@ -70,6 +70,7 @@ def _nrm(v, target):
 @njit(cache=True, fastmath=True)
 def _perceive_chunk(frames, n_valid, z_io, xi, xic, used, count, P,
                     prov, hits, age, nvis, evicts, prev_x, state_i,
+                    ledger, ledger_n,
                     g_in, dt, eta, recruit, p_decay, confirm, probation,
                     pool, active_bar, s_hat, amb, fuse_bar, evict, omega, norm):
     """One chunk of the perceive loop. All state mutates in place.
@@ -78,7 +79,12 @@ def _perceive_chunk(frames, n_valid, z_io, xi, xic, used, count, P,
     so the per-frame K x N overlap runs as one BLAS matvec. With evict > 0
     the caller passes org.age/org.evictions as the age/evicts arrays (the
     T1.2 slot budget's persistent staleness clock); otherwise per-call
-    locals, reproducing prior behavior exactly."""
+    locals, reproducing prior behavior exactly.
+    ledger/ledger_n (T1.7 eviction ledger, diagnostic only): with the debug
+    flag off the caller passes a (0, 4) ledger and the recording branches
+    are dead; with it on, each pressure eviction writes one row (chunk-local
+    frame t, victim slot, count, age) BEFORE the eviction mutates state --
+    observe-only, no mechanism decision reads it."""
     N = xi.shape[1]
     K = xi.shape[0]
     z = z_io.copy()
@@ -214,6 +220,14 @@ def _perceive_chunk(frames, n_valid, z_io, xi, xic, used, count, P,
                                     bestc = count[k2]
                                     je = k2
                             if je >= 0:
+                                if ledger.shape[0] > 0:    # T1.7 ledger
+                                    li = ledger_n[0]
+                                    if li < ledger.shape[0]:
+                                        ledger[li, 0] = t
+                                        ledger[li, 1] = je
+                                        ledger[li, 2] = count[je]
+                                        ledger[li, 3] = age[je]
+                                        ledger_n[0] = li + 1
                                 used[je] = False
                                 count[je] = 0.0
                                 prov[je] = False
@@ -280,6 +294,14 @@ def _perceive_chunk(frames, n_valid, z_io, xi, xic, used, count, P,
                         bestc = count[k2]
                         je = k2
                 if je >= 0:
+                    if ledger.shape[0] > 0:            # T1.7 ledger
+                        li = ledger_n[0]
+                        if li < ledger.shape[0]:
+                            ledger[li, 0] = t
+                            ledger[li, 1] = je
+                            ledger[li, 2] = count[je]
+                            ledger[li, 3] = age[je]
+                            ledger_n[0] = li + 1
                     used[je] = False
                     count[je] = 0.0
                     prov[je] = False
@@ -376,9 +398,20 @@ def _perceive_chunk(frames, n_valid, z_io, xi, xic, used, count, P,
     state_i[2] = have_prev
 
 
+def _drain_ledger(out, ledger, ledger_n, frame0):
+    """T1.7 eviction ledger: flush the kernel's chunk-local rows into the
+    caller's list as (frame, slot, count, age), with `frame` made global to
+    the perceive call. Debug path only -- never touched with the flag off."""
+    for r in range(int(ledger_n[0])):
+        out.append((frame0 + int(ledger[r, 0]), int(ledger[r, 1]),
+                    float(ledger[r, 2]), float(ledger[r, 3])))
+    ledger_n[0] = 0
+
+
 def perceive_fast(org, stream, g_in=4.0, dt=0.05, eta=0.02, recruit=0.55,
                   p_decay=0.0, confirm=0, probation=6000, pool=False,
-                  active_bar=0.6, s_hat=0.0, amb=0.0, fuse_bar=0.7, evict=0):
+                  active_bar=0.6, s_hat=0.0, amb=0.0, fuse_bar=0.7, evict=0,
+                  evict_debug=None):
     """Drop-in backend for Organism.perceive. Consumes any iterable of
     frames (list, array, or generator) in bounded-memory chunks."""
     N, K = org.N, org.K
@@ -395,6 +428,12 @@ def perceive_fast(org, stream, g_in=4.0, dt=0.05, eta=0.02, recruit=0.55,
     nvis = np.zeros(K, np.float64)
     prev_x = np.zeros(N, np.complex128)
     state_i = np.array([-1, -1, 0], np.int64)      # last_k, boundary.prev, have_prev
+    # T1.7 ledger: at most one eviction per frame, so PERCEIVE_CHUNK rows
+    # can never overflow within a chunk; size 0 = debug off (dead branches)
+    ledger = np.empty((PERCEIVE_CHUNK if evict_debug is not None else 0, 4),
+                      np.float64)
+    ledger_n = np.zeros(1, np.int64)
+    frames_done = 0
 
     buf = np.empty((PERCEIVE_CHUNK, N), np.complex128)
     fill = 0
@@ -404,20 +443,27 @@ def perceive_fast(org, stream, g_in=4.0, dt=0.05, eta=0.02, recruit=0.55,
         if fill == PERCEIVE_CHUNK:
             _perceive_chunk(buf, fill, z_io, xi, xic, org.used, org.count, P,
                             prov, hits, age, nvis, org.evictions, prev_x, state_i,
+                            ledger, ledger_n,
                             float(g_in), float(dt), float(eta), float(recruit),
                             float(p_decay), int(confirm), float(probation),
                             bool(pool), float(active_bar), float(s_hat),
                             float(amb), float(fuse_bar), float(evict),
                             float(org.omega), float(org.norm))
+            if evict_debug is not None:
+                _drain_ledger(evict_debug, ledger, ledger_n, frames_done)
+            frames_done += fill
             fill = 0
     if fill > 0:
         _perceive_chunk(buf, fill, z_io, xi, xic, org.used, org.count, P,
                         prov, hits, age, nvis, org.evictions, prev_x, state_i,
+                        ledger, ledger_n,
                         float(g_in), float(dt), float(eta), float(recruit),
                         float(p_decay), int(confirm), float(probation),
                         bool(pool), float(active_bar), float(s_hat),
                         float(amb), float(fuse_bar), float(evict),
                         float(org.omega), float(org.norm))
+        if evict_debug is not None:
+            _drain_ledger(evict_debug, ledger, ledger_n, frames_done)
 
     if confirm > 0:                                # purge still-unconfirmed slots
         org.used[prov] = False

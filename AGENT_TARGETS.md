@@ -134,7 +134,10 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
   its stream and scorers verbatim), `phase33b_slot_budget.py` (evict
   characterization; note the E=250 window was tuned at K=40 — re-check
   staleness dynamics at higher K, the live-slot revisit interval grows),
-  ROADMAP rows 33/33b/33c.
+  ROADMAP rows 33/33b/33c. T1.7's verdict (ROADMAP 33e): keep the victim
+  rule AS-IS (H1 absent — no count normalization needed) and track the
+  task-1 content census per K point (prediction: the 42-error capture
+  floor shrinks with capacity).
 - **Pre-registered predictions**: (a) ACC rises monotonically with K and
   the flood becomes irrelevant (fresh slots without eviction pressure);
   (b) honest negative to watch: if ACC plateaus below ~0.87 by K=120, the
@@ -157,6 +160,11 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
   `test_label_readout.py` — extend it, don't weaken it).
 - **Context**: `label_readout.py` (T1.6 owns this file),
   `test_label_readout.py`, `phase33c_gate_retest.py` (re-score protocol).
+  T1.7's measured targets (ROADMAP 33e, phase 33e section D3): the task-1
+  regression's 9 label-lost errors are the exact cases prediction (a)
+  describes — a 0.061 mean routing margin for a soft top-m vote to
+  overcome (slot-9 type), and preserved-but-outvoted label mass on the
+  routed slot itself (slot-33 type: 8 class-2 votes under 13 class-5).
 - **Pre-registered predictions**: (a) soft top-m vote recovers part of the
   gap (drifted/mixed slots carry label mass the majority collapse throws
   away — the ACC 0.25→0.665 history says slot-label ambiguity is real);
@@ -171,7 +179,7 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
   temptation to feed readout confidence back into perception is out of
   scope (and out of premise).
 
-### T1.7 — Task-1 regression diagnostic  `[claimed: claude/eviction-ledger-task1-diagnostic-37exsm, 2026-08-05]`
+### T1.7 — Task-1 regression diagnostic  `[DONE 2026-08-05: claude/eviction-ledger-task1-diagnostic-37exsm]`
 - **Objective**: evict=250 lifted task-0 retention 0.732→0.939 but DROPPED
   task-1 final accuracy 0.464→0.393, and the era census [9,7,4,6,14] shows
   task 1 holding the fewest surviving slots. Explain it: log per-eviction
@@ -193,6 +201,26 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
 - **Done when**: eviction ledger + verdict naming which hypothesis the
   data supports; feeds the victim-selection refinement into T1.5's sweep
   if H1 holds.
+- **Outcome (2026-08-05)**: `phase33e_eviction_ledger.py` (33d reserved
+  for T1.5) + a debug-only `perceive(evict_debug=...)` ledger hook in
+  organism.py/fastpath.py — equivalence proven (all 33c anchors exact
+  with the ledger attached; ledger on/off bitwise identical; numpy/numba
+  ledgers identical row-for-row, 171 evictions; harness 31/31 both
+  backends). **Verdict: H3 — H1 and H2 ABSENT, the victim-choice rule is
+  exonerated** (123/171 evictions are same-task self-churn; era-1-born
+  slots suffered only 4 cross-era evictions vs era-0's 31; task-1
+  content coverage is HIGHER than baseline at every snapshot). Task 1
+  acquires fine (A[1,1] 0.929/0.881, tokens the stream's most novel) but
+  is the hardest task to RETAIN: 42/51 budget errors (45/45 baseline)
+  are captured by foreign-CONTENT slots — the K=40 interference floor.
+  The net −0.071 delta is readout geometry: 9 errors on two slots still
+  holding task-1 content under foreign labels (one out-voted majority,
+  one argmax-routing loss by 0.061 to the healthy majority-2 slot);
+  class 3 recovers 0.152→0.424 while class 2 pays 0.667→0.373. **Fix
+  named: none at the mechanism.** Feed-forward: T1.5 keeps the victim
+  rule as-is and tracks the task-1 content census as K grows; T1.6 gains
+  two measured recovery targets (routing margin 0.061 for a soft top-m
+  vote; preserved-but-outvoted label mass). Full row: ROADMAP 33e.
 
 ---
 
