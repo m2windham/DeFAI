@@ -146,7 +146,7 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
   vs both gate branches; ROADMAP row; harness green both backends
   (no organism.py changes expected — protocol-level only).
 
-### T1.6 — Readout geometry upgrade (eval-side)  `[claimed: claude/label-readout-decoder-upgrades-m2mczj, 2026-08-05 — DONE]`
+### T1.6 — Readout geometry upgrade (eval-side)  `[DONE 2026-08-05: claude/label-readout-decoder-upgrades-m2mczj, PR #32]`
 - **Objective**: `LabelEvidenceReadout.predict` is argmax-overlap → slot
   majority label. Prototypes win partly on readout geometry, not memory
   content. Add richer eval-side decoders over the SAME organism state:
