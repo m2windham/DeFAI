@@ -33,6 +33,23 @@ structure — this repo stays the research line (Path A); deployable products
 (episodic-memory module, agents) are separate forks that consume discoveries
 through a versioned engine.
 
+## Verified state (last onboarding re-run: 2026-08-04)
+
+Fresh-clone verification on an independent machine (Linux sandbox, numpy
+2.2.6 / numba 0.66): `regression_harness.py` — **all 27 checks PASS** under
+both `DEFAI_BACKEND=numpy` (59.8s) and `numba` (10.2s);
+`test_fastpath_equivalence.py` — all checks pass (state agreement ~1e-15,
+recall sequences exact). `e2_benchmark.py` at phase-23 corpus shape: numba
+67.3K frames/s, full 3-epoch perceive **1.21 min** — meets the pinned
+throughput; note the headline "13.0×" is hardware-relative (6.0× on this
+host, whose numpy baseline is faster — the numba absolute number is the
+portable claim). `phase35_hierarchical_recall.py` reproduced exactly at
+50–400 words (flat 0.994 → 0.445 collapse, hierarchical flat ~0.84,
+crossover between 100 and 200 words); the 800-word point was not re-run
+(sandbox memory limit), so that single datapoint rests on the committed run.
+Corpus-scale claims (phases 20–28) and the phase-33 ladder were not re-run
+(Gutenberg fetch / torch baselines out of scope for this pass).
+
 ## Project arc
 
 | Stage | Files | Question |
@@ -171,6 +188,34 @@ from the oscillator (the criterion is a property of a category assignment plus
 corpus bigram statistics — the same stage-B object), the same isolation
 discipline as phase 3.
 
+## Capacity & readiness track (phases 33–35)
+
+`phase33_industry_baselines.py` — the owner's release gate ("at least SOTA /
+cost-effective or we are not ready"), measured on class-incremental
+split-digits with a standard ladder: organism ACC 0.665 / FORG 0.200 — 2×
+the retention of the gradient arms (SGD/EWC ~0.32), but a supervised
+prototype baseline wins raw accuracy outright (0.872). **NOT SOTA; release
+hold in force** (see ROADMAP). Mechanism findings: task-1 slot flooding at
+K=40, and a frozen-label readout artifact (fixed in-phase). Defensible
+public claims: unsupervised representation + structure learning + bitwise
+persistence in one single-pass online mechanism.
+
+`phase34_capacity_scaling.py` — N=128 fixed, vocabulary swept 50→800 with
+per-word exposure held constant: grammaticality collapses 0.994 → 0.284
+while a bigram table holds ~0.85–0.87 flat at up to ~900× less compute.
+Named finding: **Attractor Crowding Collapse** — flat recall's one-shot
+K-way selection amplifies growing attractor confusability into cascading,
+compounding errors.
+
+`phase35_hierarchical_recall.py` — the fix, at inference time only: choose
+among ~5 category attractors first, then resolve within the winning
+category (~K/5 candidates). Holds ~0.84–0.85 flat from 50→800 words,
+recovering 98% of the flat-vs-oracle gap at 800; crossover vs flat recall
+between 100 and 200 words. Confirms selection-time crowding, not the stored
+attractors, is load-bearing. **Pre-registered caveat: categories came from
+the corpus generator's ground truth (oracle)** — wiring in
+`discover_categories_v2` is the honest next step (roadmap phase 36).
+
 ## Polysemy (core track, phases 8–10): functionally solved
 
 Goal: one word-form occurring in two senses should recruit **two** memory
@@ -278,9 +323,18 @@ Actionable gaps this exposed — status after phases 11–12:
 The project's standing goal: one continuously-running oscillator field
 that perceives, remembers, learns world structure, and generates — now
 validated on synthetic worlds (core track, phases 1–18) with first
-footholds on real language (language track, through its phase 21). The
+footholds on real language (language track, through its phase 21).
+**Standing constraint: the Path B release hold** (ROADMAP, 2026-07-15) —
+no release tag or product fork until the phase-33 gate passes. The
 open threads, roughly ordered by leverage:
 
+0. **Un-oracle hierarchical recall, then re-run the phase-33 gate**
+   (phases 34/35 → planned phase 36): replace phase 35's ground-truth
+   category labels with `discover_categories_v2`, add the slot-budget/
+   eviction policy phase 33 identified, make online label evidence
+   mechanism — then re-run the phase-33 ladder. This is the shortest
+   measured path to lifting the release hold, and phase 35 showed the
+   collapse is a fixable inference-time problem.
 1. **Unify the tracks on real text** — *wired* (phase 22) then *scaled*
    (phase 23): the full loop runs unsupervised, and at the language track's
    547K-word scale (`phase23_unified_large_corpus.py`, the 8-book Gutenberg

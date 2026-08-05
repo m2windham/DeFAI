@@ -1,5 +1,21 @@
 # DeFAI — Handoff Brief
 
+> **Addendum, 2026-08-04 (onboarding verification pass).** Fresh clone
+> re-verified on an independent machine: E1 harness 27/27 PASS on both
+> backends (numpy 59.8s / numba 10.2s), `test_fastpath_equivalence.py`
+> all green, `e2_benchmark.py` meets the pinned numba throughput
+> (67.3K frames/s; 1.21 min full corpus perceive — the "13.0×" ratio is
+> hardware-relative, the absolute numba number is the portable claim),
+> and phase 35 reproduced exactly at 50–400 words (800-word point not
+> re-run: memory-limited host). PR state: **0 open, 26 closed** — PR #23
+> has landed (phases 32/33 are on main); the "in-flight PR #23" note in
+> open thread 8 below is historical. New since this brief was written:
+> phases 34 (Attractor Crowding Collapse) and 35 (hierarchical recall
+> rescue, oracle caveat), and the **Path B RELEASE HOLD** pending the
+> phase-33 gate — see the ROADMAP rows. Current top thread: phase 36
+> (un-oracle phase 35 via `discover_categories_v2` + slot-budget policy,
+> then re-run the phase-33 ladder).
+
 Written 2026-07-15, replacing the original brief in full. You're taking over
 an in-progress research project with no prior context — everything you need
 is below. Where this brief and the code disagree, **trust the code** and flag

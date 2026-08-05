@@ -74,6 +74,7 @@ numbers; nothing is staged.
 | 29 — recursive hierarchy | Run the recruit/consolidate primitive one level up: "tokens" are category n-gram signatures, recruitment discovers recurring category-sequence motifs (phrase-level states). Certified by the same level-agnostic MI-vs-permutation-null machinery from phase 24; oracle eval only against shallow-parse chunk boundaries. Pre-registered risk: at k≈6 there are only ~36 category bigrams — the honest negative is "level 2 learns nothing beyond the level-1 transition matrix," which would push toward hierarchy-aware k-selection. This is the direct answer to the strongest external critique (no structure above the category FSM). | planned |
 | 34 — capacity/quality scaling sweep (compute-efficiency track, opened 2026-07-16) | Owner's question: can the oscillator field reach LLM-level quality without LLM-level compute? Holds field size N=128 fixed and sweeps vocabulary 50→800 words (phase 5's cyclic grammar), per-word training exposure held constant so any quality drop is attributable to capacity, not under-training, against a bigram frequency-table baseline. **Measured: organism grammaticality collapses 0.994→0.284 as vocabulary grows 16×, while wall-clock cost still grows 6× over the same range; the bigram baseline holds ~0.85–0.87 flat throughout at up to ~900× less compute at 800 words.** Named finding: **Attractor Crowding Collapse** — a fixed-dimensional store of K word-attractors gets more confusable as K grows (measured nearest-neighbor embedding similarity 0.213→0.284, 50→800 words) and FLAT recall's one-shot K-way selection amplifies that into cascading, compounding errors (unlike the bigram baseline, which resamples independently each step). Confirms, as a controlled sweep, what phases 20 (real-text collapse at scale) and 33 (K=40 slot flooding) already hinted: capacity/selection, not per-step compute, is the binding constraint on this architecture as currently built. | `phase34_capacity_scaling.py` — done; names the Attractor Crowding Collapse finding |
 | 35 — hierarchical (category-then-word) recall | Direct test of a fix for phase 34's Attractor Crowding Collapse: route generation through a cheap category-level choice first (flat K_cat=5 competition regardless of vocabulary), then resolve to the specific word-attractor only within the winning category (~K/5 candidates instead of all K). Inference-time only — same learned `org.Pn` Hebbian weights and trained attractors, only the selection procedure changes. **Measured: hierarchical recall holds ~0.84–0.85 grammaticality flat from 50→800 words (vs. flat recall's 0.994→0.284), recovering 98% of the flat-vs-oracle gap at 800 words (0.284→0.845, oracle 0.854).** At small vocabulary (50–100 words) hierarchical recall costs a small accuracy tax vs. flat recall (0.994→0.839 at 50 words) — the crossover where hierarchy starts winning is between 100 and 200 words. Confirms selection-time crowding, not the stored attractors themselves, is a load-bearing cause of the collapse — a fixable inference-time problem, not a fundamental ceiling. **Pre-registered caveat: category membership was read from the corpus generator's ground truth (an oracle), not discovered unsupervised** — `discover_categories_v2` (`polysemy_organism.py`) exists for that and is the honest next step before this counts as a general-purpose fix rather than a proof of mechanism. | `phase35_hierarchical_recall.py` — done; mechanism confirmed, oracle caveat open |
+| 36 — unsupervised hierarchical recall (closes phase 35's oracle caveat; opened 2026-08-04) | Replace phase 35's ground-truth category labels with `discover_categories_v2` (PPMI-transformed transition profiles, phase 24's distinctness k-selection) and re-run the 50→800 sweep with the same scorers. Pre-registered predictions: (a) if discovered categories are ~phase-24-quality (V-measure ≈ 0.55 vs oracle), hierarchical recall should retain most of the flat-vs-oracle gap recovery, degraded in proportion to category impurity; (b) the honest negative is that impure categories mis-route resolution and hierarchical recall loses to flat below some purity floor — measure that floor. Then fold in phase 33's two product-critical fixes (slot-budget/eviction via the pool-mode use-it-or-lose-it machinery; online per-slot label evidence as mechanism) and **re-run the phase-33 ladder** — this row is the measured path to lifting the RELEASE HOLD. | planned — next up |
 
 ## Engineering track (parallel; feeds both paths)
 
@@ -97,6 +98,20 @@ Phase 25 ────┴──► Phase 26 ──────┤
 Phase 25 and E1 are independent and both unblock everything else; they go
 first. Phase 26 consumes Phase 25's diagnosis. E2 consumes E1's guarantees.
 The fork gate consumes E1+E2+E3+Phase 26.
+
+## Verification log
+
+- **2026-08-04 (onboarding pass, fresh clone, independent Linux host,
+  numpy 2.2.6 / numba 0.66)**: E1 `regression_harness.py` 27/27 PASS on
+  both backends (numpy 59.8s, numba 10.2s); `test_fastpath_equivalence.py`
+  all green (state agreement ~1e-15, recall sequences exact);
+  `e2_benchmark.py` at phase-23 shape: numba 67.3K frames/s, 1.21 min full
+  perceive (exceeds the pinned 58K/1.40 min; speedup ratio 6.0× on this
+  host — the 13.0× is hardware-relative, pin the absolute numba number);
+  phase 35 rows reproduced exactly at 50/100/200/400 words, 800-word row
+  not re-run (host OOM at K≈960) — that datapoint rests on the committed
+  run. Not re-verified: corpus-scale phases (20–28; Gutenberg fetch out of
+  scope) and the phase-33 ladder (torch baselines not installed).
 
 ## What the external reviews got right (kept) and wrong (dropped)
 
