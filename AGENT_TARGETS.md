@@ -24,7 +24,7 @@ The Path B RELEASE HOLD (owner, 2026-07-15) is lifted only when the
 phase-33 gate passes ("at least SOTA / cost-effective"). Phase 35 showed
 the collapse is fixable at inference time. These targets are sequential.
 
-### T1.1 — Phase 36: un-oracle hierarchical recall  `[claimed: —]`
+### T1.1 — Phase 36: un-oracle hierarchical recall  `[claimed: claude/claim-execute-t1-1-wthzip, 2026-08-05]`
 - **Objective**: replace phase 35's ground-truth category labels with
   `discover_categories_v2` (PPMI + distinctness k-selection) in the
   hierarchical router; re-run the 50→800-word sweep with identical scorers.
