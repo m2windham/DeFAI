@@ -122,7 +122,7 @@ T1.5 and T1.6 are independent and parallelizable; T1.7 is a small
 diagnostic that feeds T1.5. All three re-score on the phase-33c protocol
 verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
 
-### T1.5 — Cost-matched capacity sweep (phase 33d)  `[claimed: —]`
+### T1.5 — Cost-matched capacity sweep (phase 33d)  `[DONE 2026-08-05: claude/phase-33d-capacity-sweep-ja2etk]`
 - **Objective**: the ladder pins K=40 by protocol, but the 0.872 prototype
   bar spends 30.7KB on 120 prototypes while the organism spends 54.4KB on
   40 slots. Sweep K ∈ {40, 60, 80, 120, 160} at evict=250, reporting
@@ -145,6 +145,26 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
 - **Done when**: `phase33d_*.py` prints the sweep + cost curve + verdict
   vs both gate branches; ROADMAP row; harness green both backends
   (no organism.py changes expected — protocol-level only).
+- **Outcome (2026-08-05)**: `phase33d_capacity_sweep.py` — 33c imported
+  (stream/scorers verbatim), evict=0 twins at every K, cost-matched
+  point K=24 computed against the bar's measured 30.7KB. All anchors
+  EXACT. **Prediction (a) held: ACC monotone 0.712/0.735/0.837/0.854/
+  0.900, crossing the 0.872 bar at K=160 (FORG 0.033) — the gap IS
+  mostly capacity; prediction (b)'s plateau never appeared** (0.854 at
+  K=120, still rising). Flood dissolves at K≥60 but eviction stays
+  load-bearing (budget beats its twin everywhere but K=120's −0.005;
+  evict=0 ladder non-monotone, 0.497 at K=60); window contingency (d)
+  untriggered — E=250 transfers. **Prediction (c) held: cost branch NOT
+  met at any K** (bar 35.2 KB/ACC-pt vs 45.9→412.4; K=24 cost-matched
+  0.644 vs 0.872; matched-count K=120 0.854 at 7.8× bytes — the byte gap
+  is representation width, not memory count). Raw-accuracy branch met
+  only as a protocol variation (K=160, 12.1× bytes); the pinned-K=40
+  verdict stands NOT SOTA; replay still tops the ladder. Feeds T1.6
+  (readout is no longer the presumed load-carrier; byte-efficiency +
+  residual K=40 gap remain its case) and T1.7 (task-1 final heals with
+  capacity: 0.393→0.964 by K=160 — consistent with H1's
+  born-under-pressure reading; the K=40 mechanism still needs the
+  ledger). Full row: ROADMAP 33d.
 
 ### T1.6 — Readout geometry upgrade (eval-side)  `[claimed: —]`
 - **Objective**: `LabelEvidenceReadout.predict` is argmax-overlap → slot
