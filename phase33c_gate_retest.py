@@ -66,6 +66,36 @@ Owner decision point (verbatim from AGENT_TARGETS T1.4): the gate re-opens
 only at >=SOTA or demonstrated cost-effectiveness at equal accuracy. This
 script MEASURES; the decision is the owner's. The verdict section prints
 the measured facts against that bar and takes no liberties with it.
+
+COMMITTED-RUN FINDINGS (2026-08-05; torch 2.13-cpu, numpy 2.4.6, numba
+0.66; environment baseline harness 31/31 both backends before the run).
+Every reproduction anchor landed EXACTLY (predictions a/b): prototypes
+0.872/0.021; organism evict=0 0.665/0.200 with the 40/40 flood and zero
+later recruits; ORGANISM+budget 0.712/0.169 with fresh recruits every
+later task (11-14) and birth-task census [9,7,4,6,14]. Torch arms, now on
+record (the ROADMAP row 33 only kept SGD/EWC ~0.32): mlp-seq 0.323/0.842,
+mlp-ewc 0.322/0.844, mlp-replay 0.913/0.105, mlp-joint* 0.974/0.000.
+
+Gate verdict (prediction c, held): ORGANISM+budget 0.712 < 0.872 -- NOT
+SOTA on raw class-incremental accuracy. T1.2 closed 23% of the gap
+(0.207 -> 0.160), cut FORG 0.200 -> 0.169, and lifted task-0 final
+accuracy 0.732 -> 0.939 (the flood victim is where the budget works;
+task 1 gives a little back, 0.464 -> 0.393). One pre-registered clause
+MISSED, recorded per the standing rules: the budget arm does NOT beat
+every gradient arm on forgetting -- experience replay (0.913/0.105) beats
+the organism on BOTH axes and tops the entire continual ladder, above
+even the prototype bar. The equal-accuracy cost-effectiveness branch
+cannot be claimed (accuracy is not equal). Cost axes (prediction d,
+held): state 54.4KB vs 54.1KB baseline (the age clock); train wall-clock
+sub-second either way.
+
+What survives, scoped exactly as phase 33 first scoped it: unsupervised
+representation + structure learning + bitwise persistence in one
+single-pass online mechanism -- now WITHOUT the flooding ceiling. What
+does not: any raw-accuracy claim against supervised memory methods
+(prototypes 0.872; replay 0.913, which additionally stores 200 raw
+labeled samples). The RELEASE HOLD's bar is not met by these numbers;
+the hold stands unless the owner re-scopes the gate.
 """
 
 import time
