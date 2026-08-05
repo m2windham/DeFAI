@@ -29,6 +29,9 @@ Sections (fast tier only; corpus-tier joins once E2/Numba makes it cheap):
      noise-energy estimate and the calibrated-bar coverage/junk floor.
   8. state serialization (E3) -- lossless mid-stream save/restore
      (bitwise vs never stopping), deterministic replay, cross-backend load.
+  9. slot budget / eviction under recruitment pressure (T1.2, phase 33b) --
+     a flooded bank learns a second world only with evict > 0, and the
+     budget's persistent clock round-trips bitwise through E3.
 
 Run: `python regression_harness.py`. Exit code is nonzero if any check fails
 its tolerance. Each check prints its own measured value, tolerance band, and
@@ -396,6 +399,63 @@ def section_8_serialization():
           note="reference-saved state continues on the numba backend")
 
 
+# ========================== 9. slot budget / eviction (T1.2, phase 33b)
+def section_9_slot_budget():
+    print("\n(9) slot budget: eviction under recruitment pressure (T1.2, phase 33b)")
+    import os as _os, tempfile
+    from organism_state import save_state, load_state
+    N, H, K = 64, 4, 6
+    NORM = np.sqrt(N)
+    wrng = np.random.default_rng(7)
+    Gr, _ = np.linalg.qr(wrng.standard_normal((N, 2 * H)) + 1j * wrng.standard_normal((N, 2 * H)))
+    G = Gr.T * NORM     # 2H orthogonal regimes: first H = world A, last H = world B
+
+    def stream(lo, hi, n, seed):
+        r = np.random.default_rng(seed)
+        h = lo; out = []
+        for i in range(n):
+            if i % 60 == 0 and i > 0:
+                h = int(r.integers(lo, hi))
+            out.append(G[h] + 0.5 * NORM / np.sqrt(N) *
+                       (r.standard_normal(N) + 1j * r.standard_normal(N)))
+        return out
+
+    sA, sB = stream(0, H, 12000, 1), stream(H, 2 * H, 12000, 2)
+
+    def capture(org, lo, hi):
+        return float(np.mean([max(np.abs(org.overlaps(G[h], org.xi[org.used])))
+                              for h in range(lo, hi)]))
+
+    # baseline: world A floods the K=6 bank; world B cannot recruit
+    org0 = Organism(N=N, K=K, seed=0)
+    org0.perceive(sA); org0.perceive(sB)
+    check("flooded-bank world-B capture (no budget)", capture(org0, H, 2 * H), 0.0, 0.75,
+          note="single seed, wide band; measured ~0.41-0.57 over world seeds")
+
+    # budget: pressure eviction reclaims stale slots for world B; the run is
+    # split mid-B in BOTH arms (perceive-call boundaries must match), one arm
+    # saving/restoring at the split -- the budget clock is dynamical state now
+    org1 = Organism(N=N, K=K, seed=0)
+    org1.perceive(sA)
+    org1.perceive(sB[:6000], evict=800); org1.perceive(sB[6000:], evict=800)
+    check("budget world-B capture (evict=800)", capture(org1, H, 2 * H), 0.90, 1.01,
+          note="phase 33b: the mechanism is load-bearing for the recovery")
+    check("pressure evictions fired", float(org1.evictions.sum()), 1.0, 20.0)
+
+    org2 = Organism(N=N, K=K, seed=0)
+    org2.perceive(sA)
+    org2.perceive(sB[:6000], evict=800)
+    path = _os.path.join(tempfile.gettempdir(), "e3_budget_harness.npz")
+    save_state(org2, path)
+    org2 = load_state(path, cls=Organism)
+    org2.perceive(sB[6000:], evict=800)
+    d = max(np.abs(org1.xi - org2.xi).max(), np.abs(org1.P - org2.P).max(),
+            np.abs(org1.age - org2.age).max(),
+            np.abs(org1.evictions - org2.evictions).max())
+    check("E3 restore mid-eviction, max state delta", float(d), 0.0, 1e-12,
+          note="budget clock + tallies round-trip bitwise")
+
+
 if __name__ == "__main__":
     t0 = time.time()
     print("REGRESSION HARNESS -- fast tier (E1)")
@@ -410,6 +470,7 @@ if __name__ == "__main__":
     section_6_reasoning()
     section_7_percentile_bars()
     section_8_serialization()
+    section_9_slot_budget()
 
     dt = time.time() - t0
     print(f"\n{'='*70}")

@@ -87,10 +87,11 @@ memory) and the roadmap records exactly why each was rejected.
   predictive-gain-gated, residual-gated sense splitting (see below).
 
 Engineering spine (all landed, all pinned):
-- **E1** `regression_harness.py`: 27 tolerance-based checks pinning every
+- **E1** `regression_harness.py`: 31 tolerance-based checks pinning every
   headline behavior (§1-5 core/noise/pool/categories/gain, §6 phase-30
-  reasoning, §7 phase-26 calibration, §8 E3 serialization). Every backend,
-  port, and calibration change must pass it before being believed.
+  reasoning, §7 phase-26 calibration, §8 E3 serialization, §9 T1.2 slot
+  budget/eviction). Every backend, port, and calibration change must pass
+  it before being believed.
 - **E2** `fastpath.py`: Numba JIT backend for perceive/recall/recall2 +
   vectorized consolidate. Selected via `Organism(backend="auto"|"numba"|
   "numpy")` or `DEFAI_BACKEND` env; default `auto` (JIT when numba is

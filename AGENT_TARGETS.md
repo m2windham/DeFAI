@@ -39,7 +39,7 @@ the collapse is fixable at inference time. These targets are sequential.
 - **Done when**: `phase36_*.py` prints setup/baselines/verdict; sweep rows
   + verdict recorded in ROADMAP; harness still green both backends.
 
-### T1.2 — Slot-budget / eviction policy  `[claimed: claude/slot-budget-eviction-pool-mode-9vd1u8, 2026-08-05]`
+### T1.2 — Slot-budget / eviction policy  `[claimed: claude/slot-budget-eviction-pool-mode-9vd1u8, 2026-08-05 — DONE]`
 - **Objective**: stop task-1 slot flooding (phase 33: K=40 exhausted by the
   first class, later classes learn only by slot drift → FORG 0.20). Natural
   home: the pool-mode use-it-or-lose-it recycling machinery in
@@ -51,6 +51,17 @@ the collapse is fixable at inference time. These targets are sequential.
   information. Must leave harness §1–§5 green.
 - **Done when**: measured re-run of the phase-33 flooding diagnostic shows
   later classes recruiting fresh slots; harness green; E3 round-trip green.
+- **RESULT (2026-08-05)**: `perceive(evict=E)` — persistent staleness clock
+  (`org.age`, E3-serialized) + eviction under recruitment pressure (novelty
+  > 0.8× recruit floor, no free slot → argmin-count stale slot recycled via
+  graph.retire/boundary.invalidate). Phase 33b: baseline reproduces the
+  flood + ACC 0.665/FORG 0.200 verbatim; pre-registered E=2000 window was
+  an honest NEGATIVE (recency flush, ACC 0.511); finding — the stale pool
+  must contain the present, or eviction eats the past — short windows
+  (100–750) beat baseline on BOTH axes; primary E=250: ACC 0.712,
+  FORG 0.169, fresh recruits every task, era census [9,7,4,6,14]. Harness
+  31/31 both backends (new §9); equivalence check 6; E3 bitwise. See
+  ROADMAP row 33b + `phase33b_slot_budget.py`.
 
 ### T1.3 — Online label-evidence readout as mechanism  `[claimed: —]`
 - **Objective**: phase 33 fixed its frozen-label readout artifact in-phase
