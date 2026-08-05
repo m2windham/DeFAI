@@ -232,7 +232,7 @@ class Organism:
     # ---- PHASE 1: perceive + form memories + learn transitions -------------
     def perceive(self, stream, g_in=4.0, dt=0.05, eta=0.02, recruit=0.55, p_decay=0.0,
                  confirm=0, probation=6000, pool=False, active_bar=0.6, s_hat=0.0,
-                 amb=0.0, fuse_bar=0.7, evict=0):
+                 amb=0.0, fuse_bar=0.7, evict=0, evict_debug=None):
         """p_decay: exponential forgetting of transition counts, applied once
         per observed transition (synaptic decay). 0.0 = original behavior
         (counts accumulate forever); 1/p_decay is the effective memory in
@@ -410,6 +410,17 @@ class Organism:
         default) reproduces prior behavior exactly, including leaving
         self.age untouched.
 
+        evict_debug (T1.7, diagnostic only): when a list is passed, every
+        pressure eviction appends one row (frame, slot, count, age) -- the
+        victim's lifetime count and staleness age AT eviction, with `frame`
+        the 0-based index into this call's stream. Pure observation: rows
+        are recorded before the eviction mutates anything and no mechanism
+        decision reads them, so evict_debug=None (the default) and an
+        attached ledger produce bitwise-identical organism state (pinned by
+        phase 33e's A/B check). Era/birth attribution is deliberately NOT
+        recorded here -- the mechanism is label- and task-blind; ledger
+        consumers reconstruct it (phase 33e replays rebirths script-side).
+
         active_bar is also the confidence bar for counting and transition
         learning (0.6 = original); beyond sigma* it must sit below the
         token-vs-memory overlap or P never learns. pool=False with
@@ -419,7 +430,7 @@ class Organism:
                 self, stream, g_in=g_in, dt=dt, eta=eta, recruit=recruit,
                 p_decay=p_decay, confirm=confirm, probation=probation,
                 pool=pool, active_bar=active_bar, s_hat=s_hat, amb=amb,
-                fuse_bar=fuse_bar, evict=evict)
+                fuse_bar=fuse_bar, evict=evict, evict_debug=evict_debug)
         z = self.z
         boundary = EventBoundary(self.graph, p_decay)
         prov = np.zeros(self.K, bool)
@@ -439,6 +450,9 @@ class Organism:
             if not ev.any():
                 return False
             j = int(np.argmin(np.where(ev, self.count, np.inf)))
+            if evict_debug is not None:            # T1.7 ledger: observe-only,
+                evict_debug.append((frame_t, j,    # recorded before mutation
+                                    float(self.count[j]), float(age[j])))
             self.used[j] = False; self.count[j] = 0
             prov[j] = False; hits[j] = 0; nvis[j] = 0; age[j] = 0
             self.evictions[j] += 1
@@ -446,7 +460,7 @@ class Organism:
             expired = np.zeros(self.K, bool); expired[j] = True
             boundary.invalidate(expired)
             return True
-        for x in stream:
+        for frame_t, x in enumerate(stream):
             x = normalize(x, self.norm)
             if pool and confirm > 0:
                 if prev_x is not None and np.linalg.norm(x - prev_x) > 0.5 * self.norm:
