@@ -112,6 +112,88 @@ the collapse is fixable at inference time. These targets are sequential.
   claimable. Full row: ROADMAP 33c. **The RELEASE HOLD stands — owner
   decision point reached, not passed.**
 
+### Gap-closing follow-ons (opened 2026-08-05, after T1.4's verdict)
+
+The remaining gap is 0.160 (0.712 vs 0.872) and T1.4's diagnostics localize
+it: not flooding anymore — capacity (K=40 = 4 slots/class vs the prototype
+bar's 120 prototypes) and readout richness (best-overlap majority label vs
+per-class prototype geometry), plus one unexplained regression (task 1).
+T1.5 and T1.6 are independent and parallelizable; T1.7 is a small
+diagnostic that feeds T1.5. All three re-score on the phase-33c protocol
+verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
+
+### T1.5 — Cost-matched capacity sweep (phase 33d)  `[claimed: —]`
+- **Objective**: the ladder pins K=40 by protocol, but the 0.872 prototype
+  bar spends 30.7KB on 120 prototypes while the organism spends 54.4KB on
+  40 slots. Sweep K ∈ {40, 60, 80, 120, 160} at evict=250, reporting
+  ACC/FORG *and state bytes* per point; the headline comparison is the
+  cost-matched one (organism at ≤30.7KB-equivalent state and organism at
+  matched slot count 120). Phase 12 showed storage itself scales — the
+  question is whether the gate gap is mostly a capacity artifact.
+- **Context**: `phase33c_gate_retest.py` (protocol + baseline arm — reuse
+  its stream and scorers verbatim), `phase33b_slot_budget.py` (evict
+  characterization; note the E=250 window was tuned at K=40 — re-check
+  staleness dynamics at higher K, the live-slot revisit interval grows),
+  ROADMAP rows 33/33b/33c.
+- **Pre-registered predictions**: (a) ACC rises monotonically with K and
+  the flood becomes irrelevant (fresh slots without eviction pressure);
+  (b) honest negative to watch: if ACC plateaus below ~0.87 by K=120, the
+  gap is NOT capacity — it's readout geometry, and T1.6 carries the load;
+  (c) at K=120 the state-bytes comparison may favor prototypes — report
+  the cost-per-accuracy curve either way, that IS the cost-effectiveness
+  measurement the gate's second branch asks for.
+- **Done when**: `phase33d_*.py` prints the sweep + cost curve + verdict
+  vs both gate branches; ROADMAP row; harness green both backends
+  (no organism.py changes expected — protocol-level only).
+
+### T1.6 — Readout geometry upgrade (eval-side)  `[claimed: —]`
+- **Objective**: `LabelEvidenceReadout.predict` is argmax-overlap → slot
+  majority label. Prototypes win partly on readout geometry, not memory
+  content. Add richer eval-side decoders over the SAME organism state:
+  (i) evidence-weighted soft vote over top-m overlapping slots,
+  (ii) per-slot label distribution (not majority collapse),
+  (iii) optional distance-calibrated variant. Labels still enter only at
+  the readout; observe/predict must stay bitwise non-mutating (pinned by
+  `test_label_readout.py` — extend it, don't weaken it).
+- **Context**: `label_readout.py` (T1.6 owns this file),
+  `test_label_readout.py`, `phase33c_gate_retest.py` (re-score protocol).
+- **Pre-registered predictions**: (a) soft top-m vote recovers part of the
+  gap (drifted/mixed slots carry label mass the majority collapse throws
+  away — the ACC 0.25→0.665 history says slot-label ambiguity is real);
+  (b) honest negative: if no eval-side decoder moves ACC by >0.02, the
+  memory content itself is the limit and the lever is T1.5/mechanism, not
+  readout — that null is worth pinning.
+- **Done when**: decoder comparison table on the 33c protocol (evict=0 and
+  evict=250 arms), `test_label_readout.py` extended and green, harness
+  green; the winning decoder becomes the default only if it also leaves
+  the 33c anchors reproducible under a flag.
+- **Boundary rule**: this is eval-side improvement, not mechanism — any
+  temptation to feed readout confidence back into perception is out of
+  scope (and out of premise).
+
+### T1.7 — Task-1 regression diagnostic  `[claimed: —]`
+- **Objective**: evict=250 lifted task-0 retention 0.732→0.939 but DROPPED
+  task-1 final accuracy 0.464→0.393, and the era census [9,7,4,6,14] shows
+  task 1 holding the fewest surviving slots. Explain it: log per-eviction
+  victim (birth task, count, age, evicting-token task) across the 33c run
+  and reconstruct who evicted whom, when. Small scope — instrumentation +
+  analysis, no mechanism change unless the data names one.
+- **Context**: `phase33b_slot_budget.py` (per-task traces),
+  `phase33c_gate_retest.py`, `organism.py`/`fastpath.py` eviction paths
+  (read-only; if a log hook is needed, keep it behind a debug flag and
+  prove evict-mode equivalence unchanged).
+- **Pre-registered hypotheses to discriminate**: (H1) task-1 slots are
+  evicted disproportionately (they were born under maximum pressure with
+  the lowest counts — the flood's successor pays the bill); (H2) task-1
+  slots survive but their labels are stale in the readout after nearby
+  evictions; (H3) task 1 is intrinsically hardest (its baseline 0.464 was
+  already the ladder's low) and eviction merely fails to help. Each
+  hypothesis names a different fix (count-normalized-by-era victim choice /
+  readout invalidation scope / nothing).
+- **Done when**: eviction ledger + verdict naming which hypothesis the
+  data supports; feeds the victim-selection refinement into T1.5's sweep
+  if H1 holds.
+
 ---
 
 ## Category 2 — Scale & real text
