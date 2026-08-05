@@ -69,13 +69,16 @@ def _nrm(v, target):
 
 @njit(cache=True, fastmath=True)
 def _perceive_chunk(frames, n_valid, z_io, xi, xic, used, count, P,
-                    prov, hits, age, nvis, prev_x, state_i,
+                    prov, hits, age, nvis, evicts, prev_x, state_i,
                     g_in, dt, eta, recruit, p_decay, confirm, probation,
-                    pool, active_bar, s_hat, amb, fuse_bar, omega, norm):
+                    pool, active_bar, s_hat, amb, fuse_bar, evict, omega, norm):
     """One chunk of the perceive loop. All state mutates in place.
     state_i = [last_k, boundary_prev, have_prev_x] (int64).
     xic is the maintained conjugate of xi (kept in sync on every row edit)
-    so the per-frame K x N overlap runs as one BLAS matvec."""
+    so the per-frame K x N overlap runs as one BLAS matvec. With evict > 0
+    the caller passes org.age/org.evictions as the age/evicts arrays (the
+    T1.2 slot budget's persistent staleness clock); otherwise per-call
+    locals, reproducing prior behavior exactly."""
     N = xi.shape[1]
     K = xi.shape[0]
     z = z_io.copy()
@@ -199,14 +202,41 @@ def _perceive_chunk(frames, n_valid, z_io, xi, xic, used, count, P,
                             all_used = False
                             f = k2
                             break
-                    if tail < 0.8 * active_bar and not all_used:
-                        xi[f] = _nrm(z, norm)      # novel (not a memory's weak tail)
-                        xic[f] = np.conj(xi[f])
-                        used[f] = True
-                        prov[f] = True
-                        hits[f] = 0.0
-                        age[f] = 0.0
-                        nvis[f] = 1.0
+                    if tail < 0.8 * active_bar:
+                        if evict > 0.0 and all_used:
+                            # slot budget: reclaim the least-established
+                            # stale slot (argmin count among slots idle
+                            # > evict frames) -- evict_one() in organism.py
+                            bestc = np.inf
+                            je = -1
+                            for k2 in range(K):
+                                if used[k2] and age[k2] > evict and count[k2] < bestc:
+                                    bestc = count[k2]
+                                    je = k2
+                            if je >= 0:
+                                used[je] = False
+                                count[je] = 0.0
+                                prov[je] = False
+                                hits[je] = 0.0
+                                nvis[je] = 0.0
+                                age[je] = 0.0
+                                evicts[je] += 1.0
+                                for c in range(K):     # graph.retire
+                                    P[je, c] = 0.0
+                                for r in range(K):
+                                    P[r, je] = 0.0
+                                if bprev == je:        # boundary.invalidate
+                                    bprev = -1
+                                all_used = False
+                                f = je
+                        if not all_used:
+                            xi[f] = _nrm(z, norm)      # novel (not a memory's weak tail)
+                            xic[f] = np.conj(xi[f])
+                            used[f] = True
+                            prov[f] = True
+                            hits[f] = 0.0
+                            age[f] = 0.0
+                            nvis[f] = 1.0
             prev_x[:] = x
             have_prev = 1
 
@@ -239,15 +269,41 @@ def _perceive_chunk(frames, n_valid, z_io, xi, xic, used, count, P,
                     all_used = False
                     f = k2
                     break
+            if evict > 0.0 and mk < 0.8 * recruit and all_used:
+                # slot budget: reclaim the least-established stale slot
+                # (argmin count among slots idle > evict frames); the 0.8x
+                # novelty throttle mirrors evict_one() in organism.py
+                bestc = np.inf
+                je = -1
+                for k2 in range(K):
+                    if used[k2] and age[k2] > evict and count[k2] < bestc:
+                        bestc = count[k2]
+                        je = k2
+                if je >= 0:
+                    used[je] = False
+                    count[je] = 0.0
+                    prov[je] = False
+                    hits[je] = 0.0
+                    nvis[je] = 0.0
+                    age[je] = 0.0
+                    evicts[je] += 1.0
+                    for c in range(K):             # graph.retire
+                        P[je, c] = 0.0
+                    for r in range(K):
+                        P[r, je] = 0.0
+                    if bprev == je:                # boundary.invalidate
+                        bprev = -1
+                    all_used = False
+                    f = je
             if mk < recruit and not all_used:     # novel -> recruit a free slot
                 xi[f] = _nrm(z, norm)
                 xic[f] = np.conj(xi[f])
                 used[f] = True
                 k = f
+                age[f] = 0.0
                 if confirm > 0:
                     prov[f] = True
                     hits[f] = 0.0
-                    age[f] = 0.0
             else:                                  # familiar -> refine memory
                 z_al = z * np.exp(-1j * np.arctan2(ok.imag, ok.real))
                 xi[k] = _nrm(xi[k] + eta * (z_al - xi[k]), norm)
@@ -268,11 +324,20 @@ def _perceive_chunk(frames, n_valid, z_io, xi, xic, used, count, P,
                         if age[k2] > probation:
                             any_expired = True
             else:
-                for k2 in range(K):
-                    if prov[k2]:
-                        age[k2] += 1.0
-                        if age[k2] > probation:
-                            any_expired = True
+                if evict > 0.0:
+                    # budget clock: every used slot ages (prov in used, so
+                    # provisional birth-clocks tick identically either way)
+                    for k2 in range(K):
+                        if used[k2]:
+                            age[k2] += 1.0
+                            if prov[k2] and age[k2] > probation:
+                                any_expired = True
+                else:
+                    for k2 in range(K):
+                        if prov[k2]:
+                            age[k2] += 1.0
+                            if age[k2] > probation:
+                                any_expired = True
             if any_expired:                        # recycle
                 for k2 in range(K):
                     expired = (used[k2] if pool else prov[k2]) and age[k2] > probation
@@ -287,9 +352,15 @@ def _perceive_chunk(frames, n_valid, z_io, xi, xic, used, count, P,
                                 P[r, k2] = 0.0
                             if bprev == k2:        # boundary.invalidate
                                 bprev = -1
+        elif evict > 0.0:                          # plain mode: budget clock only
+            for k2 in range(K):
+                if used[k2]:
+                    age[k2] += 1.0
         if mk > active_bar and used[k]:
             count[k] += 1.0
             if not prov[k]:                        # gate: only confirmed, confident
+                if evict > 0.0 and not pool:       # confident use resets the budget
+                    age[k] = 0.0                   # clock (pool: acceptance owns it)
                 if k != bprev and bprev >= 0:      # boundary.commit -> graph.observe
                     if p_decay > 0.0:
                         for r in range(K):
@@ -307,7 +378,7 @@ def _perceive_chunk(frames, n_valid, z_io, xi, xic, used, count, P,
 
 def perceive_fast(org, stream, g_in=4.0, dt=0.05, eta=0.02, recruit=0.55,
                   p_decay=0.0, confirm=0, probation=6000, pool=False,
-                  active_bar=0.6, s_hat=0.0, amb=0.0, fuse_bar=0.7):
+                  active_bar=0.6, s_hat=0.0, amb=0.0, fuse_bar=0.7, evict=0):
     """Drop-in backend for Organism.perceive. Consumes any iterable of
     frames (list, array, or generator) in bounded-memory chunks."""
     N, K = org.N, org.K
@@ -317,7 +388,10 @@ def perceive_fast(org, stream, g_in=4.0, dt=0.05, eta=0.02, recruit=0.55,
     z_io = np.ascontiguousarray(org.z, dtype=np.complex128)
     prov = np.zeros(K, np.bool_)
     hits = np.zeros(K, np.float64)
-    age = np.zeros(K, np.float64)
+    # with evict > 0 the staleness clock is the persistent org.age (mutated
+    # in place by the kernel -- the budget outlives any one stream);
+    # otherwise the historical per-call local, so evict=0 is untouched
+    age = org.age if evict > 0 else np.zeros(K, np.float64)
     nvis = np.zeros(K, np.float64)
     prev_x = np.zeros(N, np.complex128)
     state_i = np.array([-1, -1, 0], np.int64)      # last_k, boundary.prev, have_prev
@@ -329,21 +403,21 @@ def perceive_fast(org, stream, g_in=4.0, dt=0.05, eta=0.02, recruit=0.55,
         fill += 1
         if fill == PERCEIVE_CHUNK:
             _perceive_chunk(buf, fill, z_io, xi, xic, org.used, org.count, P,
-                            prov, hits, age, nvis, prev_x, state_i,
+                            prov, hits, age, nvis, org.evictions, prev_x, state_i,
                             float(g_in), float(dt), float(eta), float(recruit),
                             float(p_decay), int(confirm), float(probation),
                             bool(pool), float(active_bar), float(s_hat),
-                            float(amb), float(fuse_bar), float(org.omega),
-                            float(org.norm))
+                            float(amb), float(fuse_bar), float(evict),
+                            float(org.omega), float(org.norm))
             fill = 0
     if fill > 0:
         _perceive_chunk(buf, fill, z_io, xi, xic, org.used, org.count, P,
-                        prov, hits, age, nvis, prev_x, state_i,
+                        prov, hits, age, nvis, org.evictions, prev_x, state_i,
                         float(g_in), float(dt), float(eta), float(recruit),
                         float(p_decay), int(confirm), float(probation),
                         bool(pool), float(active_bar), float(s_hat),
-                        float(amb), float(fuse_bar), float(org.omega),
-                        float(org.norm))
+                        float(amb), float(fuse_bar), float(evict),
+                        float(org.omega), float(org.norm))
 
     if confirm > 0:                                # purge still-unconfirmed slots
         org.used[prov] = False

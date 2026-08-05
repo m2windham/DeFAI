@@ -20,8 +20,13 @@ Guarantees (each one pinned in regression_harness.py section 8):
     E2's backend contract).
 
 Bounded memory: the slot cap is K by construction, and eviction is the
-mechanism's own use-it-or-lose-it recycling (phase 17) -- there is no
-separate eviction policy to serialize.
+mechanism's own use-it-or-lose-it recycling (phase 17), extended by T1.2's
+slot budget (eviction under recruitment pressure, `evict > 0`). The budget's
+staleness clock (org.age) and per-slot eviction tally (org.evictions) are
+part of the organism's dynamical state and round-trip here. Files written
+before T1.2 lack the two arrays and load with zeroed clocks -- exactly the
+state a pre-budget organism had -- so the schema version is unchanged
+(additive migration, not a reinterpretation of existing fields).
 
 Consolidation products (mem/Pn/kept_idx) are saved when present so a
 restored organism can recall() immediately without re-consolidating.
@@ -42,6 +47,7 @@ def save_state(org, path):
         params=np.array([org.N, org.K], dtype=np.int64),
         hyper=np.array([org.omega, org.beta], dtype=np.float64),
         xi=org.xi, used=org.used, count=org.count,
+        age=org.age, evictions=org.evictions,
         P=org.graph.P, z=org.z,
         rng_state=np.frombuffer(
             json.dumps(org.rng.bit_generator.state).encode(), dtype=np.uint8),
@@ -68,6 +74,10 @@ def load_state(path, cls=Organism):
         org.xi = f['xi'].copy()
         org.used = f['used'].copy()
         org.count = f['count'].copy()
+        # pre-T1.2 files carry no budget state; a zeroed clock is exactly
+        # the state a pre-budget organism had (additive migration)
+        org.age = f['age'].copy() if 'age' in f else np.zeros(K)
+        org.evictions = f['evictions'].copy() if 'evictions' in f else np.zeros(K)
         org.graph.P = f['P'].copy()
         org.z = f['z'].copy()
         org.rng.bit_generator.state = json.loads(bytes(f['rng_state']).decode())

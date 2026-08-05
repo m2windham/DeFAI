@@ -201,6 +201,10 @@ class Organism:
                                       self.norm) for _ in range(K)])
         self.used = np.zeros(K, bool)
         self.count = np.zeros(K)            # how often each slot is the confident active memory
+        self.age = np.zeros(K)              # slot-budget staleness clock: frames since last
+                                            # confident use; persists across perceive calls
+                                            # when evict > 0 (T1.2), serialized by E3
+        self.evictions = np.zeros(K)        # per-slot pressure-eviction tally (diagnostic)
         self.graph = TransitionGraph(K)     # LOGIC layer: learned transitions between memories
         self.z = normalize(self.rng.standard_normal(N) + 1j * self.rng.standard_normal(N), self.norm)
 
@@ -228,7 +232,7 @@ class Organism:
     # ---- PHASE 1: perceive + form memories + learn transitions -------------
     def perceive(self, stream, g_in=4.0, dt=0.05, eta=0.02, recruit=0.55, p_decay=0.0,
                  confirm=0, probation=6000, pool=False, active_bar=0.6, s_hat=0.0,
-                 amb=0.0, fuse_bar=0.7):
+                 amb=0.0, fuse_bar=0.7, evict=0):
         """p_decay: exponential forgetting of transition counts, applied once
         per observed transition (synaptic decay). 0.0 = original behavior
         (counts accumulate forever); 1/p_decay is the effective memory in
@@ -366,6 +370,46 @@ class Organism:
         be placed from the measured similarity distribution instead of
         assumed; 0.7 default reproduces prior behavior exactly.
 
+        evict (T1.2, slot budget / eviction under recruitment pressure):
+        phase 33 measured the failure this closes -- in a class-incremental
+        stream the first task's data floods every slot (recruit is a
+        similarity floor, so recruitment is eager while slots are free),
+        after which `not used.all()` blocks recruitment FOREVER and later
+        patterns can only be learned by dragging existing slots off their
+        memories (slot drift: a slow forgetting channel, the FORG 0.20).
+        evict > 0 turns the pool-mode use-it-or-lose-it recycling into a
+        DEMAND-DRIVEN budget, in any mode:
+
+          - the staleness clock self.age (frames since the slot was last
+            confidently used) becomes PERSISTENT organism state -- it no
+            longer resets at perceive-call boundaries, because capacity
+            pressure is a property of the organism's whole life, not of
+            one stream. In plain/confirm modes a slot's clock zeroes on
+            confident activity (the same event that feeds `count`); in
+            pool mode the clock stays acceptance-driven, exactly the
+            existing use-it-or-lose-it semantics (a frozen mixture that
+            soaks up activity while accepting nothing must still read as
+            dead). E3 serializes the clock; old state files load with a
+            zeroed clock.
+          - eviction fires only UNDER RECRUITMENT PRESSURE: a novel token
+            wants a slot and none is free. Then the least-established
+            stale slot -- argmin lifetime `count` among slots idle longer
+            than `evict` frames, the same rarely-the-confident-active-
+            memory junk signal consolidate() prunes by -- is recycled
+            through the existing machinery (used/count cleared,
+            graph.retire, boundary.invalidate), and recruitment proceeds
+            into the freed slot. Nothing is evicted while free slots
+            remain, and slots idle less than `evict` frames are never
+            touched, so an active stream cannot churn live memories.
+            Count-ordering makes the budget reclaim junk and duplicates
+            before established memories; timer-expiry (probation) is
+            unchanged and still owns the pool-mode lifecycle.
+
+        Label-free by construction: staleness and usage counts only --
+        no task boundaries, no class information anywhere. evict=0 (the
+        default) reproduces prior behavior exactly, including leaving
+        self.age untouched.
+
         active_bar is also the confidence bar for counting and transition
         learning (0.6 = original); beyond sigma* it must sit below the
         token-vs-memory overlap or P never learns. pool=False with
@@ -375,13 +419,33 @@ class Organism:
                 self, stream, g_in=g_in, dt=dt, eta=eta, recruit=recruit,
                 p_decay=p_decay, confirm=confirm, probation=probation,
                 pool=pool, active_bar=active_bar, s_hat=s_hat, amb=amb,
-                fuse_bar=fuse_bar)
+                fuse_bar=fuse_bar, evict=evict)
         z = self.z
         boundary = EventBoundary(self.graph, p_decay)
         prov = np.zeros(self.K, bool)
-        hits = np.zeros(self.K); age = np.zeros(self.K); nvis = np.zeros(self.K)
+        hits = np.zeros(self.K); nvis = np.zeros(self.K)
+        # with evict > 0 the staleness clock is the persistent self.age (the
+        # budget outlives any one stream); otherwise the historical per-call
+        # local, so evict=0 behavior is untouched
+        age = self.age if evict > 0 else np.zeros(self.K)
         prev_x = None
         last_k = -1
+
+        def evict_one():
+            """Slot budget under recruitment pressure: reclaim the least-
+            established stale slot (argmin lifetime count among slots idle
+            > evict frames). Returns True if a slot was freed."""
+            ev = self.used & (age > evict)
+            if not ev.any():
+                return False
+            j = int(np.argmin(np.where(ev, self.count, np.inf)))
+            self.used[j] = False; self.count[j] = 0
+            prov[j] = False; hits[j] = 0; nvis[j] = 0; age[j] = 0
+            self.evictions[j] += 1
+            self.graph.retire(j)
+            expired = np.zeros(self.K, bool); expired[j] = True
+            boundary.invalidate(expired)
+            return True
         for x in stream:
             x = normalize(x, self.norm)
             if pool and confirm > 0:
@@ -430,11 +494,14 @@ class Organism:
                             self.used[drop] = False; prov[drop] = False
                             self.count[drop] = 0
                             boundary.remap(drop, keep)
-                    elif (mm[self.used & ~prov].max(initial=0.0) < 0.8 * active_bar
-                          and not self.used.all()):        # novel (not a memory's weak tail)
-                        f = int(np.argmin(self.used.astype(float)))
-                        self.xi[f] = normalize(z, self.norm); self.used[f] = True
-                        prov[f] = True; hits[f] = 0; age[f] = 0; nvis[f] = 1
+                    elif mm[self.used & ~prov].max(initial=0.0) < 0.8 * active_bar:
+                        # novel (not a memory's weak tail)
+                        if evict > 0 and self.used.all():
+                            evict_one()                    # budget: reclaim stale structure
+                        if not self.used.all():
+                            f = int(np.argmin(self.used.astype(float)))
+                            self.xi[f] = normalize(z, self.norm); self.used[f] = True
+                            prov[f] = True; hits[f] = 0; age[f] = 0; nvis[f] = 1
                 prev_x = x
             dz = 1j * self.omega * z + g_in * (x - z)     # input-driven (no retrieval: avoids collapse)
             z = normalize(z + dt * dz, self.norm)
@@ -442,15 +509,27 @@ class Organism:
             k = int(np.argmax(m))
             if pool and confirm > 0:
                 pass                                       # all updates happen at saccades
-            elif m[k] < recruit and not self.used.all():  # novel -> recruit a free slot
-                f = int(np.argmin(self.used.astype(float)))
-                self.xi[f] = normalize(z, self.norm); self.used[f] = True; k = f
-                if confirm > 0:
-                    prov[f] = True; hits[f] = 0; age[f] = 0
-            else:                                          # familiar -> refine memory
-                z_al = z * np.exp(-1j * np.angle(o[k]))
-                self.xi[k] = normalize(self.xi[k] + eta * (z_al - self.xi[k]), self.norm)
-                self.used[k] = True
+            else:
+                if evict > 0 and m[k] < 0.8 * recruit and self.used.all():
+                    # budget: reclaim stale structure. Recruiting out of a
+                    # FREED slot demands more novelty (0.8x, the pool-mode
+                    # weak-tail fraction) than recruiting into a free one:
+                    # near-misses refine an existing memory instead of
+                    # spending the budget, so a pattern stops evicting once
+                    # it holds prototypes at that spacing. Without this
+                    # throttle, demand at recruit-spacing flushes the whole
+                    # bank every regime change (measured, phase 33b).
+                    evict_one()
+                if m[k] < recruit and not self.used.all():  # novel -> recruit a free slot
+                    f = int(np.argmin(self.used.astype(float)))
+                    self.xi[f] = normalize(z, self.norm); self.used[f] = True; k = f
+                    age[f] = 0
+                    if confirm > 0:
+                        prov[f] = True; hits[f] = 0
+                else:                                      # familiar -> refine memory
+                    z_al = z * np.exp(-1j * np.angle(o[k]))
+                    self.xi[k] = normalize(self.xi[k] + eta * (z_al - self.xi[k]), self.norm)
+                    self.used[k] = True
             if confirm > 0:
                 if not pool and prov[k] and m[k] > 0.6 and k != last_k:  # a fresh visit, not the same dwell
                     hits[k] += 1
@@ -464,7 +543,10 @@ class Organism:
                     age[self.used] += 1
                     expired = self.used & (age > probation)
                 else:
-                    age[prov] += 1
+                    if evict > 0:
+                        age[self.used] += 1   # budget clock: every used slot ages
+                    else:                     # (prov in used, so provisional birth-
+                        age[prov] += 1        # clocks tick identically either way)
                     expired = prov & (age > probation)
                 if expired.any():                           # recycle
                     self.used[expired] = False; self.count[expired] = 0
@@ -472,9 +554,13 @@ class Organism:
                     if pool:
                         self.graph.retire(expired)
                         boundary.invalidate(expired)
+            elif evict > 0:                                 # plain mode: budget clock only
+                age[self.used] += 1
             if m[k] > active_bar and self.used[k]:
                 self.count[k] += 1
                 if not prov[k]:                            # gate: only confirmed, confident
+                    if evict > 0 and not pool:             # confident use resets the budget
+                        age[k] = 0                         # clock (pool: acceptance owns it)
                     boundary.commit(k)                     # recognitions cross into logic
             last_k = k
         if confirm > 0:                                    # purge still-unconfirmed slots

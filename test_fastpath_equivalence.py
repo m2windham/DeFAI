@@ -14,6 +14,9 @@ Checks, one per perceive mode + recall + consolidate:
   4. recall + recall2        -- identical RNG stream by construction; the
                                 committed hop sequences must agree
   5. consolidate             -- identical kept-slot list on the same state
+  6. slot-budget eviction    -- T1.2 evict>0 in plain (two-world flooding)
+                                and pool+amb modes; the persistent budget
+                                clock and eviction tallies must agree too
 
 Run: python test_fastpath_equivalence.py  (nonzero exit on failure)
 """
@@ -54,6 +57,8 @@ def state_diff(a, b):
         np.abs(a.count - b.count).max(),
         np.abs(a.P - b.P).max(),
         float((a.used != b.used).sum()),
+        np.abs(a.age - b.age).max(),
+        np.abs(a.evictions - b.evictions).max(),
     )
     return float(d)
 
@@ -137,6 +142,47 @@ for k in idx:
     if dup is None:
         merged.append(k)
 check("consolidate kept-list mismatch", 0.0 if merged == kept_new else 1.0, 0.0)
+
+# 6. slot-budget eviction (T1.2) ----------------------------------------
+print("(6) slot-budget eviction: plain two-world flooding + pool+amb")
+
+
+def two_world_stream(G, lo, hi, n, seed, N):
+    r = np.random.default_rng(seed)
+    NORM = np.sqrt(N)
+    h = lo; out = []
+    for i in range(n):
+        if i % 60 == 0 and i > 0:
+            h = int(r.integers(lo, hi))
+        out.append(G[h] + 0.5 * NORM / np.sqrt(N) *
+                   (r.standard_normal(N) + 1j * r.standard_normal(N)))
+    return out
+
+
+Nw, Hw = 64, 4
+wrng = np.random.default_rng(7)
+Gw, _ = np.linalg.qr(wrng.standard_normal((Nw, 2 * Hw)) + 1j * wrng.standard_normal((Nw, 2 * Hw)))
+Gw = Gw.T * np.sqrt(Nw)
+sA = two_world_stream(Gw, 0, Hw, 12000, 1, Nw)
+sB = two_world_stream(Gw, Hw, 2 * Hw, 12000, 2, Nw)
+a, b = pair(N=Nw, K=6, seed=0)
+a.perceive(sA); a.perceive(sB, evict=800)
+b.perceive(sA); b.perceive(sB, evict=800)
+check("plain+evict perceive state diff", state_diff(a, b), 1e-5)
+check("plain+evict eviction-count mismatch",
+      float(abs(a.evictions.sum() - b.evictions.sum())), 0.0)
+
+a, b = pair(N=N14, K=12, omega=0.15, beta=10.0, seed=0)
+seq6 = sample_stream(600, seed=99)
+fr6 = list(frames(seq6, 0.2))
+kw6 = dict(g_in=5.0, dt=0.05, eta=0.05, confirm=3, pool=True,
+           active_bar=0.35, s_hat=0.2**2 * N14, probation=12000, amb=0.3,
+           evict=600)
+a.perceive(fr6, **kw6)
+b.perceive(fr6, **kw6)
+check("pool+amb+evict perceive state diff", state_diff(a, b), 1e-5)
+check("pool+amb+evict eviction-count mismatch",
+      float(abs(a.evictions.sum() - b.evictions.sum())), 0.0)
 
 print()
 if FAILURES:
