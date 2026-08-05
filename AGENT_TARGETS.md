@@ -259,7 +259,7 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
   two measured recovery targets (routing margin 0.061 for a soft top-m
   vote; preserved-but-outvoted label mass). Full row: ROADMAP 33e.
 
-### T1.8 — Representation-width byte reduction (phase 33g)  `[claimed: —]`
+### T1.8 — Representation-width byte reduction (phase 33g)  `[claimed: claude/phase-33g-representation-width-wf4nsv, 2026-08-05]`
 - **Objective**: T1.5 measured the cost-branch failure as representation
   width, not memory count (K=120 vs 120 protos: ACC -0.018 at 7.8× bytes;
   complex128 `xi` + dense K×K P). Cut bytes without touching behavior:
