@@ -39,7 +39,7 @@ the collapse is fixable at inference time. These targets are sequential.
 - **Done when**: `phase36_*.py` prints setup/baselines/verdict; sweep rows
   + verdict recorded in ROADMAP; harness still green both backends.
 
-### T1.2 — Slot-budget / eviction policy  `[claimed: —]`
+### T1.2 — Slot-budget / eviction policy  `[claimed: claude/slot-budget-eviction-pool-mode-9vd1u8, 2026-08-05]`
 - **Objective**: stop task-1 slot flooding (phase 33: K=40 exhausted by the
   first class, later classes learn only by slot drift → FORG 0.20). Natural
   home: the pool-mode use-it-or-lose-it recycling machinery in
