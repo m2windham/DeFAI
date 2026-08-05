@@ -15,6 +15,20 @@ label-evidence readout promoted out of phase 33) against three pins:
      through them (the EventBoundary notification contract, mirrored so
      pool-mode fusion/recycling and future eviction (T1.2) can forward
      straight through at the phase-script level).
+  4. DECODER GEOMETRY (T1.6) -- the soft/dist/calib decoders are eval-side
+     like the default: bitwise non-mutating; every one of them reduces
+     EXACTLY to the argmax decoder at m=1 (and calib at beta -> inf); soft
+     recovers label mass a majority collapse throws away; dist normalizes
+     away raw-count dominance; none of them routes through invalidated or
+     evidence-free slots. The default decoder stays argmax -- section 1's
+     equivalence pin is untouched by construction.
+  5. THE T1.6 NULL, PINNED -- phase 33e's verdict: on the committed
+     evict=0 phase-33 protocol (this file's section-1 organism), NO
+     alternative decoder in the 33e grid beats argmax by more than 0.02
+     ACC (measured best: +0.000). The budget-arm (evict=250) seed-0 wins
+     did not survive full-protocol reseeding (sign flip at seed 3), so
+     the null is the standing result: memory content, not readout
+     geometry, is the gate-gap limit -- see phase33e_readout_geometry.py.
 
 Run: python test_label_readout.py  (nonzero exit on failure)
 """
@@ -153,6 +167,88 @@ if __name__ == "__main__":
     check("query nearest a dead slot falls to the best LIVE slot's label",
           r.predict(fake, probe)[0] in (r.evidence[0].argmax(),
                                         r.evidence[3].argmax()))
+
+    print("\n4. decoder geometry (T1.6) -- soft/dist/calib over the same state")
+    for dec, kw in [("soft", {}), ("dist", {}), ("calib", {"beta": 16.0})]:
+        snap = org_snapshot(org)
+        readout.predict(org, Xte[:100], decoder=dec, m=None, **kw)
+        check(f"{dec} decoder leaves organism state bitwise unchanged",
+              org_unchanged(org, snap))
+    p_arg = readout.predict(org, Xte)
+    m1_ok = all(np.array_equal(p_arg,
+                               readout.predict(org, Xte, decoder=dec, m=1))
+                for dec in ("soft", "dist", "calib"))
+    check("soft/dist/calib at m=1 reduce EXACTLY to argmax "
+          f"(all {len(Xte)} test queries)", m1_ok)
+    try:
+        readout.predict(org, Xte[:1], decoder="nope")
+        check("unknown decoder name raises ValueError", False)
+    except ValueError:
+        check("unknown decoder name raises ValueError", True)
+
+    class GeoOrg:             # N=1: overlap of state [1] with slot j is xi[j]
+        N, norm = 1, 1.0
+        used = np.ones(3, bool)
+        xi = np.array([[1.0], [0.9], [0.1]], complex)
+    geo = GeoOrg()
+    q = np.array([[1.0 + 0j]])
+    rg = LabelEvidenceReadout(K=3, n_classes=3)
+    rg.evidence[:] = [[3, 2, 0],  # nearest slot: majority 0, split 3/2
+                      [0, 4, 0],  # second slot: pure label 1
+                      [1, 0, 0]]
+    check("argmax collapses to the nearest slot's majority label",
+          rg.predict(geo, q)[0] == 0)
+    check("soft top-2 recovers the split label mass the collapse discards",
+          rg.predict(geo, q, decoder="soft", m=2)[0] == 1)      # 5.6 vs 3.0
+    check("dist top-2 agrees here (distribution routing)",
+          rg.predict(geo, q, decoder="dist", m=2)[0] == 1)      # 1.3 vs 0.6
+    check("calib beta=8 recovers the split mass",
+          rg.predict(geo, q, decoder="calib", m=None, beta=8.0)[0] == 1)
+    check("calib beta->inf collapses to nearest-slot routing (= argmax)",
+          rg.predict(geo, q, decoder="calib", m=None, beta=1e3)[0]
+          == rg.predict(geo, q)[0])
+
+    class CntOrg:
+        N, norm = 1, 1.0
+        used = np.ones(2, bool)
+        xi = np.array([[0.6], [0.9]], complex)
+    cnt = CntOrg()
+    rc = LabelEvidenceReadout(K=2, n_classes=2)
+    rc.evidence[:] = [[10, 0],    # farther slot, high raw count
+                      [0, 1]]     # nearer slot, low count but pure
+    check("soft lets raw count mass dominate (documents the difference)",
+          rc.predict(cnt, q, decoder="soft", m=2)[0] == 0)      # 6.0 vs 0.9
+    check("dist normalizes count away: the nearer pure slot wins",
+          rc.predict(cnt, q, decoder="dist", m=2)[0] == 1)      # 0.9 vs 0.6
+    live = (r.evidence[0].argmax(), r.evidence[3].argmax())
+    dead_ok = all(
+        r.predict(fake, probe, decoder=dec, m=None, **kw)[0] in live
+        for dec, kw in [("soft", {}), ("dist", {}), ("calib", {"beta": 16.0})])
+    check("no decoder routes through invalidated/evidence-free slots", dead_ok)
+
+    print("\n5. the T1.6 null, pinned (phase 33e verdict on this protocol)")
+    r5 = LabelEvidenceReadout(K=40, n_classes=10)   # pristine section-1
+    r5.evidence[:] = evidence_ref                   # evidence, pre-section-2
+    def final_acc(**kw):
+        accs = []
+        for teval in TASKS:
+            m_ = np.isin(yte, teval)
+            accs.append(float(
+                (r5.predict(org, Xte[m_], **kw) == yte[m_]).mean()))
+        return float(np.mean(accs))
+    acc_arg = final_acc()
+    check("argmax reproduces the committed evict=0 anchor ACC 0.665 "
+          f"(got {acc_arg:.3f}; tolerance-banded for backend independence)",
+          abs(acc_arg - 0.665) < 0.005)
+    grid = ([(f"soft-m{m}", dict(decoder="soft", m=m)) for m in (2, 3, 5, 10, 40)]
+            + [(f"dist-m{m}", dict(decoder="dist", m=m)) for m in (2, 3, 5, 10, 40)]
+            + [(f"calib-b{b:g}", dict(decoder="calib", m=None, beta=float(b)))
+               for b in (2, 8, 32, 128)])
+    alts = {name: final_acc(**kw) for name, kw in grid}
+    best_name = max(alts, key=alts.get)
+    check("no alternative decoder beats argmax by > 0.02 ACC here "
+          f"(best {best_name} {alts[best_name]:.3f} vs argmax {acc_arg:.3f})",
+          alts[best_name] <= acc_arg + 0.02)
 
     print()
     if FAILURES:

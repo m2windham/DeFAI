@@ -48,6 +48,33 @@ inside organism.py is required, the notifications already exist.
 Persistence: `evidence` is a plain (K, n_classes) float array -- eval-side
 state, deliberately NOT part of the E3 organism schema. Scripts that need
 it across runs can np.save/np.load it alongside the E3 .npz.
+
+Decoder geometry (T1.6)
+-----------------------
+`predict` accepts a `decoder` argument -- richer EVAL-SIDE decoders over
+the same organism state and the same evidence matrix (labels still enter
+only through `observe`; every decoder reads org state and never writes it):
+
+    argmax  (default)  best-overlap evidenced slot -> its majority label.
+                       The original phase-33 readout, byte-for-byte.
+    soft               evidence-weighted soft vote: the top-m overlapping
+                       slots each contribute overlap * evidence[slot] and
+                       the class scores are summed before the argmax, so
+                       label mass a majority collapse throws away counts.
+    dist               same top-m routing, but each slot contributes its
+                       label DISTRIBUTION (evidence row normalized to sum
+                       1) so a high-count slot cannot outvote a purer
+                       low-count one on raw mass alone.
+    calib              distance-calibrated: softmax(beta * overlap) weights
+                       over ALL evidenced slots (m=None) or the top-m,
+                       times per-slot label distributions -- the continuous
+                       version of top-m truncation. beta -> inf recovers
+                       nearest-slot routing; beta = 0 is a uniform average.
+
+All three reduce EXACTLY to `argmax` at m=1 (single slot: its weighted
+row, normalized or not, argmaxes to the majority label) -- pinned in
+`test_label_readout.py`. Measured on the phase-33c protocol by
+`phase33e_readout_geometry.py`; `argmax` stays the default.
 """
 
 import numpy as np
@@ -111,13 +138,35 @@ class LabelEvidenceReadout:
         slots = self.evidenced(org)
         return slots, self.evidence[slots].argmax(1)
 
-    def predict(self, org, X):
-        """Majority label of each query's best-overlapping evidenced slot.
-        Reads org state; never writes it."""
+    def predict(self, org, X, decoder="argmax", m=5, beta=16.0):
+        """Predict labels for queries `X` from the accumulated evidence.
+        Reads org state; never writes it.
+
+        decoder="argmax" (default): majority label of each query's
+        best-overlapping evidenced slot -- the original phase-33 readout,
+        unchanged. The T1.6 alternatives (`soft`, `dist`, `calib`) are
+        documented in the module docstring; `m` is the number of
+        top-overlap slots consulted (None = all evidenced slots) and
+        `beta` is the softmax sharpness for `calib`."""
         slots, lab = self.slot_labels(org)
         states = self._states(org, X)
-        ov = np.abs(org.xi[slots].conj() @ states.T) / org.N
-        return lab[np.argmax(ov, axis=0)]
+        ov = np.abs(org.xi[slots].conj() @ states.T) / org.N   # (S, n)
+        if decoder == "argmax":
+            return lab[np.argmax(ov, axis=0)]
+        if decoder not in ("soft", "dist", "calib"):
+            raise ValueError(f"unknown decoder {decoder!r}")
+        E = self.evidence[slots]                               # (S, C)
+        if decoder in ("dist", "calib"):
+            E = E / E.sum(1, keepdims=True)     # evidenced rows: sum > 0
+        mm = len(slots) if m is None else min(int(m), len(slots))
+        # stable sort so the top-1 slot on ties is argmax's first-max slot
+        # (m=1 must reduce to the argmax decoder exactly)
+        top = np.argsort(-ov, axis=0, kind="stable")[:mm]      # (m, n)
+        w = np.take_along_axis(ov, top, axis=0)                # (m, n)
+        if decoder == "calib":
+            w = np.exp(beta * (w - w.max(0, keepdims=True)))
+            w = w / w.sum(0, keepdims=True)
+        return np.einsum("mn,mnc->nc", w, E[top]).argmax(1)
 
     # ---- slot-lifecycle notifications (EventBoundary contract) ----------
     def remap(self, drop, keep):

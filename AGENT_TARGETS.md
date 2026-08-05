@@ -166,7 +166,7 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
   born-under-pressure reading; the K=40 mechanism still needs the
   ledger). Full row: ROADMAP 33d.
 
-### T1.6 — Readout geometry upgrade (eval-side)  `[claimed: —]`
+### T1.6 — Readout geometry upgrade (eval-side)  `[DONE 2026-08-05: claude/label-readout-decoder-upgrades-m2mczj, PR #32]`
 - **Objective**: `LabelEvidenceReadout.predict` is argmax-overlap → slot
   majority label. Prototypes win partly on readout geometry, not memory
   content. Add richer eval-side decoders over the SAME organism state:
@@ -190,6 +190,23 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
 - **Boundary rule**: this is eval-side improvement, not mechanism — any
   temptation to feed readout confidence back into perception is out of
   scope (and out of premise).
+- **RESULT (2026-08-05)**: the pre-registered NULL (b) is the verdict,
+  robustly established. `label_readout.py` gained `predict(decoder=...)`:
+  `soft` (evidence-weighted top-m vote), `dist` (count-normalized per-slot
+  label distributions), `calib` (softmax(β·overlap)-weighted
+  distributions) — all eval-side, bitwise non-mutating, each reducing
+  EXACTLY to argmax at m=1 (`test_label_readout.py` §4, 13 new checks).
+  Phase 33e (both 33c organism arms, anchors exact): seed-0 budget arm
+  had five configs clear +0.02 (best calib-b8 +0.063 → 0.775) while the
+  flooded evict=0 arm was dead-null (best +0.000) — but the
+  pre-registered reseeding supplement sign-flipped at seed 3 (calib-b8
+  mean +0.036, min −0.031; the gain is anti-correlated with argmax's own
+  per-seed strength). Per the pre-registered survival rule: no decoder
+  moves ACC > 0.02 ROBUSTLY — memory content, not readout geometry, is
+  the gate-gap limit; the lever is T1.5/mechanism, as prediction (b)
+  named. argmax stays the default; null pinned in
+  `test_label_readout.py` §5; harness 31/31 both backends post-change.
+  See ROADMAP row 33e + `phase33e_readout_geometry.py`.
 
 ### T1.7 — Task-1 regression diagnostic  `[claimed: —]`
 - **Objective**: evict=250 lifted task-0 retention 0.732→0.939 but DROPPED
