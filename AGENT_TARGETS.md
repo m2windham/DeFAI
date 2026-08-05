@@ -122,7 +122,7 @@ T1.5 and T1.6 are independent and parallelizable; T1.7 is a small
 diagnostic that feeds T1.5. All three re-score on the phase-33c protocol
 verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
 
-### T1.5 — Cost-matched capacity sweep (phase 33d)  `[claimed: —]`
+### T1.5 — Cost-matched capacity sweep (phase 33d)  `[claimed: claude/phase-33d-capacity-sweep-ja2etk, 2026-08-05]`
 - **Objective**: the ladder pins K=40 by protocol, but the 0.872 prototype
   bar spends 30.7KB on 120 prototypes while the organism spends 54.4KB on
   40 slots. Sweep K ∈ {40, 60, 80, 120, 160} at evict=250, reporting
