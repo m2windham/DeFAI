@@ -320,6 +320,48 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
   backends. Phase 9's negative untouched: compression re-encodes a
   finished state, nothing re-attributes occurrences. Full row: ROADMAP 33g.
 
+### T1.9 — Cost-branch follow-up: KB-per-accuracy-point parity (phase 33h)  `[claimed: —]`
+- **Objective**: T1.8 repriced the gate's cost branch but did not meet it:
+  the bar-crossing organism arm (K=160, ACC 0.900) now costs 96.4KB =
+  107.1 KB/ACC-pt vs the prototype bar's 35.2 (0.872 @ 30.7KB), a ~3×
+  per-point gap. Close that gap, or measure its floor as the owner's
+  decision input for re-scoping the RELEASE HOLD. Either outcome is the
+  deliverable — a measured "this mechanism cannot reach parity because X"
+  is as valuable as parity itself.
+- **Context**: `phase33g_representation_width.py` +
+  `organism_compress.py` (the compressed cost curve; `store_bytes` is the
+  agreed formula), `phase33d_capacity_sweep.py` (protocol + the K sweep),
+  `phase33e_readout_geometry.py` (T1.6's null AND its two measured
+  recovery targets: routing margin 0.061 for a soft top-m vote;
+  preserved-but-outvoted label mass), `phase33f_eviction_ledger.py`
+  (task-1 regression is NOT eviction — don't spend bytes there).
+- **Levers, in priority order** (width is exhausted — 33g's c64+CSR is
+  already zero-cost; low-rank is a measured NEGATIVE, do not retry it
+  without a reseeding-robust selection protocol):
+  (i) the knee of the COMPRESSED cost curve — 33d chose K on the
+  uncompressed curve; re-find the accuracy-per-byte-optimal K now that
+  33g moved cost-matched from K=24/0.644 to K=48/0.728 in the same
+  30.7KB; (ii) readout richness at fixed K (T1.6's two recovery targets,
+  eval-side, no mechanism change); (iii) slot-count reduction via
+  consolidation at task boundaries (merge near-duplicate slots with the
+  existing `consolidate()` machinery — fold, don't re-attribute; phase
+  9's negative stays closed).
+- **Pre-registered predictions**: (a) the compressed cost curve has a
+  knee below K=160 where KB/ACC-pt improves but likely stays above the
+  bar's 35.2 — measure where; (b) honest negative: if no lever reaches
+  ≤2× the bar's KB/ACC-pt at ACC ≥ 0.872, record the measured floor and
+  the reason, as the decision input for an owner re-scope of the gate to
+  the capability axes. All arms reseed-verified (s=0–4 paired), per
+  T1.6/T1.8's measured selection-bias lesson.
+- **Constraint**: no task/label information inside mechanisms (readout
+  levers stay eval-side); 33c/33d/33g anchors must stay reproducible;
+  harness green both backends; `test_fastpath_equivalence.py` if any
+  kernel path is touched.
+- **Done when**: `phase33h_*.py` prints the measured cost frontier
+  (KB/ACC-pt per arm, reseeded); ROADMAP row records parity, progress, or
+  the floor; AGENT_TARGETS + the RELEASE-HOLD block updated with the
+  verdict.
+
 ---
 
 ## Category 2 — Scale & real text
@@ -335,8 +377,24 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
   perceive at 547K → plan for ~10× that), E4 status (nulls are the cost).
 - **Done when**: phase script + ROADMAP row with pre-registered outcomes
   recorded, including partials.
-
-### T2.2 — Phase 26 real-text arm: calibration at V ≫ N  `[DONE 2026-08-06, session claude/v-n-acceptance-bar-calibration-jrlk86 — see ROADMAP row 37]`
+- **Status (2026-08-06, PR #34)**: instrument landed —
+  `phase27_5m_word_scale_run.py` (42 books / ~5.22M raw words,
+  MIN_COUNT 1500, phase-24 criteria in stage B, stage-A E3 checkpoint at
+  `/tmp/phase27_stageA_checkpoint.npz`, coverage_map OOM fixed by
+  chunking). Stage A measured once (~14.3 min, 598 slots, 3 577 289
+  in-vocab tokens); **the committed run's stage B–D outcomes are NOT yet
+  recorded — that is the open piece.** ROADMAP row 27 stays "in
+  progress" and this target flips to DONE only when P1/P2 verdicts land
+  (partials included). Fold these merge-review follow-ups into the
+  completion commit: (1) use the already-built `train_arr` in
+  `coverage_map`'s member loop instead of re-allocating per slot; (2) add
+  a corpus/vocab fingerprint to the stage-A checkpoint and refuse a stale
+  load; (3) commit the fetch-time title-verification the docstring leans
+  on (the printed curl block has no title check); (4) reconcile
+  `sharpens_k`'s 4–10 window with the docstring's falsification clause
+  (k=11 currently fails without being the sweep ceiling of 12) — argue
+  the fix from the frozen pre-registration text BEFORE looking at the
+  measured k.  `[DONE 2026-08-06, session claude/v-n-acceptance-bar-calibration-jrlk86 — see ROADMAP row 37]`
 - **Objective**: acceptance-bar calibration without the rank<N spectral
   assumption — the blocker for the core perception stack on real
   embeddings (85/395 collapse, confirmed at scale).
