@@ -324,7 +324,7 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
 
 ## Category 2 — Scale & real text
 
-### T2.1 — Phase 27: 5M-word scale run  `[claimed: —]`
+### T2.1 — Phase 27: 5M-word scale run  `[claimed: claude/phase-27-gutenberg-mi-run-afdm3u, 2026-08-06]`
 - **Objective**: 50–100 Gutenberg books through the unified loop with
   phase 24's MI-vs-null + distinctness wired into stage B. Pre-registered:
   does category structure sharpen (MI z up, selected k stable/graceful),
