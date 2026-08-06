@@ -91,7 +91,20 @@ corpus's own first ~3000 in-vocab tokens, observation-only):
   without reaching the plateau (PR #19's own pre-registered doubling bar).
   NEGATIVE = neither.
 
-RESULT: recorded below this docstring once the run completes.
+RESULT (run 2026-08-06): Part A PASS at all three sigmas (s_use exact
+match to true s throughout; the sigma=0.2/0.3 non-separated cases fall
+back to the caller's known-sigma hook exactly as designed and reproduce
+oracle coverage/slot-count with zero delta -- no oscillation, matching the
+one-shot-vs-fixed-point structural argument above). Part B, real corpus
+(408464 in-vocab tokens, 395 words, N=DIM=50): alpha=0.5 qcal lifts
+coverage 85 -> 275/395 (cross_hi=0.867, same_pair=0.935, separated=True,
+s=0.069, active_bar=0.917, fuse_bar=0.932) -- clears the pre-registered
+>=230 success bar with room to spare and is 59/395 (27%) above the
+216/395 decorrelation plateau, achieved WITHOUT touching the embedding
+recipe. alpha=0.0 + qcal reaches 289/395, so the two fixes compose rather
+than substitute. Regression harness 31/31 both backends unaffected (this
+phase adds no organism.py/fastpath.py changes). VERDICT: SUCCESS -- T2.2
+closed; qcal is the working V >> N estimator, no fourth attempt needed.
 """
 
 import glob
