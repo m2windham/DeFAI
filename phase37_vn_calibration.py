@@ -23,10 +23,14 @@ just re-tuned) approach from both phase 26's spectral method and phase 32's
 fixed point. It was built for exactly this phase (its PR body: "full
 committed run + real-text Part B... will land in a follow-up commit") but
 closed unmerged when a different session's spectral implementation landed
-phase 26 first. Ported here verbatim as `qcal_calibrate` (see docstring),
-ONE-SHOT (not iterative like phase 32), which is the structural reason to
-expect it sidesteps phase 32's oscillation: there is no fixed point to
-oscillate around, only a single measurement on a calibration prefix.
+phase 26 first. Ported here as `qcal_calibrate` (see docstring) -- the
+estimator itself line-for-line, MINUS PR #19's `bar_guard` fourth output,
+which its modified perceive() applied as a recruit-bar floor; main's
+perceive has no such hook, so that component is necessarily dropped and
+the results below are of the estimator without it. ONE-SHOT (not
+iterative like phase 32), which is the structural reason to expect it
+sidesteps phase 32's oscillation: there is no fixed point to oscillate
+around, only a single measurement on a calibration prefix.
 
 MECHANISM (`qcal_calibrate`, ported from PR #19's `Organism._calibrate_bars`):
 given a buffer of settled field states from a calibration-prefix pass
@@ -47,9 +51,11 @@ no eigenvalues:
 
 Bars are then positions between the two measured modes (active_bar, fuse_bar)
 and s_use = 1/same_pair - 1 when separated (falls back to the caller's
-s_hat hook, exactly as phase 26's spectral method does, when the modes
-interleave -- unchanged noise-dominated regime, sigma >= 0.2 on near-
-orthogonal synthetic data). This mirrors phase 26's `calibrate()` calling
+s_hat hook when the modes interleave -- the fallback is PR #19's own
+design, not phase 26's, whose calibrate() has no fallback; it fires in the
+noise-dominated regime, sigma >= 0.2 on near-orthogonal synthetic data, so
+Part A is a genuine estimator test only at sigma=0 and the sigma>=0.2 arms
+verify the fallback path, not estimation). This mirrors phase 26's `calibrate()` calling
 convention: the estimator returns (active_bar, s_hat, fuse_bar), fed
 straight into the existing `Organism.perceive(active_bar=, s_hat=,
 fuse_bar=)` hooks -- no organism.py or fastpath.py changes, so the E2
@@ -118,11 +124,13 @@ from organism import Organism, normalize
 from polysemy_organism import PolysemyOrganism
 
 # =====================================================================
-# qcal_calibrate -- ported verbatim from closed PR #19's
-# Organism._calibrate_bars (pairwise-quantile, rank-free). Operates on a
-# buffer of settled field states from a calibration prefix; returns bars
-# fed directly into perceive(active_bar=, s_hat=, fuse_bar=), exactly
-# phase 26's calibrate() calling convention.
+# qcal_calibrate -- ported from closed PR #19's Organism._calibrate_bars
+# (pairwise-quantile, rank-free): estimator line-for-line, minus PR #19's
+# `bar_guard` output (needed an organism.py recruit-floor hook main does
+# not have). Operates on a buffer of settled field states from a
+# calibration prefix; returns bars fed directly into
+# perceive(active_bar=, s_hat=, fuse_bar=), exactly phase 26's
+# calibrate() calling convention.
 # =====================================================================
 def settle_tokens(fr, N, omega=0.15, g_in=5.0, dt=0.05, max_tokens=800, seed=0):
     """Run the same input-driven field dynamics perceive() uses over a frame
@@ -164,7 +172,9 @@ def qcal_calibrate(cal_states, N, qtile=0.995, s_hat=0.0):
     separated = recurrence_found and (same_pair - cross_hi) > 0.25 * (1.0 - cross_hi)
     s_use = max(1.0 / same_pair - 1.0, 0.0) if separated else s_hat
     same_asym = 1.0 / np.sqrt(1.0 + s_use)        # token-vs-denoised-memory
-    same_tok = 1.0 / (1.0 + s_use)                # token-vs-token
+    # PR #19 also computed same_tok = 1/(1+s_use) here to build its
+    # bar_guard recruit floor; that output is dropped in this port (no
+    # organism.py hook for it on main) -- see the module doc
     fuse_bar = 0.5 * (cross_hi + 1.0 / (1.0 + s_use / 32.0))
     if separated:
         act_bar = 0.5 * (cross_hi + same_asym)
@@ -446,7 +456,7 @@ if __name__ == '__main__':
 
     if beats_plateau:
         print(f"\n  SUCCESS: qcal (PR #19's rank-free pairwise-quantile estimator, ported "
-              f"unmodified) lifts real-text core-arm coverage to {cov05}/{n_words}, "
+              f"minus its bar_guard hook) lifts real-text core-arm coverage to {cov05}/{n_words}, "
               f"measurably above the 216/395 decorrelation plateau -- WITHOUT touching "
               f"the embedding recipe. T2.2 closed.")
     elif doubled:

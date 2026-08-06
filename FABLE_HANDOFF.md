@@ -189,11 +189,13 @@ module — persistence is its defining feature, hence E3).
    in its roadmap row.
 2. ~~**Phase 26 real-text arm (V ≫ N)**~~ — **CLOSED 2026-08-06 (T2.2,
    phase 37).** Ported closed PR #19's pairwise-quantile `qcal` estimator
-   (rank-free) verbatim; real corpus (395 words, N=50) coverage 85 → 275/395
-   at alpha=0.5, well above phase 25's 216/395 decorrelation plateau, and
-   289/395 composed with decorrelation. Synthetic V=250≫N=50 gate passed at
-   all sigmas with no analog of phase 32's σ=0.2 oscillation (qcal is
-   one-shot, not a fixed point). See ROADMAP row 37.
+   (rank-free; minus its `bar_guard` recruit floor, which needed an
+   organism.py hook main lacks); real corpus (395 words, N=50) coverage
+   85 → 275/395 at alpha=0.5, well above phase 25's 216/395 decorrelation
+   plateau, and 289/395 composed with decorrelation. Synthetic V=250≫N=50
+   gate passed at all sigmas — σ=0 by genuine estimation; σ≥0.2 via the
+   known-sigma fallback (non-separated modes decline to estimate rather
+   than oscillate the way phase 32's fixed point did; qcal is one-shot). See ROADMAP row 37.
 3. **Phase 28 — polysemy vs grammatical context-sensitivity** (the
    disentangling test, gold-POS for eval only).
 4. **Phase 29 — recursive hierarchy** (the recruit/consolidate primitive one
