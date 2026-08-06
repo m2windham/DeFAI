@@ -32,6 +32,11 @@ Sections (fast tier only; corpus-tier joins once E2/Numba makes it cheap):
   9. slot budget / eviction under recruitment pressure (T1.2, phase 33b) --
      a flooded bank learns a second world only with evict > 0, and the
      budget's persistent clock round-trips bitwise through E3.
+ 10. store compression (T1.8, phase 33g) -- the lossless levers (CSR
+     transition matrix, float32 counts) decompress bit-for-bit, a
+     complex64 store drifts only at float32 epsilon and leaves routing and
+     the transition graph untouched, and E3 schema v2 keeps the
+     uncompressed round-trip bitwise while still loading v1 files.
 
 Run: `python regression_harness.py`. Exit code is nonzero if any check fails
 its tolerance. Each check prints its own measured value, tolerance band, and
@@ -456,6 +461,99 @@ def section_9_slot_budget():
           note="budget clock + tallies round-trip bitwise")
 
 
+# ============== 10. store compression + E3 schema v2 (T1.8, phase 33g)
+def section_10_compression():
+    print("\n(10) store compression (T1.8, phase 33g): lossless levers, "
+          "narrowed store, E3 v2")
+    import os as _os, tempfile
+    from organism_compress import CompressionSpec, compress, store_bytes
+    from organism_state import load_state, save_state, save_state_v1
+
+    N, H, K = 64, 3, 8
+    NORM = np.sqrt(N)
+    rng = np.random.default_rng(3)
+    Gr, _ = np.linalg.qr(rng.standard_normal((N, H)) + 1j * rng.standard_normal((N, H)))
+    G = Gr.T * NORM
+    Tt = np.array([[0.0, 0.8, 0.2], [0.2, 0.0, 0.8], [0.8, 0.2, 0.0]])
+
+    def stream(n, seed):
+        r = np.random.default_rng(seed)
+        h = 0; out = []
+        for i in range(n):
+            if i % 40 == 0 and i > 0:
+                h = r.choice(H, p=Tt[h])
+            out.append(G[h] + 0.4 * (r.standard_normal(N) + 1j * r.standard_normal(N)))
+        return out
+
+    s1, s2 = stream(8000, 1), stream(8000, 2)
+    org = Organism(N=N, K=K, seed=0)
+    org.perceive(s1); org.perceive(s2)
+
+    # the lossless levers must reproduce the store EXACTLY (this is the
+    # guarantee the phase-33g byte numbers rest on)
+    st = compress(org, spec=CompressionSpec(xi_dtype=np.complex128,
+                                            meta_dtype=np.float32))
+    check("lossless spec: max |dxi|", float(np.abs(st.xi_full() - org.xi).max()),
+          0.0, 0.0, note="CSR P + float32 counts decompress bit-for-bit")
+    check("lossless spec: max |dP|", float(np.abs(st.P_full() - org.P).max()), 0.0, 0.0)
+    check("sparse-P byte reduction (dense K^2 -> CSR)",
+          float(org.P.nbytes / st.p_bytes), 1.2, 1e6,
+          note="phase 33g: 15.5x at K=160 on the 33c protocol")
+
+    # complex64 store: halves the xi term, drift at float32 epsilon
+    stc = compress(org, spec=CompressionSpec())
+    check("c64 store: xi relative drift",
+          float(np.abs(stc.xi_full() - org.xi).max() / np.abs(org.xi).max()),
+          0.0, 1e-6, note="float32 eps -- the lossy lever's whole cost")
+    check("c64 store: total byte ratio vs uncompressed",
+          float(store_bytes(org) / stc.nbytes), 1.5, 1e6)
+
+    # a narrowed store must still perceive, on either backend, at compute
+    # width -- the dtype guard in Organism.perceive (equivalence test sec. 7)
+    narrow = Organism(N=N, K=K, seed=0)
+    narrow.perceive(s1)
+    narrow.xi = narrow.xi.astype(np.complex64)
+    narrow.perceive(s2)
+    full = Organism(N=N, K=K, seed=0)
+    full.perceive(s1); full.perceive(s2)
+    check("narrowed store: xi drift vs full-width run",
+          float(np.abs(narrow.xi.astype(complex) - full.xi).max()), 0.0, 1e-4,
+          note="quantized digits only -- routing must be unchanged")
+    check("narrowed store: transition graph identical",
+          float(np.abs(narrow.P - full.P).max()), 0.0, 0.0)
+    check("narrowed store: dtype preserved across perceive",
+          float(narrow.xi.dtype != np.complex64), 0.0, 0.0)
+
+    # E3 v2: uncompressed round-trip still bitwise, v1 files still load,
+    # compressed round-trip lossy only where its spec says
+    path = _os.path.join(tempfile.gettempdir(), "e3_v2_harness.npz")
+    save_state(org, path)
+    r2 = load_state(path, cls=Organism)
+    check("E3 v2 uncompressed round-trip max |dxi|",
+          float(np.abs(r2.xi - org.xi).max()), 0.0, 0.0,
+          note="the schema bump must not weaken the bitwise guarantee")
+    v1p = _os.path.join(tempfile.gettempdir(), "e3_v1_harness.npz")
+    save_state_v1(org, v1p)
+    r1 = load_state(v1p, cls=Organism)
+    d1 = max(np.abs(r1.xi - org.xi).max(), np.abs(r1.P - org.P).max(),
+             np.abs(r1.age - org.age).max())
+    check("E3 v1 file loads under v2, max state delta", float(d1), 0.0, 0.0,
+          note="backward load: pre-T1.8 saves are not orphaned")
+    cpath = _os.path.join(tempfile.gettempdir(), "e3_c_harness.npz")
+    save_state(org, cpath, compress_spec=CompressionSpec())
+    rc = load_state(cpath, cls=Organism)
+    check("E3 compressed round-trip max |dP|",
+          float(np.abs(rc.P - org.P).max()), 0.0, 0.0,
+          note="P is lossless even in a compressed file")
+    check("E3 compressed round-trip xi drift",
+          float(np.abs(rc.xi - org.xi).max() / np.abs(org.xi).max()), 0.0, 1e-6)
+    check("E3 compressed file restores at compute width",
+          float(rc.xi.dtype != np.complex128), 0.0, 0.0,
+          note="a loaded organism is immediately perceivable on both backends")
+    check("E3 compressed file is smaller on disk",
+          float(_os.path.getsize(path) / _os.path.getsize(cpath)), 1.05, 1e6)
+
+
 if __name__ == "__main__":
     t0 = time.time()
     print("REGRESSION HARNESS -- fast tier (E1)")
@@ -471,6 +569,7 @@ if __name__ == "__main__":
     section_7_percentile_bars()
     section_8_serialization()
     section_9_slot_budget()
+    section_10_compression()
 
     dt = time.time() - t0
     print(f"\n{'='*70}")

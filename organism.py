@@ -230,9 +230,32 @@ class Organism:
         return fastpath.HAVE_NUMBA
 
     # ---- PHASE 1: perceive + form memories + learn transitions -------------
-    def perceive(self, stream, g_in=4.0, dt=0.05, eta=0.02, recruit=0.55, p_decay=0.0,
-                 confirm=0, probation=6000, pool=False, active_bar=0.6, s_hat=0.0,
-                 amb=0.0, fuse_bar=0.7, evict=0, evict_debug=None):
+    def perceive(self, stream, *args, **kw):
+        """Compute width is FIXED at complex128 -- see `_perceive` for the
+        mechanism itself.
+
+        T1.8 storage compression can leave `xi` narrowed (complex64). The
+        numba kernel already promotes its inputs to complex128, so without
+        this guard the numpy path would compute the same stream at a
+        different width and the two backends would diverge silently. Promote
+        the store on entry, restore its dtype on exit; a complex128 store --
+        every historical caller -- takes the identity path and is untouched.
+        `z` is promoted and left promoted: it is the live field state, O(N)
+        bytes, never a compression target, and the fastpath has always
+        written it back at compute width."""
+        store = self.xi.dtype
+        if store == np.complex128 and self.z.dtype == np.complex128:
+            return self._perceive(stream, *args, **kw)
+        self.xi = np.ascontiguousarray(self.xi, dtype=np.complex128)
+        self.z = np.ascontiguousarray(self.z, dtype=np.complex128)
+        try:
+            return self._perceive(stream, *args, **kw)
+        finally:
+            self.xi = self.xi.astype(store)
+
+    def _perceive(self, stream, g_in=4.0, dt=0.05, eta=0.02, recruit=0.55, p_decay=0.0,
+                  confirm=0, probation=6000, pool=False, active_bar=0.6, s_hat=0.0,
+                  amb=0.0, fuse_bar=0.7, evict=0, evict_debug=None):
         """p_decay: exponential forgetting of transition counts, applied once
         per observed transition (synaptic decay). 0.0 = original behavior
         (counts accumulate forever); 1/p_decay is the effective memory in
@@ -589,7 +612,10 @@ class Organism:
         # all pairwise overlaps in one matmul; the greedy first-duplicate scan
         # below then touches only scalars (the per-pair Python-level dot made
         # this O(K^2) in interpreter dispatch at corpus scale)
-        Xk = self.xi[idx] if idx else self.xi[:0]
+        # compute width is complex128 even when the STORE is narrowed
+        # (T1.8), so consolidation products are backend-identical
+        xi = np.ascontiguousarray(self.xi, dtype=complex)
+        Xk = xi[idx] if idx else xi[:0]
         O = np.abs(Xk @ Xk.conj().T) / self.N
         merged = []; merged_pos = []
         for pk, k in enumerate(idx):
@@ -599,7 +625,7 @@ class Organism:
                 merged.append(k); merged_pos.append(pk)
             else:                                          # fold transitions into the kept slot
                 self.graph.fold(dup, k)
-        self.mem = self.xi[merged]
+        self.mem = xi[merged]
         self.kept_idx = merged   # indices into self.P/self.xi that survived -- lets
                                  # callers reconstruct RAW (unnormalized) transition
                                  # counts restricted to the kept memories later.
