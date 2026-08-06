@@ -12,9 +12,12 @@ noise floors; pre-register predictions; run `regression_harness.py` under
 BOTH backends (`DEFAI_BACKEND=numpy|numba`) before trusting any change;
 `test_fastpath_equivalence.py` for kernel edits.
 
-Verification state as of 2026-08-04: E1 27/27 both backends, equivalence
-green, e2_benchmark meets pinned numba throughput. See ROADMAP
-"Verification log".
+Verification state as of 2026-08-06: E1 ALL PASS both backends (45 checks:
+31 + T1.8's section 10), `test_fastpath_equivalence.py` green incl. its new
+narrowed-store section 7, `test_label_readout.py` green, E3 round-trips
+green for schema v2 uncompressed/compressed and v1 backward load. Torch is
+NOT installed on that host, so the ladder's torch arms rest on 33c's
+committed values. See ROADMAP "Verification log".
 
 ---
 
@@ -259,7 +262,7 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
   two measured recovery targets (routing margin 0.061 for a soft top-m
   vote; preserved-but-outvoted label mass). Full row: ROADMAP 33e.
 
-### T1.8 — Representation-width byte reduction (phase 33g)  `[claimed: claude/phase-33g-representation-width-wf4nsv, 2026-08-05]`
+### T1.8 — Representation-width byte reduction (phase 33g)  `[DONE 2026-08-06: claude/phase-33g-representation-width-wf4nsv]`
 - **Objective**: T1.5 measured the cost-branch failure as representation
   width, not memory count (K=120 vs 120 protos: ACC -0.018 at 7.8× bytes;
   complex128 `xi` + dense K×K P). Cut bytes without touching behavior:
@@ -287,6 +290,35 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
 - **Constraint**: inference/storage engineering only — no mechanism or
   learning-rule changes; the 33c/33d anchors must stay reproducible in
   uncompressed mode.
+- **RESULT (2026-08-06)**: `organism_compress.py` (the three levers, split
+  by whether they can lose anything) + E3 **schema v2** (compressed saves,
+  v1 files still load, uncompressed round-trip still bitwise) +
+  `phase33g_representation_width.py`. **3.85× fewer bytes at ZERO accuracy
+  cost**: K=160 goes 371.2KB → 96.4KB with max |Δ task-accuracy| = 0.0000
+  at every swept K, store-mode (quantize each task boundary and carry it
+  forward) identical to eval-only, and paired reseeds s=0–4 drifting
+  exactly 0.000. Every 33d anchor EXACT uncompressed
+  (0.712/0.735/0.837/0.854/0.900). Prediction (a) HELD more strongly than
+  written (predicted "within tolerance", measured identically zero);
+  (b) HELD at 15.5× and turned out LOSSLESS (P is 6.1% dense at K=160, so
+  CSR at floor 0 reconstructs bit-for-bit — no count floor needed);
+  (c) did not fire (0.900 still above the 0.872 bar). **(d) NOT MET — the
+  phase's honest negative**: only low-rank reaches inside ~2× the bar's
+  bytes and it fails reseeding (seed 0 says rank-20 = 0.887 at 1.61×,
+  which would have met (d); paired seeds 0–4 swing it −0.052…+0.033, and
+  rank-16 −0.071…+0.019, while c64+CSR is 0.000 everywhere) — best-of-grid
+  on one seed, exactly T1.6's measured selection bias. Levers (i)+(ii)
+  carry the whole 3.85×; lever (iii) is a negative at this scale. Cost
+  branch still NOT met but repriced: 33d's cost-matched K=24/0.644 becomes
+  K=48/0.728 in the same 30.7KB; 412.4 → 107.1 KB/ACC-pt at K=160; 0.900
+  now sits at 3.14× the bar (was 12.1×) and 1.08× replay's footprint.
+  Dtype work: `Organism.perceive` gained a guard pinning compute width at
+  complex128 — the numba kernel already promoted its inputs, so a narrowed
+  store would otherwise have made the numpy path compute at a different
+  width (a latent cross-backend divergence, now closed and pinned by
+  `test_fastpath_equivalence.py` §7). Harness §10 (14 checks) green both
+  backends. Phase 9's negative untouched: compression re-encodes a
+  finished state, nothing re-attributes occurrences. Full row: ROADMAP 33g.
 
 ---
 
