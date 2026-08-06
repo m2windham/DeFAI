@@ -17,6 +17,17 @@ Checks, one per perceive mode + recall + consolidate:
   6. slot-budget eviction    -- T1.2 evict>0 in plain (two-world flooding)
                                 and pool+amb modes; the persistent budget
                                 clock and eviction tallies must agree too
+  7. narrowed store (T1.8)   -- perceiving with a COMPRESSED store
+                                (complex64 xi). The numba kernel promotes
+                                its inputs to complex128; the numpy loops
+                                use self.xi directly, so without the dtype
+                                guard in Organism.perceive the two backends
+                                would compute the same stream at different
+                                widths. This check is the guard's pin:
+                                identical results, store dtype preserved,
+                                and a c64 store must track a c128 one to
+                                float32 precision (a tolerance, not zero --
+                                the store really is quantized)
 
 Run: python test_fastpath_equivalence.py  (nonzero exit on failure)
 """
@@ -183,6 +194,37 @@ b.perceive(fr6, **kw6)
 check("pool+amb+evict perceive state diff", state_diff(a, b), 1e-5)
 check("pool+amb+evict eviction-count mismatch",
       float(abs(a.evictions.sum() - b.evictions.sum())), 0.0)
+
+# (7) T1.8: narrowed store -- compute width must stay complex128 on BOTH
+# backends, and the store dtype must survive the round trip
+print("(7) narrowed store (T1.8 complex64 xi): cross-backend + vs full width")
+a, b = pair(N=Nw, K=6, seed=0)
+a.xi = a.xi.astype(np.complex64)
+b.xi = b.xi.astype(np.complex64)
+a.perceive(sA); a.perceive(sB, evict=800)
+b.perceive(sA); b.perceive(sB, evict=800)
+check("c64-store perceive state diff (numpy vs numba)", state_diff(a, b), 1e-5)
+check("c64 store dtype preserved (numpy)",
+      float(a.xi.dtype != np.complex64), 0.0)
+check("c64 store dtype preserved (numba)",
+      float(b.xi.dtype != np.complex64), 0.0)
+
+# same stream at full width: the quantized store must not move the routing,
+# only the stored digits (float32 eps ~1.2e-7 against |xi| ~ 1)
+w, _ = pair(N=Nw, K=6, seed=0)
+w.perceive(sA); w.perceive(sB, evict=800)
+check("c64 vs c128 store, xi drift", float(np.abs(a.xi - w.xi).max()), 1e-4)
+check("c64 vs c128 store, transition-graph mismatch",
+      float(np.abs(a.P - w.P).max()), 0.0)
+check("c64 vs c128 store, slot-occupancy mismatch",
+      float((a.used != w.used).sum()), 0.0)
+
+# consolidation products are computed at compute width regardless of store
+a.consolidate(); w.consolidate()
+check("c64 store consolidate kept-list mismatch",
+      float(a.kept_idx != w.kept_idx), 0.0)
+check("c64 store mem at compute width",
+      float(a.mem.dtype != np.complex128), 0.0)
 
 print()
 if FAILURES:
