@@ -69,6 +69,11 @@ still bind everything here.
   and the lever that would have met it — low-rank factorization — is a
   measured negative: it does not survive reseeding. The hold STANDS;
   what changed is the price, not the verdict.**
+  **Cost branch pegged as follow-up 2026-08-06: T1.9 (AGENT_TARGETS,
+  phase 33h) — close the remaining ~3× KB-per-ACC-point gap (107.1 vs
+  the bar's 35.2) via the compressed cost curve's knee, readout
+  richness, and boundary consolidation, or measure the floor as the
+  owner's decision input for re-scoping the gate.**
 
 ## Demonstration & outreach track (decided 2026-07-14; feeds Path B adoption and sustainability)
 
