@@ -366,7 +366,7 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
 
 ## Category 2 — Scale & real text
 
-### T2.1 — Phase 27: 5M-word scale run  `[claimed: claude/phase-27-gutenberg-mi-run-afdm3u, 2026-08-06]`
+### T2.1 — Phase 27: 5M-word scale run  `[DONE 2026-08-06: claude/phase-27-gutenberg-mi-run-afdm3u, PR #34]`
 - **Objective**: 50–100 Gutenberg books through the unified loop with
   phase 24's MI-vs-null + distinctness wired into stage B. Pre-registered:
   does category structure sharpen (MI z up, selected k stable/graceful),
@@ -377,24 +377,41 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
   perceive at 547K → plan for ~10× that), E4 status (nulls are the cost).
 - **Done when**: phase script + ROADMAP row with pre-registered outcomes
   recorded, including partials.
-- **Status (2026-08-06, PR #34)**: instrument landed —
-  `phase27_5m_word_scale_run.py` (42 books / ~5.22M raw words,
-  MIN_COUNT 1500, phase-24 criteria in stage B, stage-A E3 checkpoint at
-  `/tmp/phase27_stageA_checkpoint.npz`, coverage_map OOM fixed by
-  chunking). Stage A measured once (~14.3 min, 598 slots, 3 577 289
-  in-vocab tokens); **the committed run's stage B–D outcomes are NOT yet
-  recorded — that is the open piece.** ROADMAP row 27 stays "in
-  progress" and this target flips to DONE only when P1/P2 verdicts land
-  (partials included). Fold these merge-review follow-ups into the
-  completion commit: (1) use the already-built `train_arr` in
-  `coverage_map`'s member loop instead of re-allocating per slot; (2) add
-  a corpus/vocab fingerprint to the stage-A checkpoint and refuse a stale
-  load; (3) commit the fetch-time title-verification the docstring leans
-  on (the printed curl block has no title check); (4) reconcile
-  `sharpens_k`'s 4–10 window with the docstring's falsification clause
-  (k=11 currently fails without being the sweep ceiling of 12) — argue
-  the fix from the frozen pre-registration text BEFORE looking at the
-  measured k.  `[DONE 2026-08-06, session claude/v-n-acceptance-bar-calibration-jrlk86 — see ROADMAP row 37]`
+- **Outcome (2026-08-06)**: 42-book / 5.22M-raw-word corpus (title-verified
+  at fetch), 354-word vocab (MIN_COUNT scaled 150→1500 to hold phase-23/24's
+  computational regime). **P1 (sharpens): NOT CONFIRMED** — distinctness
+  collapsed to k=2 (z=61, below phase 24's z=65 at k=6), a coarser
+  function/content-word split rather than a finer grammatical partition;
+  MI itself still climbed through k=11 exactly as phase 24's predictive
+  criteria did, so the failure mode matches phase 24's shape at a coarser
+  k — open, plausibly corpus-register heterogeneity (verse/philosophical
+  prose mixed with narrative fiction), attaches to T2.3. **P2 (polysemy
+  holds): CONFIRMED** — 'right' clears its own null under a ~43×-tighter
+  bar (margin 0.007 vs 547K's 0.027, but null p99 fell 0.043→0.001);
+  205/354 words (58%) clear their own null, up from 114/395 at 547K. One
+  bug found/fixed en route: `coverage_map`'s one-shot assignment matmul
+  tried to allocate ~32 GiB at this token count — the same
+  one-shot-broadcast blowup phase 36 hit in `_silhouette_real` — fixed by
+  chunking (values unaffected). Harness 45/45 both backends throughout.
+  Merge-review follow-ups from the PR #34 status note, folded in: (1)
+  `coverage_map`'s member loop now reuses the already-built `train_arr`
+  instead of re-allocating `np.array(train_seq)` per slot; (2) the E3
+  stage-A checkpoint now stores a corpus/vocab fingerprint (token count +
+  a hash of the sorted vocab) and `load_state` is followed by a check that
+  refuses (and deletes) a stale checkpoint rather than silently training
+  on the wrong corpus; (3) the corpus-missing fetch instructions now print
+  the same title-verification the live fetch used, as a comment above the
+  curl block, so a re-fetch without this session's fetch script still gets
+  the ebook-id guard; (4) `sharpens_k`'s window reconciled: argued from
+  the frozen pre-registration text alone (not the measured k=2, which
+  fails either way) — "stable or gracefully larger" than k=6 reads most
+  naturally as up to but not including the sweep ceiling, so the window is
+  widened to 4–11 (was 4–10, which wrongly failed a hypothetical k=11).
+  Harness re-verified 45/45 both backends after these fixes (doc/script
+  changes only, no organism.py/fastpath.py edits, no equivalence re-check
+  needed). Full row: ROADMAP 27.
+
+### T2.2 — Phase 26 real-text arm: calibration at V ≫ N  `[DONE 2026-08-06, session claude/v-n-acceptance-bar-calibration-jrlk86 — see ROADMAP row 37]`
 - **Objective**: acceptance-bar calibration without the rank<N spectral
   assumption — the blocker for the core perception stack on real
   embeddings (85/395 collapse, confirmed at scale).
