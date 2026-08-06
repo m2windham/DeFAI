@@ -304,7 +304,7 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
 - **Done when**: phase script + ROADMAP row with pre-registered outcomes
   recorded, including partials.
 
-### T2.2 — Phase 26 real-text arm: calibration at V ≫ N  `[claimed: —]`
+### T2.2 — Phase 26 real-text arm: calibration at V ≫ N  `[claimed: session claude/v-n-acceptance-bar-calibration-jrlk86, 2026-08-06]`
 - **Objective**: acceptance-bar calibration without the rank<N spectral
   assumption — the blocker for the core perception stack on real
   embeddings (85/395 collapse, confirmed at scale).
