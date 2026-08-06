@@ -350,7 +350,7 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
   pre-registered bands at V ≫ N on synthetic, then lift real-text core-arm
   coverage measurably above the 216/395 decorrelation plateau.
 
-### T2.3 — Phase 28: polysemy vs grammatical context-sensitivity  `[claimed: —]`
+### T2.3 — Phase 28: polysemy vs grammatical context-sensitivity  `[claimed: claude/polysemy-context-sensitivity-phase28-h0shnt, 2026-08-05 — DONE]`
 - **Objective**: the disentangling test — cluster detected words'
   occurrences by context signature; different induced categories = lexical
   polysemy, same category with shifted successors = context-sensitivity.
@@ -361,6 +361,19 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
   classed as context-sensitivity; claim narrows to POS-level multi-role).
 - **Done when**: per-word classification with a measured null; precision/
   recall vs gold-POS entropy reported; caveats recorded.
+- **Result (2026-08-05/06)**: 119-word gain-detected list (phase 23's
+  stage A + stage-C gain code verbatim, but conditioned on
+  `discover_categories_v2` slot categories rather than phase 23's
+  word-level k-means — same population, not a bit-exact reproduction)
+  split 18 polysemy (15%) / 101 context-sensitivity (85%) by
+  predecessor-category-bucket successor-conflict (a proxy with no
+  measured null of its own — see ROADMAP row 28). Gold-POS
+  (nltk, eval-only): polysemy mean entropy 0.533 vs context-sensitivity
+  0.309 bits (right direction, soft not clean); whole-detector vs gold
+  minority-POS precision 0.336 / recall 0.284. 'right' itself lands in
+  context-sensitivity (gold-entropy 1.667) — a measured instance of the
+  pre-registered scope caveat, not an assumption. Full numbers: ROADMAP
+  row 28.
 
 ### T2.4 — Phase 29: recursive hierarchy  `[claimed: —]`
 - **Objective**: recruit/consolidate one level up — tokens are category
