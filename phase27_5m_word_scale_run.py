@@ -94,7 +94,9 @@ miss, partials included):
 import os
 import re
 import glob
+import json
 import time
+import hashlib
 import numpy as np
 from collections import Counter
 from organism import normalize
@@ -110,35 +112,100 @@ def elapsed():
 
 # ---------------------------------------------------------------- corpus
 CORPUS_DIR = "/tmp/gutenberg_corpus_5m"
-# 42 books verified by title match at fetch time (title substring from the
-# Gutenberg header checked against the expected title before being kept --
-# guards against a wrong/stale ebook id silently injecting mismatched text).
+# 42 books, id -> (short name, expected-title substring). The substring is
+# checked case-insensitively against each file's Gutenberg "Title:" header
+# EVERY run (not just at fetch time) -- guards against a wrong/stale ebook
+# id silently injecting mismatched text. A mismatch aborts the run.
 BOOKS = {
-    11: "alice", 12: "looking_glass", 55: "wizard_oz", 16: "peter_pan",
-    74: "tom_sawyer", 76: "huck_finn", 1661: "sherlock_adventures",
-    1400: "great_expectations", 98: "tale_of_two_cities", 1342: "pride_prejudice",
-    84: "frankenstein", 345: "dracula", 174: "dorian_gray", 43: "jekyll_hyde",
-    2600: "war_and_peace", 1260: "jane_eyre", 768: "wuthering_heights",
-    46: "christmas_carol", 219: "heart_of_darkness", 36: "war_of_worlds",
-    35: "time_machine", 164: "20k_leagues", 103: "around_world_80days",
-    120: "treasure_island", 158: "emma", 105: "persuasion",
-    121: "northanger_abbey", 141: "mansfield_park", 161: "sense_sensibility",
-    205: "walden", 844: "importance_of_being_earnest", 996: "don_quixote",
-    2554: "crime_and_punishment", 600: "notes_from_underground",
-    135: "les_miserables", 203: "uncle_toms_cabin", 244: "study_in_scarlet",
-    108: "return_of_sherlock_holmes", 2852: "hound_of_baskervilles",
-    829: "gullivers_travels", 1998: "thus_spake_zarathustra", 1232: "the_prince",
+    11: ("alice", "alice's adventures in wonderland"),
+    12: ("looking_glass", "through the looking-glass"),
+    55: ("wizard_oz", "wonderful wizard of oz"),
+    16: ("peter_pan", "peter pan"),
+    74: ("tom_sawyer", "adventures of tom sawyer"),
+    76: ("huck_finn", "adventures of huckleberry finn"),
+    1661: ("sherlock_adventures", "adventures of sherlock holmes"),
+    1400: ("great_expectations", "great expectations"),
+    98: ("tale_of_two_cities", "tale of two cities"),
+    1342: ("pride_prejudice", "pride and prejudice"),
+    84: ("frankenstein", "frankenstein"),
+    345: ("dracula", "dracula"),
+    174: ("dorian_gray", "picture of dorian gray"),
+    43: ("jekyll_hyde", "dr. jekyll and mr. hyde"),
+    2600: ("war_and_peace", "war and peace"),
+    1260: ("jane_eyre", "jane eyre"),
+    768: ("wuthering_heights", "wuthering heights"),
+    46: ("christmas_carol", "christmas carol"),
+    219: ("heart_of_darkness", "heart of darkness"),
+    36: ("war_of_worlds", "war of the worlds"),
+    35: ("time_machine", "the time machine"),
+    164: ("20k_leagues", "twenty thousand leagues"),
+    103: ("around_world_80days", "around the world in eighty days"),
+    120: ("treasure_island", "treasure island"),
+    158: ("emma", "emma"),
+    105: ("persuasion", "persuasion"),
+    121: ("northanger_abbey", "northanger abbey"),
+    141: ("mansfield_park", "mansfield park"),
+    161: ("sense_sensibility", "sense and sensibility"),
+    205: ("walden", "walden"),
+    844: ("importance_of_being_earnest", "importance of being earnest"),
+    996: ("don_quixote", "don quixote"),
+    2554: ("crime_and_punishment", "crime and punishment"),
+    600: ("notes_from_underground", "notes from the underground"),
+    135: ("les_miserables", "les mis"),   # ascii-safe prefix of Misérables
+    203: ("uncle_toms_cabin", "uncle tom's cabin"),
+    244: ("study_in_scarlet", "a study in scarlet"),
+    108: ("return_of_sherlock_holmes", "return of sherlock holmes"),
+    2852: ("hound_of_baskervilles", "hound of the baskervilles"),
+    829: ("gullivers_travels", "gulliver's travels"),
+    1998: ("thus_spake_zarathustra", "thus spake zarathustra"),
+    1232: ("the_prince", "the prince"),
 }
 paths = sorted(glob.glob(f"{CORPUS_DIR}/*.txt"))
 if not paths:
-    print("Corpus missing. Re-fetch (public-domain, re-fetchable; each file "
-          "was verified by Gutenberg header Title: match at fetch time -- "
-          "keep that check when re-fetching) with:\n")
+    print("Corpus missing. Re-fetch (public-domain, re-fetchable; titles are "
+          "re-verified against the Gutenberg header on every run) with:\n")
     print(f"  mkdir -p {CORPUS_DIR}")
-    for bid, name in BOOKS.items():
+    for bid in BOOKS:
         print(f"  curl -sS -o {CORPUS_DIR}/{bid}.txt "
               f"https://www.gutenberg.org/cache/epub/{bid}/pg{bid}.txt")
     raise SystemExit("\nRe-run this script once the corpus is present.")
+
+TITLE_RE = re.compile(r"^Title:\s*(.+)$", re.MULTILINE)
+
+
+def verify_titles(paths):
+    """Check every corpus file's Gutenberg 'Title:' header against the
+    expected title for its ebook id (the committed form of the fetch-time
+    verification the docstring relies on). Aborts on any mismatch or on an
+    id outside the 42-book list."""
+    errors = []
+    for path in paths:
+        stem = os.path.splitext(os.path.basename(path))[0]
+        try:
+            bid = int(stem)
+        except ValueError:
+            errors.append(f"{path}: filename is not a Gutenberg ebook id")
+            continue
+        if bid not in BOOKS:
+            errors.append(f"{path}: ebook id {bid} not in the 42-book list")
+            continue
+        with open(path, encoding="utf-8", errors="replace") as f:
+            head = f.read(4096)
+        m = TITLE_RE.search(head)
+        title = m.group(1).strip() if m else ""
+        if BOOKS[bid][1] not in title.lower():
+            errors.append(f"{path}: header Title '{title}' does not contain "
+                          f"expected '{BOOKS[bid][1]}' ({BOOKS[bid][0]})")
+    if len(paths) != len(BOOKS):
+        errors.append(f"expected {len(BOOKS)} books, found {len(paths)} files")
+    if errors:
+        raise SystemExit("Corpus title verification FAILED:\n  "
+                         + "\n  ".join(errors))
+    print(f"  corpus title verification: {len(paths)}/{len(BOOKS)} books "
+          f"match their expected Gutenberg Title header")
+
+
+verify_titles(paths)
 
 GUTENBERG_START = re.compile(r"\*\*\*\s*START OF (THE|THIS) PROJECT GUTENBERG EBOOK.*?\*\*\*",
                              re.IGNORECASE | re.DOTALL)
@@ -210,7 +277,7 @@ def coverage_map(org, chunk=50000):
         assigns[i:i + chunk] = np.abs((org.mem.conj() @ states.T) / N).argmax(0)
     slot_word = {}
     for k in range(n_mem):
-        members = np.array(train_seq)[assigns == k]
+        members = train_arr[assigns == k]
         if len(members):
             slot_word[k] = int(np.bincount(members, minlength=N_WORDS).argmax())
     return slot_word, len(set(slot_word.values())), n_mem
@@ -231,17 +298,39 @@ def train_recipe(recruit, epochs):
 
 
 CHECKPOINT = "/tmp/phase27_stageA_checkpoint.npz"
+FINGERPRINT_PATH = CHECKPOINT + ".fingerprint"
+# corpus/vocab identity: a checkpoint trained on a different corpus, vocab,
+# or MIN_COUNT must NOT silently feed stages B-D -- refuse the stale load.
+fingerprint = hashlib.sha256(json.dumps(
+    [len(raw_tokens), len(train_seq), MIN_COUNT, vocab]).encode()).hexdigest()
 t0 = time.time()
+checkpoint_ok = False
 if os.path.exists(CHECKPOINT):
+    if not os.path.exists(FINGERPRINT_PATH):
+        print(f"  stage-A checkpoint at {CHECKPOINT} has no corpus/vocab "
+              f"fingerprint -- refusing the stale load, re-running perceive")
+    else:
+        with open(FINGERPRINT_PATH) as f:
+            stored = f.read().strip()
+        if stored != fingerprint:
+            print(f"  stage-A checkpoint fingerprint mismatch "
+                  f"(stored {stored[:12]}.. vs corpus {fingerprint[:12]}..) "
+                  f"-- refusing the stale load, re-running perceive")
+        else:
+            checkpoint_ok = True
+if checkpoint_ok:
     import organism_state
     org = organism_state.load_state(CHECKPOINT, cls=PolysemyOrganism)
-    print(f"  loaded stage-A checkpoint from {CHECKPOINT} (skipping perceive)  "
-          f"{elapsed()}")
+    print(f"  loaded stage-A checkpoint from {CHECKPOINT} "
+          f"(fingerprint match, skipping perceive)  {elapsed()}")
 else:
     org = train_recipe(0.75, 3)
     import organism_state
     organism_state.save_state(org, CHECKPOINT)
-    print(f"  stage-A checkpoint saved to {CHECKPOINT}  {elapsed()}")
+    with open(FINGERPRINT_PATH, "w") as f:
+        f.write(fingerprint)
+    print(f"  stage-A checkpoint saved to {CHECKPOINT} "
+          f"(+ corpus/vocab fingerprint)  {elapsed()}")
 slot_word, cov, n_mem = coverage_map(org)
 print(f"  recipe (recruit=0.75, 3 epochs): memories={n_mem}  "
       f"coverage={cov}/{N_WORDS}  ({time.time()-t0:.0f}s)  {elapsed()}\n")
@@ -341,8 +430,11 @@ for c in sorted(set(word_to_cat.values())):
 
 # ---------------------------------------------------------------- P1 check
 sharpens_z = r_sel['z'] > 65
-sharpens_k = 4 <= k_dist <= 10   # "stable or gracefully larger" than k=6, not
-                                 # a collapse (<=3) or a run to the sweep ceiling
+# The frozen falsification clause names exactly two failure modes: "a
+# collapse to k<=3 or an unbounded run to the sweep ceiling" (the sweep is
+# range(2, 13), ceiling 12). Pass window is therefore 4..11 -- the earlier
+# `<= 10` wrongly failed k=11, which is neither a collapse nor the ceiling.
+sharpens_k = 4 <= k_dist < 12
 print(f"\n  (P1) category structure sharpens: z {r_sel['z']:.0f} > phase-24's "
       f"65 -> {sharpens_z}; k={k_dist} stable/graceful vs phase-24's k=6 -> "
       f"{sharpens_k}  {elapsed()}")
