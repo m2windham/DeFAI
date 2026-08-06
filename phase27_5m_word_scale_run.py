@@ -196,11 +196,18 @@ def make_stream(seq, hold=4):
             yield s
 
 
-def coverage_map(org):
+def coverage_map(org, chunk=50000):
+    """slot->word attribution by corpus-token assignment. Chunked over
+    tokens (bounded memory): the naive one-shot (n_mem x N_TOKENS) complex
+    matmul is ~32 GB at this corpus's token count -- the same one-shot-
+    broadcast memory blowup phase 36 hit and fixed in _silhouette_real."""
     org.consolidate(merge_thresh=0.84, prune_frac=0.0005)
     n_mem = org.mem.shape[0]
-    states = np.array([emb_c[w] for w in train_seq])
-    assigns = np.abs((org.mem.conj() @ states.T) / N).argmax(0)
+    train_arr = np.array(train_seq)
+    assigns = np.empty(len(train_seq), dtype=np.int64)
+    for i in range(0, len(train_seq), chunk):
+        states = emb_c[train_arr[i:i + chunk]]
+        assigns[i:i + chunk] = np.abs((org.mem.conj() @ states.T) / N).argmax(0)
     slot_word = {}
     for k in range(n_mem):
         members = np.array(train_seq)[assigns == k]
@@ -223,8 +230,18 @@ def train_recipe(recruit, epochs):
     return o
 
 
+CHECKPOINT = "/tmp/phase27_stageA_checkpoint.npz"
 t0 = time.time()
-org = train_recipe(0.75, 3)
+if os.path.exists(CHECKPOINT):
+    import organism_state
+    org = organism_state.load_state(CHECKPOINT, cls=PolysemyOrganism)
+    print(f"  loaded stage-A checkpoint from {CHECKPOINT} (skipping perceive)  "
+          f"{elapsed()}")
+else:
+    org = train_recipe(0.75, 3)
+    import organism_state
+    organism_state.save_state(org, CHECKPOINT)
+    print(f"  stage-A checkpoint saved to {CHECKPOINT}  {elapsed()}")
 slot_word, cov, n_mem = coverage_map(org)
 print(f"  recipe (recruit=0.75, 3 epochs): memories={n_mem}  "
       f"coverage={cov}/{N_WORDS}  ({time.time()-t0:.0f}s)  {elapsed()}\n")
