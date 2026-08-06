@@ -163,11 +163,21 @@ res_v2 = org.discover_categories_v2(k_range=[3], raw_counts=raw_slot, seed=3)
 K_CATS = 3
 print(f"  silhouette={res_v2['silhouette']:.3f}  "
       f"sizes={sorted(np.bincount(list(org.word_slot_to_cat.values())).tolist(), reverse=True)}")
+# NOTE (stage-B provenance): this conditions stages C/D on the phase-21
+# discover_categories_v2 SLOT-level categories, NOT the word-level B2
+# k-means phase 23's own stage C conditioned on -- a deliberate method
+# choice (v2 is THE standing category method per AGENT_TARGETS), but it
+# means the flagged list below is the same population as phase 23's, not
+# a bit-exact reproduction of it. Words owning several slots take the
+# category of their highest-index slot (last-wins in this dict build) --
+# deterministic but arbitrary; a count-weighted majority over a word's
+# slots is the obvious refinement if this mapping is ever load-bearing.
 word_to_cat = {w: org.word_slot_to_cat.get(k) for k, w in slot_word.items()}
 
 # ---------------------------------------------------------------- Stage C
 print("\n(C) predictive-gain polysemy test vs per-word permutation null "
-      "(phase 23's stage C, verbatim)")
+      "(phase 23's stage-C gain statistic, code verbatim; conditioned on "
+      "stage B's v2 slot categories, not phase 23's word-level k-means)")
 
 
 def cond_gain(pred, succ):
@@ -210,7 +220,13 @@ print(f"\n(D) THE DISENTANGLING TEST (phase 28, new): for each flagged word, "
 MIN_BUCKET = 15          # occurrences needed per predecessor-category bucket
 DOM_MARGIN = 1.0 / K_CATS + 0.15   # a bucket's top successor category must
                                     # clear chance (1/K_CATS) by this margin
-                                    # to count as a confident "dominant" read
+                                    # to count as a confident "dominant" read.
+# Both constants are chosen in THIS phase (not pre-registered in T2.3), and
+# the polysemy/context call has no permutation/bootstrap null of its own --
+# only stage C's detection null is measured. A bootstrap on how often
+# cross-bucket dominance conflicts arise by chance at these bucket sizes is
+# the open follow-up before the 18/101 split is treated as more than a
+# descriptive decomposition.
 
 
 def disentangle(word_idx, r):
@@ -245,9 +261,13 @@ def disentangle(word_idx, r):
 verdicts = {w: disentangle(w, r) for w, r in above.items()}
 n_poly = sum(1 for v in verdicts.values() if v['verdict'] == 'polysemy')
 n_ctx = len(verdicts) - n_poly
-print(f"  classified {len(verdicts)} words: {n_poly} polysemy (different induced "
-      f"categories), {n_ctx} context-sensitivity (same category, shifted successors)")
-print(f"\n  polysemy-classified words (occurrences route to different induced categories):")
+print(f"  classified {len(verdicts)} words: {n_poly} polysemy (cross-context "
+      f"dominant-successor-category conflict -- the bigram-level proxy for "
+      f"occurrences routing to different categories; occurrence-to-category "
+      f"routing itself is never computed here), {n_ctx} context-sensitivity "
+      f"(one dominant successor category throughout)")
+print(f"\n  polysemy-classified words (conflicting dominant successor category "
+      f"across predecessor-category buckets):")
 for w, v in sorted(verdicts.items(), key=lambda kv: -above[kv[0]]['gain']):
     if v['verdict'] == 'polysemy':
         a, ca, b, cb = v['conflict']
@@ -287,9 +307,10 @@ try:
         total = sum(c.values())
         return 1.0 - max(c.values()) / total
 
-    MINORITY_BAR = 0.05   # pre-registered: a secondary POS tag must carry >=5%
-                           # of occurrences to count as genuine multi-role,
-                           # not tagger noise on ambiguous flat tokens
+    MINORITY_BAR = 0.05   # chosen in this phase (eval-only, not among T2.3's
+                           # pre-registered items): a secondary POS tag must
+                           # carry >=5% of occurrences to count as genuine
+                           # multi-role, not tagger noise on ambiguous tokens
     gold_multirole = {w for w in range(N_WORDS) if gold_minority_frac(w) > MINORITY_BAR}
 
     detected = set(above.keys())
@@ -333,19 +354,23 @@ try:
         print("    not in the count>=150 vocab this run")
 
     ran_gold = True
-except ImportError:
-    print("  nltk not available -- skipping gold-POS evaluation (mechanism "
-          "results above stand on their own; gold-POS is eval-only)")
+except (ImportError, LookupError):
+    # LookupError: nltk installed but tagger data absent and the download
+    # failed (offline) -- the verdict block below must still print
+    print("  nltk (or its tagger data) not available -- skipping gold-POS "
+          "evaluation (mechanism results above stand on their own; gold-POS "
+          "is eval-only)")
     ran_gold = False
 
 # ---------------------------------------------------------------- verdict
 print(f"\n{'='*72}\nVERDICT\n")
-print(f"The disentangling test decomposes phase 23's {len(above)}-word gain-detected "
-      f"list into {n_poly} polysemy ({n_poly/max(len(above),1):.0%}, occurrences route "
-      f"to different induced categories) and {n_ctx} context-sensitivity "
-      f"({n_ctx/max(len(above),1):.0%}, same category, shifted successor weighting), "
-      f"purely from the unsupervised categories and per-word occurrence statistics "
-      f"already computed by phase 23 -- no new labels, no new corpus pass.")
+print(f"The disentangling test decomposes this run's {len(above)}-word gain-detected "
+      f"list (phase 23's population, re-derived here under v2 slot categories) into "
+      f"{n_poly} polysemy ({n_poly/max(len(above),1):.0%}, cross-context conflict in "
+      f"dominant successor category) and {n_ctx} context-sensitivity "
+      f"({n_ctx/max(len(above),1):.0%}, one dominant successor category, shifted "
+      f"weighting), purely from the unsupervised categories and per-word occurrence "
+      f"statistics -- no new labels, no new corpus pass.")
 if ran_gold:
     print(f"\nGold-POS evaluation (oracle, eval-only): precision={precision:.3f} "
           f"recall={recall:.3f} against a minority-POS-tag gold-multirole definition. "
