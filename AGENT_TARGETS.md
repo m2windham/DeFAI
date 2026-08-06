@@ -318,7 +318,7 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
   pre-registered bands at V ≫ N on synthetic, then lift real-text core-arm
   coverage measurably above the 216/395 decorrelation plateau.
 
-### T2.3 — Phase 28: polysemy vs grammatical context-sensitivity  `[claimed: —]`
+### T2.3 — Phase 28: polysemy vs grammatical context-sensitivity  `[claimed: claude/polysemy-context-sensitivity-phase28-h0shnt, 2026-08-05]`
 - **Objective**: the disentangling test — cluster detected words'
   occurrences by context signature; different induced categories = lexical
   polysemy, same category with shifted successors = context-sensitivity.
