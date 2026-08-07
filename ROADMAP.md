@@ -210,6 +210,32 @@ The fork gate consumes E1+E2+E3+Phase 26.
   33h's live-slot byte accounting verified equal to 33g's allocated
   accounting on every non-folding arm. Not re-verified here: corpus-scale
   phases (20–28) and the torch baselines.
+- **2026-08-07 (merge review of the four open PRs — #42/T1.9, #40/T2.1,
+  #41/T3.3, and #38 closed as a duplicate of #40; reviewer host, numpy
+  2.4.6 / numba 0.66 / scipy 1.17, torch NOT installed)**: each PR
+  re-verified on its own tree (harness ALL PASS both backends: 45/45 for
+  #42/#40/#38, 65/65 for #41) and then again on the MERGED tree —
+  `regression_harness.py` **65/65 PASS both backends** (numpy 72.8s,
+  numba 27.9s), `test_fastpath_equivalence.py` green incl. §7 and T3.3's
+  new §8 (registry on-vs-off drift 0.0e+00 on both backends),
+  `test_label_readout.py` green, `organism_state.py` smoke green (v3
+  round-trip exact, v1 and v2 backward load, compressed stores). Claims
+  reproduced independently rather than taken on trust: phase 33h re-run
+  end-to-end (490s) and every headline number matched — held-out floor
+  76.1 KB/ACC-pt = 2.24× at K=112+calib-b8, the knee at K=24/23.9, and
+  K=96's out-of-sample sign-flip (min delta −0.004) correctly recorded but
+  not banked; `phase33f_eviction_ledger.py` re-run on the T3.3 tree with
+  all nine gates passing (0.712/0.169, 0.665/0.200, census [9,7,4,6,14],
+  171 ledger rows = 171 tombstones, 211 mints, 40/40 lineage agreement);
+  33d's ACC anchors (0.712 at K=40, 0.854 at K=120) and the prototype bar
+  (0.872 / 30.7KB / 120) re-checked ON the merged tree, so T3.3's
+  organism.py/fastpath.py edits are confirmed not to perturb the phase-33
+  protocol. Phase 27's corpus run was NOT re-executed (5M-word fetch), but
+  all 42 of its committed ebook-id → title expectations were checked
+  against live Gutenberg headers (42/42 match), and PRs #38 and #40
+  completed that target independently on two hosts and reported identical
+  numbers (k=2, distinctness 0.491, z=61, 'right' n=3340 gain 0.008 vs p99
+  0.001, 205/354) — an unplanned but genuine replication.
 - **2026-08-06 (T1.8 representation-width compression, remote host,
   numpy 2.4.6 / numba 0.66 / sklearn 1.9; torch NOT installed, so the
   ladder's torch arms were not re-run — 33c's committed values stand)**:
