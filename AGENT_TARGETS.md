@@ -12,12 +12,13 @@ noise floors; pre-register predictions; run `regression_harness.py` under
 BOTH backends (`DEFAI_BACKEND=numpy|numba`) before trusting any change;
 `test_fastpath_equivalence.py` for kernel edits.
 
-Verification state as of 2026-08-06: E1 ALL PASS both backends (45 checks:
-31 + T1.8's section 10), `test_fastpath_equivalence.py` green incl. its new
-narrowed-store section 7, `test_label_readout.py` green, E3 round-trips
-green for schema v2 uncompressed/compressed and v1 backward load. Torch is
-NOT installed on that host, so the ladder's torch arms rest on 33c's
-committed values. See ROADMAP "Verification log".
+Verification state as of 2026-08-07: E1 ALL PASS both backends (65 checks:
+31 + T1.8's section 10 + T3.3's section 11), `test_fastpath_equivalence.py`
+green incl. the narrowed-store section 7 and the symbol-registry section 8,
+`test_label_readout.py` green, E3 round-trips green for schema v3
+uncompressed/compressed and v1 + v2 backward load. Torch is NOT installed
+on that host, so the ladder's torch arms rest on 33c's committed values.
+See ROADMAP "Verification log".
 
 ---
 
@@ -466,7 +467,7 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
 - **Done when**: `regression_harness.py --corpus` (or equivalent tier flag)
   runs the pinned checks from a cold cache and skips gracefully offline.
 
-### T3.3 — Stable symbol registry  `[claimed: —]`
+### T3.3 — Stable symbol registry  `[DONE 2026-08-07: claude/symbol-registry-eventboundary-avk5l0]`
 - **Objective**: symbol IDs decoupled from slot indices, designed at the
   `EventBoundary` seam (downstream scripts still index `org.P` by slot;
   fusion/recycling already emit remap/invalidate notifications to build on).
@@ -474,6 +475,36 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
   `organism_state.py` (registry must serialize).
 - **Done when**: registry survives consolidate/recycle/save-load with
   stable IDs; at least one phase script migrated as proof; harness green.
+- **RESULT (2026-08-07)**: `SymbolRegistry` in `organism.py`, driven only
+  from `EventBoundary` — `commit` mints an ID the first time a slot crosses
+  the boundary, `remap` moves it to the surviving slot or aliases it, and
+  `invalidate` tombstones it permanently. Those are the three notifications
+  the boundary already emitted, so there are **no new call sites in the
+  perceive loop**. Consolidation is a VIEW (`mem_row` → row of `org.mem`),
+  never an identity mutation, because callers snapshot/restore raw counts
+  around it. Opt-in (`Organism(symbols=True)`) and observational: on both
+  backends, registry-on state is **bitwise identical** to registry-off. The
+  JIT kernel maintains the slot→symbol array in place and journals
+  alias/tombstone events for replay, so both backends emit the same
+  identity events in the same order (`test_fastpath_equivalence.py` §8).
+  E3 **schema v3** serializes it (v1 and v2 files still load, into an
+  organism with no registry — additive migration; `save_state_v2` added so
+  the backward load is tested against a real file). Harness §11 measures
+  the hazard before pinning the fix: in the oversubscribed regime 6 of 9
+  epoch-A slots come to hold a different word and 0 IDs are ever reissued;
+  in the fusion regime every aliased ID still resolves while its recorded
+  slot has been re-let. **Honest scope**: identity is LINEAGE, not content
+  — pool-mode refinement re-centers a mature trace on an ~1/eta-visit
+  window, so a long-lived memory can drift onto a different word; measured,
+  that happens at the same rate by ID (17/25) as by slot (16/25), so the
+  registry is banded there as a tripwire, not sold as a content guarantee.
+  **Migration proof**: `phase33f_eviction_ledger.py` — its script-side
+  birth-era replay (which rested on a prose ordering argument) is
+  reproduced by the registry on 40/40 slots on both backends, with 171
+  tombstones = 171 ledger rows and 211 mints = K=40 + 171 rebirths; every
+  committed number of that phase is unchanged (output byte-identical apart
+  from the four new gate lines). Harness 65/65 both backends. See ROADMAP
+  row E5.
 
 ---
 

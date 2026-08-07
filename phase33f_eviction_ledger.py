@@ -35,6 +35,21 @@ eviction fires only on a full bank -- and every eviction rebirths its slot
 the same frame), so `victim_birth` is reconstructed here, label-free
 inside perceive.
 
+T3.3 MIGRATION (2026-08-07): this script is the proof case for the stable
+symbol registry. The `owner` replay above reconstructs slot lineage from
+the ledger and rests on the ordering argument in that paragraph; the
+registry tracks the same lineage AT THE MECHANISM BOUNDARY, needing no
+ledger and no argument -- a slot's occupant carries an ID minted at its
+first commit, and IDs are minted in chronological order, so the symbols
+born in task `ti` are exactly the ID range [minted-before, minted-after).
+Both are computed; section (A) gates them against each other and
+`census_of` now reads the registry. Measured on the committed run: the two
+agree on 40/40 slots, on both backends, and the registry accounts for every
+eviction exactly (171 tombstones = 171 ledger rows; 211 mints = K=40
+initial + 171 rebirths). The census anchor [9,7,4,6,14] and every number
+below are unchanged -- the registry is observational, and enabling it
+leaves organism state bitwise identical (harness section 11).
+
 Equivalence proof, pre-registered as section (A)'s gate: (i) budget arm
 with ledger attached reproduces 33c's committed anchors EXACTLY (ACC
 0.712 / FORG 0.169, census [9,7,4,6,14]); (ii) ledger-on vs ledger-off
@@ -43,7 +58,9 @@ devictions=0) and the task-accuracy matrix identical; (iii) the numpy
 backend records the identical ledger row-for-row (this protocol's routing
 is decision-stable across backends, as 33b/33c found); (iv) harness 31/31
 on BOTH backends and `test_fastpath_equivalence.py` green with the flag
-off (run separately; results in the ROADMAP verification log).
+off (run separately; results in the ROADMAP verification log); (v) T3.3:
+registry lineage == script replay on every slot, on both backends, with
+tombstone/mint counts matching the ledger exactly.
 
 Pre-registered discriminating measurements and decision rule:
   (B) the ledger itself: per-task eviction counts; who-evicted-whom
@@ -194,17 +211,40 @@ def states_of(Xe):
 
 def run_arm(evict, ledger_on=True, cls=NumbaOrganism):
     """Phase 33c's organism arm verbatim (stream, recipe, readout
-    bookkeeping), plus the T1.7 ledger and per-task snapshots. Birth
-    reconstruction is exact: free-slot recruits precede all evictions
-    inside a task (eviction fires only on a full bank) and every eviction
-    rebirths its slot the same frame, so marking fresh free recruits first
-    and then replaying ledger rows chronologically attributes every
-    victim's birth era correctly, including same-task rebirths."""
+    bookkeeping), plus the T1.7 ledger and per-task snapshots.
+
+    BIRTH ATTRIBUTION, two ways -- this is T3.3's migration proof.
+
+    (1) `owner`, the original script-side replay, which rests on an
+        ordering argument stated in prose: free-slot recruits precede all
+        evictions inside a task (eviction fires only on a full bank) and
+        every eviction rebirths its slot the same frame, so marking fresh
+        free recruits first and then replaying ledger rows chronologically
+        attributes every victim's birth era correctly, including same-task
+        rebirths. Correct, but it is the script re-deriving slot lineage
+        from a diagnostic ledger -- and it is only as good as the argument.
+
+    (2) `owner_reg`, read off the T3.3 SYMBOL REGISTRY. A slot's occupant
+        is named by an ID minted at the EventBoundary the first time it
+        commits, and IDs are minted in chronological order -- so the
+        symbols minted during task `ti` are exactly those in the ID range
+        [minted-before, minted-after), and a slot's birth era is the range
+        containing the ID it holds NOW. No ordering argument, no ledger,
+        no replay: the mechanism tracked the lineage as it happened, and
+        the slot's own churn (eviction -> tombstone -> fresh mint) is what
+        moves it between eras.
+
+    Both are computed and section (A) gates them against each other slot
+    for slot. `census_of` reads the registry; the replay stays as the
+    cross-check that pins the migration.
+    """
     r = np.random.default_rng(0)
     r.permutation(len(X))                # burn the split draw (33b's technique)
-    org = cls(N=N, K=K, omega=0.15, beta=10.0, seed=0)
+    org = cls(N=N, K=K, omega=0.15, beta=10.0, seed=0, symbols=True)
+    reg = org.registry
     readout = LabelEvidenceReadout(K=K, n_classes=10)
     owner = np.full(K, -1)
+    eras = []                            # per-task minted-ID range (T3.3)
     A = np.zeros((len(TASKS), len(TASKS)))
     ledger = []
     snaps = []
@@ -220,8 +260,10 @@ def run_arm(evict, ledger_on=True, cls=NumbaOrganism):
             for i in p:
                 seq.extend([normalize(Xtr[i].astype(complex), NORM)] * HOLD)
         dbg = [] if ledger_on else None
+        id_before = reg.minted()
         org.perceive(seq, g_in=4.0, eta=0.015, recruit=0.6, evict=evict,
                      evict_debug=dbg)
+        eras.append((id_before, reg.minted()))       # (1) IDs born this task
         owner[~used_before & org.used] = ti          # free recruits come first
         for (f, j, c, a) in (dbg or []):             # then replay evictions
             tok = order[int(f) // HOLD]
@@ -239,12 +281,26 @@ def run_arm(evict, ledger_on=True, cls=NumbaOrganism):
                           evidence=readout.evidence.copy(),
                           owner=owner.copy(), fresh=int(fresh.sum()),
                           evd=int((org.evictions - evd_before).sum())))
-    return dict(A=A, org=org, readout=readout, owner=owner, ledger=ledger,
-                snaps=snaps)
+    return dict(A=A, org=org, readout=readout, owner=owner,
+                owner_reg=owner_from_registry(reg, eras), eras=eras,
+                registry=reg, ledger=ledger, snaps=snaps)
+
+
+def owner_from_registry(reg, eras):
+    """(2) Birth era per slot, straight from the symbol registry: the era
+    whose minted-ID range contains the ID the slot holds now. -1 = the slot
+    holds no symbol (free, or used but never confident enough to commit)."""
+    owner = np.full(len(reg.slot_sym), -1)
+    for j, sid in enumerate(reg.slot_sym):
+        if sid >= 0:
+            owner[j] = next((t for t, (a, b) in enumerate(eras)
+                             if a <= sid < b), -1)
+    return owner
 
 
 def census_of(res):
-    org, owner = res["org"], res["owner"]
+    """Surviving slots per birth era -- read off the symbol registry."""
+    org, owner = res["org"], res["owner_reg"]
     return [int((owner[org.used] == t).sum()) for t in range(len(TASKS))]
 
 
@@ -280,6 +336,9 @@ if __name__ == "__main__":
                float((o_on.used != o_off.used).sum()),
                np.abs(o_on.evictions - o_off.evictions).max(),
                np.abs(bud["A"] - bud_off["A"]).max())
+    reg_same = bool(np.array_equal(bud["owner"], bud["owner_reg"]))
+    reg_deaths = len(bud["registry"].dead)
+    reg_minted = bud["registry"].minted()
     bud_np = run_arm(EVICT, ledger_on=True, cls=Organism)
     led_same = len(bud["ledger"]) == len(bud_np["ledger"]) and all(
         a["frame"] == b["frame"] and a["slot"] == b["slot"]
@@ -296,6 +355,19 @@ if __name__ == "__main__":
         ("ledger on/off bitwise (state+A)", d_ab == 0.0, f"max delta {d_ab:.1e}"),
         ("numpy backend: identical ledger", led_same,
          f"{len(bud['ledger'])} vs {len(bud_np['ledger'])} rows"),
+        # T3.3 migration gate: the symbol registry's lineage must reproduce
+        # the script-side replay slot for slot, and account for every
+        # eviction (one tombstone per ledger row, one fresh mint after it)
+        ("registry birth era == script replay", reg_same,
+         f"{int((bud['owner'] == bud['owner_reg']).sum())}/{K} slots agree"),
+        ("registry tombstones == ledger rows", reg_deaths == len(bud["ledger"]),
+         f"{reg_deaths} vs {len(bud['ledger'])}"),
+        ("registry mints == K + rebirths",
+         reg_minted == K + len(bud["ledger"]),
+         f"{reg_minted} vs {K} + {len(bud['ledger'])}"),
+        ("registry cross-backend lineage", np.array_equal(
+            bud["owner_reg"], bud_np["owner_reg"]),
+         f"numba vs numpy, {K} slots"),
     ]
     gate = True
     for name, ok, detail in checks:

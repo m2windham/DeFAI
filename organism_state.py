@@ -52,6 +52,27 @@ The lossy case is deliberately NOT allowed to masquerade as the bitwise
 guarantee above: `save_state` records the spec in the file, and harness
 section 8 pins the uncompressed round-trip at zero delta and the compressed
 one inside a stated tolerance.
+
+SCHEMA v3 (T3.3): the symbol registry
+-------------------------------------
+v3 adds the OPTIONAL `SymbolRegistry` (organism.py) -- stable symbol IDs
+decoupled from slot indices. Persistence is the whole point of an identity
+layer: an ID handed to a caller before a save must still name the same
+memory after the load, or the registry is only as stable as one process.
+
+  - v3 WITHOUT a registry is byte-for-byte the v2 layout with the version
+    bumped. Every array v2 wrote, v3 writes; the bitwise round-trip pins are
+    unchanged. The compressed encoding is likewise untouched -- the registry
+    is O(K) plus the alias/tombstone tables and is never a byte problem.
+  - v1 AND v2 FILES STILL LOAD, into an organism with no registry, which is
+    exactly the state a pre-T3.3 organism had (additive migration -- no
+    existing field is reinterpreted). `save_state_v1` / `save_state_v2`
+    write the older layouts so the backward-load guarantee is tested
+    against real files rather than an assertion about them.
+  - the registry round-trip is BITWISE and complete: slot bindings, the ID
+    counter, the alias chains, the tombstones, and the consolidation view.
+    A restored organism keeps minting from where it stopped, so an ID is
+    never reissued across a save boundary.
 """
 
 import json
@@ -62,8 +83,41 @@ from organism_compress import (
     CompressedState, CompressionSpec, WORK_XI, compress,
 )
 
-SCHEMA_VERSION = 2
-SUPPORTED_SCHEMAS = (1, 2)
+SCHEMA_VERSION = 3
+SUPPORTED_SCHEMAS = (1, 2, 3)
+
+
+def _pack_registry(org):
+    """T3.3 registry -> flat arrays (no pickle). Empty dict when the organism
+    has no registry, so v3 files without one are byte-identical to v2."""
+    reg = getattr(org, 'registry', None)
+    if reg is None:
+        return {}
+    alias = sorted(reg.alias.items())
+    out = dict(
+        reg_slot_sym=np.asarray(reg.slot_sym, dtype=np.int64),
+        reg_next_id=np.asarray(reg.next_id, dtype=np.int64),
+        reg_alias=np.array(alias, dtype=np.int64).reshape(-1, 2),
+        reg_dead=np.array(sorted(reg.dead), dtype=np.int64),
+    )
+    if reg.mem_index:                    # the consolidation view, when present
+        items = sorted(reg.mem_index.items())
+        out['reg_mem_index'] = np.array(items, dtype=np.int64).reshape(-1, 2)
+    return out
+
+
+def _unpack_registry(f, org):
+    """Rebuild the registry from a v3 file. Absent (v1/v2, or a v3 written
+    without one) leaves org.registry as the constructor made it: None."""
+    if 'reg_slot_sym' not in f:
+        return
+    reg = org.enable_symbols()
+    reg.slot_sym = f['reg_slot_sym'].copy()
+    reg.next_id = f['reg_next_id'].copy()
+    reg.alias = {int(a): int(b) for a, b in f['reg_alias']}
+    reg.dead = {int(d) for d in f['reg_dead']}
+    reg.mem_index = ({int(s): int(r) for s, r in f['reg_mem_index']}
+                     if 'reg_mem_index' in f else {})
 
 
 def save_state(org, path, compress_spec=None):
@@ -77,6 +131,28 @@ def save_state(org, path, compress_spec=None):
         return _save_compressed(org, path, compress_spec)
     arrays = dict(
         schema=np.array([SCHEMA_VERSION]),
+        params=np.array([org.N, org.K], dtype=np.int64),
+        hyper=np.array([org.omega, org.beta], dtype=np.float64),
+        xi=org.xi, used=org.used, count=org.count,
+        age=org.age, evictions=org.evictions,
+        P=org.graph.P, z=org.z,
+        rng_state=np.frombuffer(
+            json.dumps(org.rng.bit_generator.state).encode(), dtype=np.uint8),
+    )
+    arrays.update(_pack_registry(org))
+    if hasattr(org, 'mem'):
+        arrays['mem'] = org.mem
+        arrays['Pn'] = org.Pn
+        arrays['kept_idx'] = np.array(org.kept_idx, dtype=np.int64)
+    np.savez_compressed(path, **arrays)
+
+
+def save_state_v2(org, path):
+    """Write the PRE-T3.3 (schema v2) layout -- same role as `save_state_v1`:
+    a real older file to test the backward-load guarantee against. The
+    registry is dropped, which is the honest v2 semantics (v2 had none)."""
+    arrays = dict(
+        schema=np.array([2]),
         params=np.array([org.N, org.K], dtype=np.int64),
         hyper=np.array([org.omega, org.beta], dtype=np.float64),
         xi=org.xi, used=org.used, count=org.count,
@@ -135,6 +211,7 @@ def _save_compressed(org, path, spec):
         rng_state=np.frombuffer(
             json.dumps(org.rng.bit_generator.state).encode(), dtype=np.uint8),
     )
+    arrays.update(_pack_registry(org))    # O(K): never a byte problem
     if st.factors is not None:
         arrays['xi_U'], arrays['xi_V'] = st.factors
     else:
@@ -168,9 +245,11 @@ def load_state(path, cls=Organism):
     """Restore an organism (of `cls` -- Organism or NumbaOrganism) from
     `path`. Raises ValueError on an unsupported schema version.
 
-    Backward compatible: v1 files (written before T1.8) load unchanged.
-    Compressed v2 files restore at compute width (complex128/float64), so
-    the organism they produce is immediately perceivable on either backend.
+    Backward compatible: v1 files (written before T1.8) and v2 files
+    (written before T3.3) load unchanged -- the older file simply carries no
+    registry, and the restored organism has none, which is what it had.
+    Compressed files restore at compute width (complex128/float64), so the
+    organism they produce is immediately perceivable on either backend.
     """
     with np.load(path, allow_pickle=False) as f:
         ver = int(f['schema'][0])
@@ -194,6 +273,7 @@ def load_state(path, cls=Organism):
         org.evictions = f['evictions'].copy() if 'evictions' in f else np.zeros(K)
         org.z = f['z'].copy()
         org.rng.bit_generator.state = json.loads(bytes(f['rng_state']).decode())
+        _unpack_registry(f, org)          # v3 only; absent in v1/v2
         if 'mem' in f:
             org.mem = f['mem'].astype(WORK_XI)
             org.Pn = f['Pn'].copy()
@@ -262,4 +342,31 @@ if __name__ == "__main__":
               f"max |dxi| {dxi:.2e}  max |dP| {dP:.2e}  "
               f"restores at {e.xi.dtype}"
               f"{'  (LOSSLESS)' if dxi == 0 and dP == 0 else ''}")
-    print(f"  uncompressed v2 file bytes: {os.path.getsize(path)}")
+    print(f"  uncompressed file bytes: {os.path.getsize(path)}")
+
+    # -- v3 additions (T3.3): the symbol registry round-trips -------------
+    print("\nschema v3 (T3.3): symbol registry")
+    g = Organism(N=N, K=K, seed=0, symbols=True)
+    g.perceive(s1); g.perceive(s2); g.consolidate()
+    gp = os.path.join(tempfile.gettempdir(), "e3_v3.npz")
+    save_state(g, gp)
+    h = load_state(gp)
+    reg, back = g.registry, h.registry
+    exact = (np.array_equal(reg.slot_sym, back.slot_sym)
+             and int(reg.next_id[0]) == int(back.next_id[0])
+             and reg.alias == back.alias and reg.dead == back.dead
+             and reg.mem_index == back.mem_index)
+    print(f"  {reg.minted()} IDs minted, {len(reg.live())} live, "
+          f"{len(reg.alias)} fused, {len(reg.dead)} tombstoned")
+    print(f"  registry round-trip exact: {exact}")
+    v2p = os.path.join(tempfile.gettempdir(), "e3_v2.npz")
+    save_state_v2(g, v2p)
+    i = load_state(v2p)
+    print(f"  v2 file loads under v{SCHEMA_VERSION}: "
+          f"max |dxi| = {np.abs(i.xi - g.xi).max():.2e}, "
+          f"registry absent (as v2 had none) = {i.registry is None}")
+    off = Organism(N=N, K=K, seed=0)
+    off.perceive(s1); off.perceive(s2)
+    print(f"  registry on-vs-off state drift: "
+          f"{max(np.abs(g.xi - off.xi).max(), np.abs(g.P - off.P).max()):.2e}"
+          "  (observational: must be 0)")
