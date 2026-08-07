@@ -12,12 +12,13 @@ noise floors; pre-register predictions; run `regression_harness.py` under
 BOTH backends (`DEFAI_BACKEND=numpy|numba`) before trusting any change;
 `test_fastpath_equivalence.py` for kernel edits.
 
-Verification state as of 2026-08-06: E1 ALL PASS both backends (45 checks:
-31 + T1.8's section 10), `test_fastpath_equivalence.py` green incl. its new
-narrowed-store section 7, `test_label_readout.py` green, E3 round-trips
-green for schema v2 uncompressed/compressed and v1 backward load. Torch is
-NOT installed on that host, so the ladder's torch arms rest on 33c's
-committed values. See ROADMAP "Verification log".
+Verification state as of 2026-08-07 (re-verified on a fresh host for T1.9):
+E1 ALL PASS both backends (45 checks: 31 + T1.8's section 10; numpy 81–94s,
+numba 13–19s), `test_fastpath_equivalence.py` green incl. its narrowed-store
+section 7, `test_label_readout.py` green, E3 round-trips green for schema v2
+uncompressed/compressed and v1 backward load. Torch is NOT installed on
+these hosts, so the ladder's torch arms rest on 33c's committed values. See
+ROADMAP "Verification log".
 
 ---
 
@@ -320,7 +321,7 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
   backends. Phase 9's negative untouched: compression re-encodes a
   finished state, nothing re-attributes occurrences. Full row: ROADMAP 33g.
 
-### T1.9 — Cost-branch follow-up: KB-per-accuracy-point parity (phase 33h)  `[claimed: claude/phase-33h-cost-branch-w62bcj, 2026-08-07]`
+### T1.9 — Cost-branch follow-up: KB-per-accuracy-point parity (phase 33h)  `[DONE 2026-08-07: claude/phase-33h-cost-branch-w62bcj]`
 - **Objective**: T1.8 repriced the gate's cost branch but did not meet it:
   the bar-crossing organism arm (K=160, ACC 0.900) now costs 96.4KB =
   107.1 KB/ACC-pt vs the prototype bar's 35.2 (0.872 @ 30.7KB), a ~3×
@@ -361,6 +362,74 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
   (KB/ACC-pt per arm, reseeded); ROADMAP row records parity, progress, or
   the floor; AGENT_TARGETS + the RELEASE-HOLD block updated with the
   verdict.
+- **RESULT (2026-08-07)**: prediction (b)'s honest negative is the
+  verdict — **parity NOT met, the ≤2× fallback NOT met, and the floor is
+  measured at 76.1 KB/ACC-pt = 2.24× the bar** (ACC 0.903 vs the bar's
+  0.865, K=112 + `calib-b8`), on HELD-OUT seeds. Per-point cost fell
+  3.15× → 2.24× (−29%). `phase33h_cost_frontier.py`; no library file
+  touched; all anchors exact (bar 0.872/30.7KB/120, 33d's ladder, 33g's
+  96.4KB); harness 45/45 both backends before and after.
+  - Two protocol points that generalize past this target. (1) Every arm
+    reseeds the **prototype bar on the same split** — a fixed seed-0 bar
+    against reseeded organism arms is unpaired, and T1.6/T1.8's lesson
+    applies to the baseline as much as to the mechanism. (2) Rule (d)
+    (min paired delta > 0 on all seeds) is a filter over a grid, so it
+    is still selection; the phase pre-registered a **held-out
+    confirmation** on fresh seeds 5–9 and it earned its keep — the
+    cheapest arm (K=96, 1.96×) sign-flipped out of sample (min −0.004)
+    and was recorded, not banked, exactly as 33g's rank-20 should have
+    been.
+  - Lever (i) knee: prediction (a) held in its first clause and FAILED
+    in its second, usefully. The knee is at K=24 (23.9 KB/ACC-pt =
+    **0.70×** the bar) and the organism beats the bar per point at every
+    K ≤ 40 — but only because the metric is minimized where accuracy is
+    worst (K=24 scores 0.583). The gate says "cost-effective AT EQUAL
+    ACCURACY"; only the constrained number answers it, and unconstrained
+    KB/ACC-pt must not be quoted from this phase without that caveat.
+    Constrained, lever (i) alone is 3.25× — the 17-point grid bought
+    resolution, not cost.
+  - Lever (ii) readout: **T1.6's null is BOUNDED, not overturned.** It
+    reproduces at low capacity (K=24: nothing survives) but at K=120
+    five decoders clear the survival rule on all five seeds (dist-m2/m3/
+    m5, calib-b8/b32; calib-b8 +0.053 [+0.012, +0.081]) — via the exact
+    mechanism T1.6 named and could not exercise at K=40: per-slot label
+    DISTRIBUTIONS instead of majority collapse, which only have mass to
+    recover once slots are plentiful enough to split it. Zero bytes, so
+    it moves the whole curve down. **Anyone citing T1.6's null should
+    now cite it as "at K=40".**
+  - Lever (iii) folding: a measured NEGATIVE, called by the census
+    before a fold ran (prediction (c) held). At `consolidate()`'s own
+    0.8 threshold the bank is near-orthogonal — 8 duplicate pairs out of
+    12 720 at K=160, 13/160 slots with any partner, median pairwise
+    overlap 0.169. Every byte folding saves is bought with accuracy: th
+    ≤ 0.60 costs −0.147 ACC, th = 0.85 frees 0.2 slots (noise). No fold
+    arm is both at/above the bar and cheaper per point. **Do not retry
+    this lever at this scale without new evidence of redundancy.**
+  - **The floor's reason, and it is arithmetic**: a prototype is a REAL
+    float32 N-vector (256 B), a field memory is a COMPLEX one (512 B) +
+    8 B meta = 2.03× per stored memory before the graph, at parity slot
+    count (112 slots clear what 115 prototypes clear). Decomposition:
+    68.7KB/29.4KB = 2.34× bytes × (0.865/0.903) = 2.24×, of which 1.98×
+    is complex-vs-real and 0.36× is the CSR graph. Parity needs the bar
+    cleared on ≤ 57 slots (K=56 measures 0.800); the ≤2× fallback needs
+    ≤ 114 slots with a FREE graph — **missed by 9.9KB against a graph
+    costing 10.5KB**. 33g already took the lossless width, so the
+    residue is the premise, not an implementation.
+  - Scope variation on record, NOT banked: this benchmark's readout
+    never queries the transition graph, so a graph-free store is 58.2KB
+    at 0.903 = 64.5 KB/ACC-pt = **1.90×, which would meet the
+    fallback** — honest only for a product that never reasons, since the
+    graph is the logic layer (phase 30, phases 35/36) and underpins
+    every capability a re-scoped gate would point at. Quoting it
+    unqualified is the artifact 33g refused to bank on P pruning.
+  - Direction with its caveat: K=112 (0.903 at 76.1) is now cheaper per
+    accuracy point than 33c's replay (0.913 at ~89.6KB = 98.1), having
+    been 3.4× dearer at 33d — but replay is a single-seed torch number,
+    not reseeded and not re-measured (no torch on this host).
+  - **Owner decision input**: the cost branch is not closable by storage
+    engineering and its floor is ~2.2×. Re-scoping the gate to the
+    capability axes is the decision the data supports. Full row:
+    ROADMAP 33h.
 
 ---
 
@@ -517,7 +586,12 @@ staged. Order decided in triage (ROADMAP): D1 first.
 - **Status**: **BLOCKED by RELEASE HOLD** until T1.4 passes the owner's
   bar. Engineering gate (E1+E2+E3+Phase 26 synthetic) already OPEN.
   (T1.4 ran 2026-08-05: bar NOT met — 0.712 vs 0.872, ROADMAP row 33c;
-  the hold stands pending the owner's decision.)
+  the hold stands pending the owner's decision.) **The gap-closing
+  sequence T1.5–T1.9 is now exhausted and the decision is fully
+  specified: raw-accuracy is buyable as a protocol variation (K=160,
+  0.900), and the cost branch has a measured ~2.2× floor with an
+  arithmetic reason (33h). What remains is an owner call on re-scoping
+  the gate to the capability axes — not another agent target.**
 - **When unblocked**: cut release tag on main → create separate product
   repo (hard fork, never a branch) → discoveries flow only via the
   versioned engine (phase script + pinned harness numbers + release tag).
