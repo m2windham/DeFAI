@@ -89,6 +89,25 @@ miss, partials included):
   while giving each surviving word ~8.8x more occurrences -- the change that
   actually sharpens both stage-B statistics and stage-C nulls. This is the
   intended scale lever, not a workaround.
+
+COMMITTED-RUN OUTCOME (2026-08-07; the frozen prediction text above is
+untouched -- full numbers and caveats in ROADMAP row 27):
+
+  P1: NOT CONFIRMED -- the pre-registered falsification fired. The
+      distinctness-argmax selected k=2 (a collapse to k<=3, one of the
+      clause's two named failure modes; distinctness 0.491 at k=2 vs
+      <=0.242 everywhere else), and z=61 at the selected k does not exceed
+      phase 24's 65 (z is lower at every comparable k: 21 at k=6).
+      VALIDITY itself still holds at every k (z 17-61) -- the categories
+      are real; the structure did not sharpen. Recorded confound: the
+      proportional MIN_COUNT scaling changes vocabulary COMPOSITION
+      (>=1500-occurrence words only), not just per-word sample size.
+
+  P2: CONFIRMED. 'right' clears its own per-word permutation null at
+      n=3340 (gain 0.008 vs p99 0.001, ABOVE); 205/354 candidates clear
+      theirs (honest full ranking in the run log / ROADMAP). Caveat: the
+      conditioning variable is the collapsed k=2 assignment, so absolute
+      gains are not comparable to phase 21's scale.
 """
 
 import os
