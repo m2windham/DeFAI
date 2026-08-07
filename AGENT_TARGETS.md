@@ -320,7 +320,7 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
   backends. Phase 9's negative untouched: compression re-encodes a
   finished state, nothing re-attributes occurrences. Full row: ROADMAP 33g.
 
-### T1.9 — Cost-branch follow-up: KB-per-accuracy-point parity (phase 33h)  `[claimed: —]`
+### T1.9 — Cost-branch follow-up: KB-per-accuracy-point parity (phase 33h)  `[claimed: claude/phase-33h-cost-branch-w62bcj, 2026-08-07]`
 - **Objective**: T1.8 repriced the gate's cost branch but did not meet it:
   the bar-crossing organism arm (K=160, ACC 0.900) now costs 96.4KB =
   107.1 KB/ACC-pt vs the prototype bar's 35.2 (0.872 @ 30.7KB), a ~3×
