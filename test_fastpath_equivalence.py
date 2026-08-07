@@ -28,6 +28,15 @@ Checks, one per perceive mode + recall + consolidate:
                                 and a c64 store must track a c128 one to
                                 float32 precision (a tolerance, not zero --
                                 the store really is quantized)
+  8. symbol registry (T3.3)  -- the identity events (mint/fuse/kill) the two
+                                backends emit must be the same events in the
+                                same order: the NumPy path drives them from
+                                EventBoundary, the JIT path maintains the
+                                slot->symbol array in the kernel and journals
+                                the alias/tombstone events for replay. Also
+                                pins OBSERVATIONAL PURITY -- registry on vs
+                                off is bitwise identical state, so identity
+                                tracking can never feed a mechanism decision
 
 Run: python test_fastpath_equivalence.py  (nonzero exit on failure)
 """
@@ -225,6 +234,62 @@ check("c64 store consolidate kept-list mismatch",
       float(a.kept_idx != w.kept_idx), 0.0)
 check("c64 store mem at compute width",
       float(a.mem.dtype != np.complex128), 0.0)
+
+# (8) T3.3: symbol registry -- the identity events the two backends emit
+# must be the SAME events in the SAME order, and turning the registry on
+# must not perturb the mechanism by a single bit
+print("(8) symbol registry (T3.3): cross-backend identity + observational purity")
+
+
+def reg_tuple(o):
+    """Everything the registry knows, in a comparable form."""
+    r = o.registry
+    return (r.slot_sym.tolist(), int(r.next_id[0]),
+            sorted(r.alias.items()), sorted(r.dead), sorted(r.mem_index.items()))
+
+
+def reg_pair(seed=0, **kw):
+    return (Organism(backend="numpy", seed=seed, symbols=True, **kw),
+            Organism(backend="numba", seed=seed, symbols=True, **kw))
+
+
+# 8a. the pinned phase-17/18 pool world: fusion-heavy (mature duplicates
+# converge, so the ALIAS event -- both slots already named -- is exercised)
+a, b = reg_pair(N=N14, K=60, omega=0.15, beta=10.0, seed=0)
+seq8 = sample_stream(4000, seed=99)
+fr8 = list(frames(seq8, 0.2))
+kw8 = dict(g_in=5.0, dt=0.05, eta=0.05, confirm=3, pool=True,
+           active_bar=0.35, s_hat=0.2**2 * N14, probation=12000, amb=0.0)
+a.perceive(fr8, **kw8)
+b.perceive(fr8, **kw8)
+a.consolidate(); b.consolidate()
+check("registry cross-backend mismatch (pool world)",
+      float(reg_tuple(a) != reg_tuple(b)), 0.0)
+check("registry saw no fusion (test would be vacuous)",
+      float(len(a.registry.alias) == 0), 0.0)
+
+# 8b. the eviction world: recycling under budget pressure, so the DEAD
+# event and slot reuse (a recycled slot must NOT inherit its predecessor's
+# identity) are exercised
+c, d = reg_pair(N=N14, K=12, omega=0.15, beta=10.0, seed=0)
+c.perceive(fr6, **kw6)
+d.perceive(fr6, **kw6)
+check("registry cross-backend mismatch (eviction world)",
+      float(reg_tuple(c) != reg_tuple(d)), 0.0)
+check("registry saw no recycling (test would be vacuous)",
+      float(len(c.registry.dead) == 0), 0.0)
+check("registry reused a symbol ID after recycling",
+      float(len(set(c.registry.live()) & c.registry.dead) > 0), 0.0)
+
+# 8c. OBSERVATIONAL PURITY: registry on vs off, same backend, must be
+# bitwise identical -- the registry may never touch a mechanism decision
+for be, on in (("numpy", a), ("numba", b)):
+    off = Organism(backend=be, N=N14, K=60, omega=0.15, beta=10.0, seed=0)
+    off.perceive(fr8, **kw8)
+    off.consolidate()
+    check(f"registry on-vs-off state drift ({be})", state_diff(on, off), 0.0)
+    check(f"registry on-vs-off consolidate mismatch ({be})",
+          float(on.kept_idx != off.kept_idx), 0.0)
 
 print()
 if FAILURES:

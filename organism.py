@@ -39,9 +39,13 @@ during logic tasks -- MIT/McGovern 2026):
   errors cannot silently rewrite relational knowledge (they are stopped at the
   boundary's confidence gate), and each layer is testable alone -- the graph
   on clean synthetic symbol streams, perception on ground-truth coverage.
-  Symbols are currently 1:1 bound to memory slots (downstream phase scripts
-  index org.P by slot); a stable symbol registry that survives slot churn is
-  the designed next step and would live entirely at the boundary.
+  Slots are storage; SYMBOLS are identity. `SymbolRegistry` (T3.3, opt-in via
+  Organism(symbols=True)) mints an ID the first time a slot crosses the
+  boundary and carries it through fusion, recycling, consolidation and
+  save/load, driven entirely by the boundary's existing commit/remap/
+  invalidate notifications. Downstream scripts may still index org.P by slot
+  -- the registry is additive and observational -- but `slot_of(sid)` is the
+  index that stays correct across slot churn.
 """
 
 import os
@@ -149,6 +153,158 @@ class TransitionGraph:
         return path
 
 
+class SymbolRegistry:
+    """T3.3: STABLE SYMBOL IDENTITY, decoupled from slot indices.
+
+    A slot index is storage, not identity. The same word's memory can move
+    slots (fusion picks whichever duplicate is the better host), and a slot
+    can be reused by an unrelated pattern after recycling/eviction -- so
+    `org.P[7]` means different things at different times, and any downstream
+    record keyed by slot silently rots. This registry mints an ID the first
+    time a slot's content crosses the EventBoundary (i.e. when it becomes a
+    symbol the logic layer knows about) and then tracks that ID through every
+    identity event the boundary already reports:
+
+      - `mint`       first commit of a slot with no live symbol -> a new ID
+      - `fuse`       slot fusion. If the survivor has no ID of its own the
+                     dropped slot's ID MOVES to it (identity preserved across
+                     a slot change -- the whole point). If both carry IDs the
+                     dropped one is ALIASED to the survivor, so an ID handed
+                     out earlier still resolves after the merge.
+      - `kill`       recycling/eviction. The ID is tombstoned, never reissued,
+                     and its slot is freed to mint a fresh ID for whatever
+                     pattern lands there next -- a recycled slot must NOT
+                     inherit the identity of its previous occupant.
+
+    Every ID in [0, next_id) is therefore in exactly one of three states:
+    LIVE (held by a slot), FUSED (aliased onto another ID, resolvable), or
+    DEAD (tombstoned). `resolve` chases alias chains with path compression.
+
+    Consolidation is a VIEW, not a mutation: `on_consolidate` records where
+    each symbol landed in the compact `org.mem` bank (folded duplicates map
+    to their survivor's row) without touching IDs, because callers snapshot
+    and restore raw counts around consolidate (see `TransitionGraph.fold`)
+    and a destructive registry side-effect there would not be undone by the
+    restore. Consolidating twice, or not at all, leaves identity unchanged.
+
+    Purely observational: no mechanism decision reads the registry, so an
+    organism with symbols enabled evolves bitwise identically to one without
+    (pinned by the harness and `test_fastpath_equivalence.py`). E3 serializes
+    it (schema v3)."""
+
+    ALIAS, DEAD = 1, 2                  # journal kinds (numba fastpath drain)
+
+    def __init__(self, K):
+        self.K = K
+        self.slot_sym = np.full(K, -1, np.int64)   # slot -> live symbol, -1 = none
+        self.next_id = np.zeros(1, np.int64)       # array so the JIT can bump it
+        self.alias = {}                            # fused-away id -> id it continues as
+        self.dead = set()                          # tombstoned ids, never reissued
+        self.mem_index = {}                        # symbol -> row of org.mem (a view)
+
+    # ---- boundary notifications (the only mutators) --------------------
+    def mint(self, k):
+        """Slot k just committed. Give it an ID if it does not have one."""
+        if self.slot_sym[k] < 0:
+            self.slot_sym[k] = self.next_id[0]
+            self.next_id[0] += 1
+        return int(self.slot_sym[k])
+
+    def fuse(self, drop, keep):
+        """Slot fusion: `drop`'s identity continues as `keep`."""
+        sd = int(self.slot_sym[drop])
+        if sd >= 0:
+            sk = int(self.slot_sym[keep])
+            if sk >= 0:
+                self.alias[sd] = sk                # both named: drop -> keep
+            else:
+                self.slot_sym[keep] = sd           # identity moves slots
+            self.slot_sym[drop] = -1
+
+    def kill(self, k):
+        """Slot k was recycled: its symbol is gone for good."""
+        sd = int(self.slot_sym[k])
+        if sd >= 0:
+            self.dead.add(sd)
+            self.slot_sym[k] = -1
+
+    # ---- queries -------------------------------------------------------
+    def resolve(self, sid):
+        """Follow alias links to the ID this one continues as (itself if it
+        was never fused). Path-compressed, so repeated lookups are O(1)."""
+        sid = int(sid)
+        root = sid
+        while root in self.alias:
+            root = self.alias[root]
+        while sid != root:                          # path compression
+            self.alias[sid], sid = root, self.alias[sid]
+        return root
+
+    def slot_of(self, sid):
+        """Current slot holding this symbol, or -1 if it is dead/unheld.
+        This is the migration primitive: index `org.P` by `slot_of(sid)`
+        instead of by a slot remembered from an earlier epoch."""
+        root = self.resolve(sid)
+        hit = np.nonzero(self.slot_sym == root)[0]
+        return int(hit[0]) if hit.size else -1
+
+    def symbol_at(self, slot):
+        """The symbol currently held by `slot`, or -1."""
+        return int(self.slot_sym[slot])
+
+    def status(self, sid):
+        """'live' | 'fused' | 'dead' | 'unknown'."""
+        sid = int(sid)
+        if sid < 0 or sid >= int(self.next_id[0]):
+            return 'unknown'
+        root = self.resolve(sid)
+        if root in self.dead:
+            return 'dead'
+        if self.slot_of(root) < 0:
+            return 'dead'
+        return 'live' if root == sid else 'fused'
+
+    def live(self):
+        """Every live symbol, ascending."""
+        return sorted(int(s) for s in self.slot_sym if s >= 0)
+
+    def minted(self):
+        return int(self.next_id[0])
+
+    def mem_row(self, sid):
+        """Row of `org.mem` / `org.Pn` this symbol landed in at the last
+        consolidate, or -1 (pruned as junk, dead, or never consolidated)."""
+        return self.mem_index.get(self.resolve(sid), -1)
+
+    def on_consolidate(self, kept_idx, folds):
+        """Rebuild the consolidation VIEW. `kept_idx` is consolidate's
+        surviving-slot list (row i of `org.mem` is slot kept_idx[i]);
+        `folds` is the (dropped_slot, survivor_slot) pairs it folded."""
+        self.mem_index = {}
+        for row, slot in enumerate(kept_idx):
+            s = int(self.slot_sym[slot])
+            if s >= 0:
+                self.mem_index[s] = row
+        for drop, keep in folds:                    # duplicates share the row
+            s, t = int(self.slot_sym[drop]), int(self.slot_sym[keep])
+            if s >= 0 and t in self.mem_index:
+                self.mem_index[s] = self.mem_index[t]
+
+    # ---- numba fastpath drain -----------------------------------------
+    def apply_journal(self, rows):
+        """Replay the JIT kernel's identity events. The kernel maintains
+        `slot_sym`/`next_id` in place (they are plain arrays) but cannot
+        touch the Python alias dict / dead set, so it journals those two
+        event kinds in order and they are applied here. Same events, same
+        order as the NumPy path -- that equality is what the equivalence
+        test pins."""
+        for kind, a, b in rows:
+            if kind == self.ALIAS:
+                self.alias[int(a)] = int(b)
+            elif kind == self.DEAD:
+                self.dead.add(int(a))
+
+
 class EventBoundary:
     """BOUNDARY between perception and logic: the single call-site through
     which recognitions become relational knowledge. Perception decides WHEN
@@ -156,39 +312,60 @@ class EventBoundary:
     on the perception side, so ambiguous states never reach the graph); the
     boundary tracks symbol continuity and emits transitions. Identity events
     (fusion, recycling) arrive as explicit notifications so the previous-
-    symbol anchor never dangles."""
+    symbol anchor never dangles.
 
-    def __init__(self, graph, p_decay=0.0):
+    Those same three notifications are exactly what a stable symbol registry
+    needs (T3.3), so when one is attached it is driven from here and nowhere
+    else -- no new call sites in the perceive loop, and no way for perception
+    to rewrite identity behind the boundary's back."""
+
+    def __init__(self, graph, p_decay=0.0, registry=None):
         self.graph = graph
         self.p_decay = p_decay
+        self.registry = registry
         self.prev = -1
 
     def commit(self, k):
         """A confident, confirmed recognition of symbol k. A change of active
         symbol is a transition; a continued dwell only re-anchors."""
+        if self.registry is not None:
+            self.registry.mint(k)          # first crossing names the symbol
         if k != self.prev and self.prev >= 0:
             self.graph.observe(self.prev, k, self.p_decay)
         self.prev = k
 
     def remap(self, drop, keep):
         """Slot fusion: `drop`'s identity continues as `keep`."""
+        if self.registry is not None:
+            self.registry.fuse(drop, keep)
         if self.prev == drop:
             self.prev = keep
 
     def invalidate(self, expired):
         """Recycled slots can no longer anchor a transition."""
+        if self.registry is not None:
+            for k in np.nonzero(expired)[0]:
+                self.registry.kill(int(k))
         if self.prev >= 0 and expired[self.prev]:
             self.prev = -1
 
 
 class Organism:
-    def __init__(self, N=128, K=8, omega=0.25, beta=12.0, seed=0, backend=None):
+    def __init__(self, N=128, K=8, omega=0.25, beta=12.0, seed=0, backend=None,
+                 symbols=False):
         """backend: 'numba' (require the E2 JIT fastpath), 'numpy' (the
         original interpreted loops), or 'auto' (fastpath when numba is
         importable, numpy otherwise). Default comes from the DEFAI_BACKEND
         env var, falling back to 'auto'. Both backends are pinned by the E1
         regression harness (statistical tolerances -- the JIT legitimately
-        reorders float reductions, so bitwise equality is not the bar)."""
+        reorders float reductions, so bitwise equality is not the bar).
+
+        symbols (T3.3): attach a `SymbolRegistry` giving each committed
+        memory an ID that survives fusion, recycling, consolidation and
+        save/load. Off by default -- observational only, so an organism with
+        it on evolves identically, but the fastpath pays a small per-chunk
+        journal for it and every historical caller should stay on the
+        untouched path. `org.enable_symbols()` attaches one later."""
         self.backend = backend if backend is not None else os.environ.get("DEFAI_BACKEND", "auto")
         if self.backend not in ("auto", "numba", "numpy"):
             raise ValueError(f"unknown backend {self.backend!r}")
@@ -207,6 +384,16 @@ class Organism:
         self.evictions = np.zeros(K)        # per-slot pressure-eviction tally (diagnostic)
         self.graph = TransitionGraph(K)     # LOGIC layer: learned transitions between memories
         self.z = normalize(self.rng.standard_normal(N) + 1j * self.rng.standard_normal(N), self.norm)
+        self.registry = SymbolRegistry(K) if symbols else None   # T3.3, opt-in
+
+    def enable_symbols(self):
+        """Attach a symbol registry to an organism that was built without
+        one. Slots already in use are unnamed until they next commit -- IDs
+        are minted at the boundary, so identity starts where observation
+        starts, not retroactively."""
+        if self.registry is None:
+            self.registry = SymbolRegistry(self.K)
+        return self.registry
 
     # transition counts live in the logic layer; exposed here (read AND write,
     # slot-indexed) so downstream phase scripts that snapshot/restore or slice
@@ -455,7 +642,7 @@ class Organism:
                 pool=pool, active_bar=active_bar, s_hat=s_hat, amb=amb,
                 fuse_bar=fuse_bar, evict=evict, evict_debug=evict_debug)
         z = self.z
-        boundary = EventBoundary(self.graph, p_decay)
+        boundary = EventBoundary(self.graph, p_decay, self.registry)
         prov = np.zeros(self.K, bool)
         hits = np.zeros(self.K); nvis = np.zeros(self.K)
         # with evict > 0 the staleness clock is the persistent self.age (the
@@ -601,6 +788,13 @@ class Organism:
                     boundary.commit(k)                     # recognitions cross into logic
             last_k = k
         if confirm > 0:                                    # purge still-unconfirmed slots
+            if self.registry is not None:
+                # a provisional slot normally has no symbol (minting happens
+                # at commit, which is gated on NOT provisional) -- except in
+                # pool mode, where fusion can move a confirmed slot's
+                # identity onto a still-provisional host. Purging that host
+                # kills the symbol like any other recycling.
+                boundary.invalidate(prov)
             self.used[prov] = False; self.count[prov] = 0
         self.z = z
 
@@ -617,7 +811,7 @@ class Organism:
         xi = np.ascontiguousarray(self.xi, dtype=complex)
         Xk = xi[idx] if idx else xi[:0]
         O = np.abs(Xk @ Xk.conj().T) / self.N
-        merged = []; merged_pos = []
+        merged = []; merged_pos = []; folds = []
         for pk, k in enumerate(idx):
             dup = next((j for pj, j in zip(merged_pos, merged)
                         if O[pk, pj] > merge_thresh), None)
@@ -625,6 +819,12 @@ class Organism:
                 merged.append(k); merged_pos.append(pk)
             else:                                          # fold transitions into the kept slot
                 self.graph.fold(dup, k)
+                folds.append((k, dup))
+        if self.registry is not None:
+            # a VIEW over the compact bank, not an identity mutation: callers
+            # snapshot/restore raw counts around consolidate (see graph.fold),
+            # so IDs must come out the far side unchanged
+            self.registry.on_consolidate(merged, folds)
         self.mem = xi[merged]
         self.kept_idx = merged   # indices into self.P/self.xi that survived -- lets
                                  # callers reconstruct RAW (unnormalized) transition
