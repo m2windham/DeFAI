@@ -435,7 +435,7 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
 
 ## Category 2 — Scale & real text
 
-### T2.1 — Phase 27: 5M-word scale run  `[claimed: claude/phase-27-gutenberg-mi-run-afdm3u, 2026-08-06]`
+### T2.1 — Phase 27: 5M-word scale run  `[DONE 2026-08-07, session claude/t2-1-phase-27-scale-run-ycro8b — see ROADMAP row 27]`
 - **Objective**: 50–100 Gutenberg books through the unified loop with
   phase 24's MI-vs-null + distinctness wired into stage B. Pre-registered:
   does category structure sharpen (MI z up, selected k stable/graceful),
@@ -463,7 +463,17 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
   `sharpens_k`'s 4–10 window with the docstring's falsification clause
   (k=11 currently fails without being the sweep ceiling of 12) — argue
   the fix from the frozen pre-registration text BEFORE looking at the
-  measured k.  `[DONE 2026-08-06, session claude/v-n-acceptance-bar-calibration-jrlk86 — see ROADMAP row 37]`
+  measured k.
+- **Result (2026-08-07, committed run, all four follow-ups applied
+  pre-run)**: **P1 NOT CONFIRMED** — distinctness-argmax collapsed to
+  k=2 (the frozen clause's own falsification mode) and z=61 at the
+  selected k < phase 24's 65 (z down at every comparable k; VALIDITY
+  itself still 17–61 sigma at all k). **P2 CONFIRMED** — 'right' clears
+  its tighter per-word null (n=3340, gain 0.008 vs p99 0.001);
+  205/354 candidates clear theirs. Caveats + the vocabulary-composition
+  confound recorded in ROADMAP row 27.
+
+### T2.2 — Phase 26 real-text arm: calibration at V ≫ N  `[DONE 2026-08-06, session claude/v-n-acceptance-bar-calibration-jrlk86 — see ROADMAP row 37]`
 - **Objective**: acceptance-bar calibration without the rank<N spectral
   assumption — the blocker for the core perception stack on real
   embeddings (85/395 collapse, confirmed at scale).
