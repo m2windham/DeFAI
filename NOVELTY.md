@@ -462,13 +462,30 @@ every headline behavior across two backends; and the selection-bias lesson
 paid for three times — T1.6's decoder win vanished on reseeding, T1.8's
 low-rank arm sign-flipped, and **T1.9 correctly declined to bank a 1.96×
 result that failed held-out confirmation**. Also on record: two sessions
-independently ran phase 27 on different hosts and reproduced every number.
+independently ran phase 27 on different hosts and reproduced every number —
+and a third (T6.5, 2026-08-08) re-ran it end-to-end on a fresh 42-book fetch
+with **every committed anchor exact**.
+
+**Scope caveat, added 2026-08-08 (T6.5/phase 42) — the discipline had a
+blind spot on the engineering side.** Mechanism numbers are reseeded and
+held out; *performance* numbers were pinned as single absolute values from
+single runs. Phase 42 measured the same perceive load 43.7–58.2K frames/s on
+one host on bit-identical work (±20%), a band that straddles the pinned 58K,
+so that pin could neither confirm nor refute a regression. The fix is the
+same discipline applied one domain over: a **same-session, interleaved A/B
+against a reference tree** (phase 42 ran three trees × six rounds and found
+the current tree indistinguishable from pre-33g and pre-T3.3, medians
+49.8/50.1/50.6K). A performance claim quoted without its run-to-run spread
+is the timing analogue of an unreseeded result.
 
 **Mini-roadmap.**
 1. *Implement* — done in practice, now written down here.
-2. *Improve* — **T3.2**: corpus-tier harness checks (blocked only on a
-   reproducible Gutenberg fetch), so the real-text headline numbers are
-   pinned like the synthetic ones.
+2. *Improve* — **T3.2**: corpus-tier harness checks (no longer blocked on a
+   reproducible Gutenberg fetch — T6.5 re-fetched all 42 phase-27 books with
+   live title verification, so the fetch is demonstrated reproducible), so
+   the real-text headline numbers are pinned like the synthetic ones.
+   Alongside it: pin *performance* as a same-session A/B ratio, never as a
+   bare absolute number.
 3. *Perfect* — codify the reseed + held-out rule as a harness tier any
    phase can call, rather than a convention each agent re-implements.
 

@@ -851,7 +851,7 @@ same split** — an unpaired fixed-seed baseline is a bug (T1.9).
 - **Done when** (plus protocol section C): `phase41_*.py` end-to-end (detect → split → score);
   matched-capacity control arm present; reseeded; ROADMAP row.
 
-### T6.5 — Performance re-baseline & profile (phase 42 / E5)  `[claimed: —]`
+### T6.5 — Performance re-baseline & profile (phase 42 / E5)  `[DONE 2026-08-08: claude/phase-42-perf-rebaseline-8v80kw — E4 DEFERRED on measurement]`
 - **Objective**: every performance number on record predates compression
   (33g), the symbol registry (T3.3), and the 5M-word corpus (phase 27).
   Re-measure and re-profile: `e2_benchmark.py` at current shapes and with
@@ -871,6 +871,52 @@ same split** — an unpaired fixed-seed baseline is a bug (T1.9).
   is sublinear in check count (shared setup) — if not, tier the harness.
 - **Done when** (plus protocol section C): benchmark table + profile + ranked shortlist + an E4
   recommendation with numbers behind it; ROADMAP E-row updated.
+- **Outcome (2026-08-08)** — `phase42_perf_rebaseline.py`, protocol-level
+  only (no library file touched). Misses first, per section D.
+  - **(a) MISSED as written.** The pinned 58K frames/s was not reached
+    (four full-load runs at the phase-23 shape: 43.8/50.1/51.4/54.3K,
+    median ~51K; 1.50–1.86 min vs the pinned 1.40 min). The honest-negative
+    branch required localizing rather than blaming the host, so a same-host,
+    interleaved, six-round A/B ran three trees on identical work — current,
+    pre-T3.3 (`7e0b639~1`), pre-33g (`92e9cc9~1`): medians **49.8/50.1/50.6K,
+    indistinguishable**. Registry ON −2.4% vs a 17% within-arm spread; c64
+    store +3.6% vs a 4% spread — both inside noise. **No tree-attributable
+    regression.** The finding that matters is methodological: this host spans
+    **43.7–58.2K on bit-identical work**, straddling the pin, so a single
+    absolute throughput number cannot detect regressions. Use a same-session
+    A/B. (This retires the 2026-08-04 "pin the absolute numba number" advice.)
+  - **(b) FALSIFIED → E4 DEFER**, the pre-registered useful answer. Nulls are
+    **265s of 1184s = 22.4%** of phase-27 wall-clock, not ≥50%: stage B 163s
+    (169s observed − 5.8s measured k-means/silhouette) + stage C 102s. Amdahl
+    ceiling with nulls free = **1.29×** on TOTAL corpus-tier time; E4's full
+    scope incl. all-pairs (`coverage_map`, 105s) = 31.3% → **1.45×**. The bill
+    is stage A perceive, **785s = 66.3%**, which E4 explicitly excludes.
+  - **(c) CONFIRMED**, same-host: 27-check tree (`15cfa65`) vs 65-check tree
+    = numpy 82.2s → 101.0s (1.23×), numba 12.4–13.5s → 12.5–12.7s (~1.00×)
+    for **2.41×** the checks. No tiering needed.
+  - **Profile** (never done before): at K=1580/N=50 the frame is 14 614 ns —
+    matvec **10 927 (75%)**, free-slot scan+refine 2 135 (15%), argmax 1 441
+    (10%), z update 111 (0.8%). Matvec bound HOLDS; but it is **cache**-bound
+    (1.2 MB operand, 84–94 GB/s), not DRAM-bound as the E2 row said.
+  - **Ranked shortlist, priced not argued** (part 6 reproduces all three):
+    1. **Stage-B null as `G^T W G`** over precomputed word-pair counts —
+       **bit-identical** tables (max diff 0.0), 282.6s → **0.18s**.
+    2. **Stage-C null as a multivariate-hypergeometric draw** of the same
+       table, O(k²) not O(n) — p99 agrees to 3 s.f. at n=3 340/37 495/259 324,
+       **4.0×/41.3×/255×**. (1)+(2) take 265s of nulls under 10s.
+    3. **complex64 matvec operand**: **1.48–1.77×** on 75% of the frame.
+       PRICED ONLY — compute width is pinned at complex128 on purpose;
+       taking it moves every committed number and needs its own target.
+    4. **`coverage_map`** (105s, 8.9%) — chunked all-pairs, parallelizable.
+    5. **numpy reference path**: `.conj()` is 44% of its frame (3.12s of
+       7.09s); maintain a conjugate as `fastpath.py` already does. Zero risk
+       to numba numbers, helps numba-less hosts and the equivalence suite.
+  - **Deliberately deferred**: applying any lever (this target measures; each
+    fix wants its own claim), and corpus-tier harness checks (T3.2) — though
+    the 42-book fetch is now known-reproducible, which is T3.2's blocker.
+  - **CSR/compression at corpus K**: P is 3.64% dense at K=1580 → CSR is
+    **18.2× smaller, lossless**; full store 15.43× in 20 ms. CSR is
+    **storage only** — perceive writes P in place, so the kernel needs dense.
 
 ### T4.1 (re-scoped) — Phase 31 perception ablation
 Now unblocked and materially better instrumented than when written:
