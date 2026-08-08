@@ -421,6 +421,162 @@ staged. Order decided in triage (ROADMAP): D1 first.
 
 ---
 
+## Category 6 — Consolidation & depth (opened 2026-08-07, owner posture)
+
+**Posture, owner decision 2026-08-07: refine and enhance before pushing.**
+Categories 1–3 established the measured floors; the gate decision is
+specified and waiting. Rather than open new frontier scale work, this
+category deepens the four things the organism is actually differentiated
+on — gradient-free continual learning, the field-free logic layer,
+perception ablation, and polysemy (the strongest asset) — and re-baselines
+performance now that compression (33g) and the symbol registry (T3.3)
+changed the shapes everything was measured on.
+
+Standing rules apply unchanged, plus two lessons this project paid for:
+**reseed every arm (s=0–4 paired) AND hold out fresh seeds for any
+grid-selected claim** (T1.6/T1.8/T1.9), and **reseed the baseline on the
+same split** — an unpaired fixed-seed baseline is a bug (T1.9).
+
+### T6.1 — Task-free continual learning (phase 38)  `[claimed: —]`
+- **Why this first**: the split-digits ladder hands every learner explicit
+  task boundaries — the one thing the organism does not need and every
+  gradient arm does. EWC needs boundaries to snapshot Fisher information;
+  replay needs them to balance its buffer. Measuring on a **boundary-free
+  stream** tests the differentiated claim instead of the borrowed one, and
+  it is the deployment condition for the episodic-memory product (streams
+  do not announce their tasks).
+- **Objective**: re-run the 33c ladder on a stream with no boundary signal
+  — gradual class drift / interleaved re-emergence / unannounced novelty —
+  and report ACC/FORG plus a boundary-detection axis: does the organism's
+  own recruitment rate localize the transitions a gradient arm must be
+  told about?
+- **Context**: `phase33c_gate_retest.py` (ladder + metrics),
+  `phase33b_slot_budget.py` (eviction under pressure; recruitment rate is
+  the boundary signal), `phase2_drift.py` + `phase11_transition_decay.py`
+  (this project's own drift history — `p_decay` matters here),
+  `phase33f_eviction_ledger.py` (ledger tooling for the census).
+- **Pre-registered predictions**: (a) gradient arms degrade further
+  without boundaries (EWC loses its snapshot trigger) while the organism's
+  numbers move little — the gap narrows or reverses *without* the organism
+  improving, which is the honest framing; (b) recruitment-rate spikes
+  localize true transitions above a measured permutation null;
+  (c) honest negative: if the organism also degrades sharply, task-free
+  operation is not a free differentiator and the claim must be dropped.
+- **Done when**: `phase38_*.py` with the boundary-free protocol, all arms
+  reseeded and the baseline reseeded on the same split; ROADMAP row;
+  harness green both backends.
+
+### T6.2 — Retention mechanism study (phase 39)  `[claimed: —]`
+- **Objective**: characterize *what actually protects old memories*, so
+  retention becomes a tunable property instead of an emergent accident.
+  Factorize the contributions: eviction window E, victim rule
+  (argmin-count vs count-normalized-by-era vs random ablation), `p_decay`,
+  probation/confirm, and slot-count headroom. One-factor-at-a-time on the
+  33c protocol with a random-eviction control arm.
+- **Context**: `phase33b_slot_budget.py` (E sweep + the "stale pool must
+  contain the present" finding), `phase33f_eviction_ledger.py` (H3
+  verdict: task-1 loss is NOT eviction — do not re-litigate it),
+  `phase11_transition_decay.py`, ROADMAP rows 33b/33f.
+- **Pre-registered predictions**: (a) the victim rule matters less than
+  the window (33b's finding implies the window is the load-bearing knob);
+  (b) a count-normalized-by-era victim rule shows no advantage — 33f
+  affirmatively did not indicate it, so this is a falsification test, not
+  a fix; (c) random eviction underperforms argmin-count at every window,
+  or the victim rule is doing nothing and should be simplified.
+- **Done when**: factor table with effect sizes, reseeded; the tunable
+  retention story written into the ROADMAP row.
+
+### T6.3 — Logic-layer depth & optimization (phase 40)  `[claimed: —]`
+- **Objective**: the field-free logic layer is the least-developed part of
+  a differentiated capability. Extend and optimize it *as reasoning*, not
+  as plumbing: (i) **multi-step planning under uncertainty** — plan with
+  edge confidence, report path reliability, not just shortest hops;
+  (ii) **compositional queries** — conjunctive/negated goals ("reach A
+  without passing B") over `next_hops`; (iii) **temporal abstraction** —
+  macro-edges for frequently traversed paths (`fold` already exists as the
+  primitive); (iv) **optimization** — phase 30's ~20× field-free speedup
+  was measured on a dense P; 33g showed P is ~6% dense at K=160, so sparse
+  kstep/rollout/plan should be materially faster — measure it.
+- **Context**: `organism.py` `TransitionGraph` (`kstep`, `rollout`,
+  `next_hops`, `plan`, `fold`, `merge`, `retire`) + `recall_directed`,
+  `phase30_symbolic_reasoning.py` (protocol + the 0.995–0.999 vs ~0.45
+  null anchors — must stay exact), `organism_compress.py` (CSR P),
+  T3.3's `SymbolRegistry` (stable IDs make macro-edges expressible).
+- **Pre-registered predictions**: (a) confidence-weighted planning beats
+  hop-count planning on a world with unreliable edges, against a measured
+  null; (b) sparse-P reasoning is ≥2× faster at K≥112 with bitwise-equal
+  results; (c) honest negative: macro-edges may not beat plain planning at
+  this graph size — the phase-29 lesson (thin structure above the base
+  level) applies, and "level 2 adds nothing" is a legitimate outcome.
+- **Constraint**: reasoning ops are graph-only — the field must stay
+  absent, per phase 30's isolation discipline.
+- **Done when**: `phase40_*.py` with each op measured against a null +
+  a timing table; phase-30 anchors exact; harness green both backends.
+
+### T6.4 — Polysemy: act on detection (phase 41)  `[claimed: —]`
+- **Why**: README names this thread explicitly — the language track
+  *detects* sense structure from corpus statistics and "now needs the
+  field mechanism to act on it." Phase 10 splits representations inside
+  the field; phase 12/21/28 detect senses from predictions. **Closing the
+  loop is the single highest-value extension of the project's strongest
+  asset**, and it converts a detector into a capability.
+- **Objective**: feed predictive-gain detections back into the field as a
+  *split trigger* — when a word's predictive gain clears its own measured
+  null, drive the phase-10 context-primed splitting for that word, then
+  measure whether the resulting sense-specific slots (i) have grammatically
+  distinct successor statistics and (ii) **improve downstream generation
+  or next-token prediction** vs the unsplit organism. Downstream utility
+  is the point; detection alone is already banked.
+- **Context**: `phase12_predictive_split_test.py`,
+  `phase10_context_primed_settling.py` (splitting mechanism; note the
+  twice-confirmed negative — attractor pull during perception suppresses
+  splitting, perception reads the field, does not bend it),
+  `polysemy_organism.py` (`perceive_polysemy`/`consolidate_polysemy`),
+  `phase21_working_polysemy_detection.py`, phase 28's disentangling
+  verdict (split only what is lexical, not merely context-sensitive).
+- **Pre-registered predictions**: (a) sense-split slots show distinct
+  successor distributions vs a same-word permutation null; (b) generation
+  grammaticality / next-token accuracy improves measurably over the
+  unsplit organism at matched capacity — *matched*, since T1.5 showed
+  extra slots alone buy accuracy and would confound the comparison;
+  (c) honest negative: if utility is flat at matched capacity, sense
+  splitting is a representational nicety, not a functional gain — say so
+  plainly, it is a publishable negative about the whole polysemy line.
+- **Done when**: `phase41_*.py` end-to-end (detect → split → score);
+  matched-capacity control arm present; reseeded; ROADMAP row.
+
+### T6.5 — Performance re-baseline & profile (phase 42 / E5)  `[claimed: —]`
+- **Objective**: every performance number on record predates compression
+  (33g), the symbol registry (T3.3), and the 5M-word corpus (phase 27).
+  Re-measure and re-profile: `e2_benchmark.py` at current shapes and with
+  CSR P; harness wall-clock both backends (it has grown 27 → 65 checks);
+  phase-27 stage timings; and **where the time actually goes now** — the
+  K×N overlap matvec was the bound at K≈1580 dense, but sparse P and
+  narrowed dtypes move it. Output an honest optimization shortlist ranked
+  by measured cost, which is also the **E4/GPU go/no-go input**: only
+  commit to the GPU tier if permutation nulls are genuinely the bill at
+  5M-word scale.
+- **Context**: `e2_benchmark.py`, `fastpath.py`, `organism_compress.py`,
+  `phase27_5m_word_scale_run.py` (stage timings), ROADMAP E2/E4 rows.
+- **Pre-registered predictions**: (a) the numba absolute throughput holds
+  or improves post-compression; (b) permutation nulls dominate corpus-tier
+  wall-clock, making E4 justified — or they do not, and E4 should be
+  deferred, which is an equally useful answer; (c) harness runtime growth
+  is sublinear in check count (shared setup) — if not, tier the harness.
+- **Done when**: benchmark table + profile + ranked shortlist + an E4
+  recommendation with numbers behind it; ROADMAP E-row updated.
+
+### T4.1 (re-scoped) — Phase 31 perception ablation
+Now unblocked and materially better instrumented than when written:
+E3 restore is bitwise, `SymbolRegistry` survives lesions (identity is
+separable from slots), and `organism_compress.py` gives a second ablation
+axis (precision degradation as a graded lesion). Keep the original
+pre-registered protocol; add: (i) registry-identity survival under
+lesion, (ii) precision-lesion arm, (iii) recovery-after-E3-restore as the
+sharpest control — the same organism, provably, before and after damage.
+
+---
+
 ## Dependency sketch
 
 ```
@@ -430,4 +586,11 @@ T1.3 ─┘
 T2.1 ─► T2.4          T2.2, T2.3 independent (T2.3 benefits from T2.1 corpus)
 T3.1 ─► cheaper nulls for T2.1/T2.3     T3.2, T3.3 independent
 T4.1 ─► D4 demo       T4.2 independent of the hold (demo, not product)
+
+Category 6 (consolidation posture, 2026-08-07) — all independent:
+T6.1 task-free CL ─┐
+T6.2 retention     ├─► inform any future gate re-test / product claims
+T6.3 logic depth   │
+T6.4 polysemy→act ─┘   T6.5 re-baseline ─► E4 (T3.1) go/no-go
+T4.1 ablation (re-scoped, now unblocked)
 ```

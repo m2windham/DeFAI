@@ -117,6 +117,30 @@ Phase 25 and E1 are independent and both unblock everything else; they go
 first. Phase 26 consumes Phase 25's diagnosis. E2 consumes E1's guarantees.
 The fork gate consumes E1+E2+E3+Phase 26.
 
+## Consolidation phase — owner posture, 2026-08-07
+
+**Refine and enhance before pushing.** The gate sequence (T1.1–T1.9) is
+exhausted and the decision is fully specified with measured floors; frontier
+scale work (phases 27/28) has landed. Rather than open new frontier work,
+the next block deepens what the organism is measurably differentiated on
+and re-baselines performance against the shapes compression (33g) and the
+symbol registry (T3.3) changed. Phases 38–42 are specified as targets
+T6.1–T6.5 in `AGENT_TARGETS.md`, with phase 31 (perception ablation)
+re-scoped and unblocked:
+
+| Phase | Track | Question |
+|---|---|---|
+| 38 (T6.1) | Continual learning | Does the retention advantage hold on a **boundary-free** stream — the condition gradient arms need and the organism does not? |
+| 39 (T6.2) | Continual learning | What actually protects old memories? Factorize window / victim rule / decay / headroom against a random-eviction control. |
+| 40 (T6.3) | Logic layer | Confidence-weighted planning, compositional goals, macro-edges, and sparse-P speedup — reasoning depth on the field-free graph. |
+| 41 (T6.4) | Polysemy | Close the loop: detection (phase 12/21/28) drives field splitting (phase 10), scored on **downstream utility at matched capacity**. |
+| 42 (T6.5) | Engineering | Re-baseline throughput/profile post-33g/T3.3; produce the measured E4 go/no-go. |
+| 31 (T4.1) | Lesion | Perception ablation vs logic survival, now with registry-identity and precision-lesion arms plus bitwise E3 recovery. |
+
+Two standing lessons, paid for in T1.6/T1.8/T1.9, bind all of them: reseed
+every arm **and** hold out fresh seeds for any grid-selected claim; reseed
+the baseline on the same split.
+
 ## Verification log
 
 - **2026-08-04 (onboarding pass, fresh clone, independent Linux host,
