@@ -104,10 +104,9 @@ on its own, and we checked it against a directly measured "what would luck
 produce" baseline so it isn't wishful thinking. At larger scale it found
 two hundred more.
 
-This is the project's strongest idea, and the current work (T6.4) is about
-making it *useful* rather than just correct — feeding the discovery back so
-the system actually splits its memory in two and predicts better as a
-result. If that turns out not to help, we'll publish that too.
+This is the project's strongest idea. The obvious next question — **does
+noticing actually help?** — now has an answer, and it is a partial one.
+See Chapter 8.
 
 ### Chapter 4 — Real language, and the wall we hit *(phases 19–28, 37)*
 
@@ -194,13 +193,75 @@ the input to a decision about whether to re-scope the goal around what this
 architecture is uniquely good at rather than a benchmark it wasn't built
 for.
 
-### Chapter 8 — Where we are now
+### Chapter 8 — Does noticing actually help? *(phase 41)*
+
+Chapter 3 ends with a system that can *notice* a word doing two jobs. That
+is a detector, not an ability. This chapter asks the only question that
+turns one into the other: if we act on what it noticed, does anything get
+better?
+
+**What we asked.** When a word clears the "this word is doing two jobs" bar
+— measured against a shuffled-up version of its own history, so luck is
+ruled out at that word's own sample size — let the system split its memory
+of that word in two. Then check whether the split memories are genuinely
+different, and whether the system predicts or writes any better.
+
+**The trap we had to avoid, and it is the whole reason this took a control
+arm.** We already knew from earlier work that simply giving the system *more
+memory* makes it score better, whatever you do with it. So "split it and see
+if it improves" proves nothing — the improvement could be the extra memory.
+The fix: build a second system with **exactly** the same amount of extra
+memory, split into exactly the same number of pieces for exactly the same
+words, but with the occurrences shuffled into those pieces **at random**.
+Same resources, no information. Anything the real split does beyond that is
+attributable to the noticing.
+
+**What happened.** Three things, and only the first is a clean win.
+
+1. The split memories are *real*. What follows one sense of the word is
+   genuinely different from what follows the other, every time, checked
+   against a shuffled baseline. A nice bonus we didn't design for: the
+   detector occasionally flags a word that isn't actually two-jobbed, and
+   this same test correctly refuses those — they split, but into pieces
+   that behave identically.
+2. Guessing **what kind of thing** comes next got better — by a margin that
+   held on every repeat run, and worth about half the distance to a perfect
+   score. That gain survives the random-split control, so it is the
+   noticing, not the memory.
+3. Guessing **the exact next word** did not improve, and neither did the
+   sentences the system writes. On writing quality the result wobbled around
+   zero and even went negative on one run, which by our own rules means
+   there is no effect to claim.
+
+**What it cost, and the unflattering part.** The system does not split a
+word cleanly in two. It shatters it into about eleven pieces. Each piece
+sees roughly a tenth of the evidence, and thin evidence predicts a specific
+word *worse* than one pooled memory does — which is exactly why item 3 came
+out flat. Worse, our own gating made this problem bigger: by only allowing
+the flagged words to split, we handed the entire spare-memory budget to
+three words. The earlier, ungated version of this mechanism split them into
+three or four pieces; ours makes eleven.
+
+**What we still don't know.** Everything above is on a made-up language
+built so that two-jobbed words really are two-jobbed. On real books, the
+same detector mixes up "this word has two meanings" with "this word behaves
+differently depending on grammar," and only about one in seven cases is the
+former. So this is a demonstration that the mechanism works, not a claim
+that it works on English.
+
+**The honest one-liner:** noticing a word does two jobs helps the system
+predict *what sort of thing* comes next. It does not, yet, help it write.
+And the next problem to solve is no longer the noticing — it's teaching it
+to split a word into *two* memories instead of eleven.
+
+### Chapter 9 — Where we are now
 
 Deliberately not chasing new frontiers. The current block deepens the four
 things the system is genuinely differentiated on: continual learning
 without lesson boundaries, the reasoning layer, deliberate damage studies,
-and making the polysemy discovery actually pay off — plus re-measuring
-performance now that the system has changed shape.
+and making the polysemy discovery actually pay off — the last of which now
+has its first real answer (Chapter 8: partly, on one axis) — plus
+re-measuring performance now that the system has changed shape.
 
 ---
 

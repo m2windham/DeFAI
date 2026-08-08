@@ -42,6 +42,19 @@ ROADMAP row they cite. If a claim is weakened by a later run, it is
 > job. The system notices its own predictions splitting in two. No labels,
 > no dictionary, no human in the loop — and it found "right" as a
 > multi-role word in eight novels by itself, then again in forty-two.
+>
+> **And now: does noticing actually help?** Partly. We wired the discovery
+> back in, so a word caught doing two jobs gets its memory split in two, and
+> then we checked whether that buys anything — against a control given the
+> *same* extra memory but told to split at random, because more memory helps
+> on its own and we would otherwise have credited the wrong thing. Guessing
+> the *kind* of word coming next got measurably better. Guessing the exact
+> word did not, and neither did the sentences it writes. The reason is
+> unflattering and worth stating: it doesn't split a word cleanly in two, it
+> shatters it into about eleven pieces, and thin evidence spread over eleven
+> memories predicts a specific word worse than one pooled memory does. So the
+> honest sentence is "noticing helps it predict *what sort of thing* comes
+> next" — not "noticing makes it write better."
 
 
 **Claim.** To detect that a word carries two senses, do not ask whether its
