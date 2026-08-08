@@ -220,6 +220,17 @@ the baseline on the same split.
   point estimate, which is correct behavior for a posterior mean and wrong
   only in the docstring that called both modes lower bounds — the bound
   invariant is now pinned for `wilson` alone and the docstring says why.
+  **Re-verified on the MERGED tree** (origin/main's NOVELTY.md claims
+  register + standing operating protocol merged in, per protocol rule 16):
+  `regression_harness.py` **77/77 both backends** (numpy 131.0s, numba
+  19.5s — the numpy wall clock is container load, not a behavior change),
+  `test_fastpath_equivalence.py` and `test_label_readout.py` green. The
+  merge touched only `AGENT_TARGETS.md` (text) and added `NOVELTY.md`; no
+  mechanism file was on both sides. NOVELTY N2 updated per rule 14,
+  including a correction it needed: N2 described phase 30's planner as
+  "Dijkstra over hop counts" when it always minimized −log transition
+  probability, which is why phase 40's robust win is over a hop-count
+  baseline and only a thin-evidence correction against phase 30's own.
 
 - **2026-08-07 (T3.3 stable symbol registry, remote host, numpy 2.4.6 /
   numba 0.66 / sklearn 1.9; torch NOT installed, so the ladder's torch arms

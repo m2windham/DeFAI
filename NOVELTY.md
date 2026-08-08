@@ -100,7 +100,24 @@ measurably load-bearing, not cosmetic.
 0.999 against field recall's 0.939 at ~20× the speed; directed recall
 reaches every goal at exactly true shortest-path length (1.8 hops, 100%)
 vs 23.2 hops undirected. Pinned in harness §6. Refactor was behavior-
-identical (demo bitwise, harness values unchanged).
+identical (demo bitwise, harness values unchanged). *Scope on the "~20×":
+it is a pre-E2 numpy measurement of rollout against field recall; re-run
+2026-08-08 it is 17–18× on numpy and 2× on numba — the field side got
+faster, the graph side did not change. Quote it as "rollout is far cheaper
+than field recall", never as a fixed ratio.*
+
+`phase40_logic_depth.py` (T6.3) extended the layer along the three axes the
+caveats below used to name as missing, and priced each: **planning under
+uncertainty** (Wilson lower bounds on edge probability + a `PathReport`
+carrying reliability, weakest link and that link's observation count) beats
+hop-count planning by **+1.04 nats/plan** of true log-reliability, 0/5 sign
+flips, above a shuffled-shrinkage permutation null and held-out verified;
+**compositional goals** (negation, conjunction) are certified against
+brute-force optimal walks — 0/6 avoidance violations, optimality gap 4e-16
+and 0.0; **sparse ports** of next_hops/rollout are **bitwise** identical to
+dense including the RNG stream, and `kstep_row` — the query planners
+actually issue — runs 4×→356× from K=112 to K=1580. Pinned in harness §12,
+which also pins `next_hops` bitwise against its pre-phase-40 body.
 
 **Why it's novel.** Neuro-symbolic hybrids usually bolt a symbolic module
 onto a learned encoder. Here the graph is *the same object the field
@@ -109,24 +126,55 @@ demonstrated consequence is an **aphasia property**: damage perception,
 reasoning continues. That is a falsifiable architectural prediction that
 was made and then confirmed.
 
-**Scope caveats.** Demonstrated on a 6-regime hub-and-branch synthetic
-world, not on the real-text graph. Planning is Dijkstra over hop counts —
-no uncertainty, no compositional goals, no temporal abstraction. The
-"aphasia" claim is qualitative until phase 31 measures it.
+**Scope caveats.** Still demonstrated on synthetic worlds — a 6-regime
+hub-and-branch world and phase 40's Zipf/second-order/12-symbol worlds —
+**not on the real-text graph**. The "aphasia" claim is qualitative until
+phase 31 measures it. Four caveats phase 40 added or sharpened, all of
+which a skeptic should be handed rather than have to find:
+
+- *Correction, phase 40*: phase 30's planner was never "Dijkstra over hop
+  counts" — it already minimized −log transition probability, i.e. the
+  most-probable path. This register said otherwise and was wrong.
+- Confidence weighting's robust win is therefore over a **hop-count**
+  planner, which is a weak baseline. Against phase 30's own MLE planner it
+  is a **thin-evidence correction only**: the two disagree on ~14% of plans
+  and confidence wins +0.379 nats when they do at 2000 observations,
+  decaying to −0.074 at 60 000. It clears the survival rule on selection
+  seeds and **fails on held-out seeds**, so it is recorded as a direction
+  and not banked. The durable contribution is the *report*, not the router.
+- Temporal abstraction is a **measured negative at first order**: a mined
+  macro-edge cannot beat planning over its own parts (exactly 0.0, forced
+  by construction), and the pass-through census finds nothing to contract.
+  Macros pay only when the world is **second-order** (+0.443 nats, held-out
+  +0.581) — the boundary is an ORDER, not a graph size.
+- The sparse speedup is real but arrives late: 2× at **K=800**, not at
+  K=112 as predicted (6.1× at K=1580). Sparse *full* `kstep` is 5–10×
+  **slower** than dense. Never quote the 356× without naming `kstep_row`
+  as the op.
 
 **Mini-roadmap.**
-1. *Implement* — **T6.3 / phase 40**: confidence-weighted planning (path
-   reliability, not just hop count), compositional goals (reach A without
-   passing B), macro-edges via the existing `fold` primitive, and the
-   sparse-P speedup (33g measured P at ~6% dense — reasoning should get
-   materially faster with bitwise-equal results).
+1. ~~*Implement* — **T6.3 / phase 40**~~ — **DONE 2026-08-08.** Delivered
+   confidence-weighted planning with reliability reporting, compositional
+   (negated + conjunctive) goals certified against brute force, macro-edges
+   in both the `fold` and overlay readings, and the sparse-P ports. Two of
+   three pre-registered predictions returned partial or negative answers and
+   are recorded above rather than smoothed. Note for whoever picks up
+   temporal abstraction: `fold` turned out to be the *wrong* primitive for
+   it — folding merges identities, whereas a macro names a route between
+   symbols that stay distinct, so macros landed as a non-mutating planning
+   overlay and the four auditable graph mutators are untouched.
 2. *Improve* — **T4.1 / phase 31**: graded lesion curves turning the
    aphasia property from anecdote into measurement, now with registry-
    identity survival and bitwise-E3 recovery as controls.
 3. *Perfect* — run the logic layer on the **real-text** graph (phase 27's
    598 slots): does planning/inference hold up when the world model came
    from prose rather than a designed world? That is the honest scaling
-   test, and nobody has run it.
+   test, and nobody has run it. Phase 40 raised the stakes on it rather
+   than reducing them: prose is exactly the under-evidenced, heavy-tailed,
+   plausibly-higher-than-first-order regime where its two live findings —
+   the thin-evidence correction and the second-order macro gain — should
+   either pay or be falsified, and at K≈598 the sparse ports are past their
+   measured crossover. It is now the cheapest high-information test of N2.
 
 ---
 
