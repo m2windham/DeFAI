@@ -180,7 +180,7 @@ re-scoped and unblocked:
 |---|---|---|
 | 38 (T6.1) | Continual learning | Does the retention advantage hold on a **boundary-free** stream — the condition gradient arms need and the organism does not? |
 | 39 (T6.2) | Continual learning | What actually protects old memories? Factorize window / victim rule / decay / headroom against a random-eviction control. |
-| 40 (T6.3) | Logic layer | Confidence-weighted planning, compositional goals, macro-edges, and sparse-P speedup — reasoning depth on the field-free graph. |
+| 40 (T6.3) | Logic layer | Confidence-weighted planning, compositional goals, macro-edges, and sparse-P speedup — reasoning depth on the field-free graph. **CLAIMED 2026-08-08, branch `claude/phase-40-logic-depth-o2w1p5`.** |
 | 41 (T6.4) | Polysemy | Close the loop: detection (phase 12/21/28) drives field splitting (phase 10), scored on **downstream utility at matched capacity**. |
 | 42 (T6.5) | Engineering | Re-baseline throughput/profile post-33g/T3.3; produce the measured E4 go/no-go. |
 | 31 (T4.1) | Lesion | Perception ablation vs logic survival, now with registry-identity and precision-lesion arms plus bitwise E3 recovery. |

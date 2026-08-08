@@ -704,7 +704,7 @@ same split** — an unpaired fixed-seed baseline is a bug (T1.9).
 - **Done when**: factor table with effect sizes, reseeded; the tunable
   retention story written into the ROADMAP row.
 
-### T6.3 — Logic-layer depth & optimization (phase 40)  `[claimed: —]`
+### T6.3 — Logic-layer depth & optimization (phase 40)  `[claimed: claude/phase-40-logic-depth-o2w1p5, 2026-08-08]`
 - **Objective**: the field-free logic layer is the least-developed part of
   a differentiated capability. Extend and optimize it *as reasoning*, not
   as plumbing: (i) **multi-step planning under uncertainty** — plan with
