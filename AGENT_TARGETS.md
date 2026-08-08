@@ -4,7 +4,9 @@ Actionable work packages derived from `ROADMAP.md`, structured for parallel
 agent sessions. **Claim a target by its ID in your PR title / roadmap row
 before starting** (two sessions once built E2 twice — don't repeat that).
 Read order for any cold start: `FABLE_HANDOFF.md` → `ROADMAP.md` → this file
-→ the target's listed context files. `git log --oneline` is the lab notebook.
+→ the target's listed context files. `NOVELTY.md` is the claims register —
+what the project can defend, with scope caveats and per-item roadmaps; keep
+it current when a target changes what a claim can say. `git log --oneline` is the lab notebook.
 
 Standing rules bind every target (see FABLE_HANDOFF "Rules of engagement"):
 no labels inside mechanisms; negative results are deliverables; measure

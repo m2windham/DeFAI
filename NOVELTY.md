@@ -1,0 +1,391 @@
+# DeFAI — Novelty Register
+
+What this project can actually claim, what each claim rests on, what it
+does **not** cover, and the mini-roadmap to take each from *implemented* to
+*perfected*. Written 2026-08-07 against the tree carrying phases 27/28/33h
+and the symbol registry.
+
+**Purpose.** Three jobs: (1) keep public claims scoped to what is measured
+— phase 33 established that this project will say "not SOTA" out loud, and
+this file is where that discipline lives; (2) give any new session or
+reviewer the honest summary in one read; (3) source material for the D2
+launch essay, so marketing never outruns the harness.
+
+**Rules for editing.** A claim enters this file only with (a) a phase
+script, (b) measured numbers against a null or baseline, (c) a scope
+caveat written by the person who ran it. Numbers here must match the
+ROADMAP row they cite. If a claim is weakened by a later run, it is
+**edited down, never deleted** — the weakening is the record.
+
+| # | Novelty | Strength | Next step |
+|---|---|---|---|
+| N1 | Predictive (Myhill–Nerode) polysemy detection | **Strongest** | T6.4 — act on detection |
+| N2 | Field-free logic layer that does real work | **Strong** | T6.3 — reasoning depth |
+| N3 | Attractor Crowding Collapse, named and fixed label-free | **Strong** | real-text impurity test |
+| N4 | Gradient-free continual learning | **Solid** | T6.1/T6.2 — boundary-free + retention |
+| N5 | Category validity without geometry | **Solid** | k-selection at scale (phase 27 residual) |
+| N6 | Bitwise persistence + stable symbol identity | **Solid (engineering)** | T4.1 — survive a lesion |
+| N7 | Eviction under recruitment pressure | **Narrow but crisp** | T6.2 — factorize it |
+| N8 | Phase-superposition binding | **Partial — unsolved** | protection mechanism |
+| N9 | The measurement discipline itself | **Underrated** | codify as a harness tier |
+
+---
+
+## N1 — Predictive polysemy detection (Myhill–Nerode criterion)
+
+**Claim.** To detect that a word carries two senses, do not ask whether its
+representation drifts in context — ask whether knowing the context changes
+*what you predict next*. A state-splitting test on successor-category
+entropy, fully online, zero labels anywhere in the mechanism.
+
+**Evidence.** `phase12_predictive_split_test.py` (0.30-bit margin, zero
+false positives on synthetic dual-role words) → `phase21_working_polysemy_
+detection.py` (real text: "right", 622 occurrences over 8 books, gain 0.070
+vs a directly measured 99th-percentile null of 0.043, plus 37 plausible
+multi-role words as an honest full ranking) → `phase23_unified_large_corpus.py`
+(114 words clear per-word permutation nulls at 547K words; "right"
+reproduced against a ~3× tighter null, 0.115 vs p99 0.015) →
+`phase27_5m_word_scale_run.py` (**P2 confirmed at 5.22M words**: "right"
+clears its tighter null again, 205/354 candidates clear theirs) →
+`phase28_polysemy_vs_context_sensitivity.py` (decomposition: 18/119 words
+lexical polysemy, 101/119 grammatical context-sensitivity). Pinned in
+harness §5 (dual-role gain 0.806 vs monosemous 0.003).
+
+**Why it's novel.** The ingredients have ancestry — Myhill–Nerode state
+splitting, Brown clustering, distributional sense induction. What is not
+standard: doing it **online inside a running dynamical system**, with no
+labels, no gradient, no offline clustering pass, against nulls measured at
+the actual sample size — and arriving there by *first proving the obvious
+representational approach cannot work* (`verify_residual_gating.py`: the
+recruit gate provably cannot fire under additive context blending, and
+consolidation destroys any split that does form).
+
+**Scope caveats.** Predictive gain measures *distributional* context
+sensitivity, which is broader than lexical polysemy — phase 28 quantified
+the split (only ~15% is lexical at POS level) and its own test is a
+bigram-level proxy with thresholds chosen in-phase, no null of its own
+(bootstrap on chance cross-bucket conflicts is the open follow-up).
+Same-POS polysemes (bank/bank) are classed as context-sensitivity by
+construction. Detection has **not yet been shown to improve anything
+downstream** — that is exactly N1's biggest open question.
+
+**Mini-roadmap.**
+1. *Implement* — **T6.4 / phase 41**: close the loop. Detection triggers
+   phase-10 context-primed field splitting; score sense-specific slots on
+   successor distinctness *and* downstream generation/prediction, with a
+   matched-capacity control arm (T1.5 proved extra slots alone buy
+   accuracy). A flat result at matched capacity is a publishable negative
+   about the whole line and must be reported as one.
+2. *Improve* — give phase 28's polysemy/context call its own measured null
+   (bootstrap the chance cross-bucket conflict rate); re-derive the
+   decomposition on the 5M corpus; move beyond binary splits to **n-way
+   sense counts** (how many senses, not just "more than one").
+3. *Perfect* — transfer evidence: does the criterion port to a second
+   language or a non-linguistic stream (code tokens, event logs)? A
+   criterion that survives a domain change is a much stronger claim than
+   one tuned to English prose. Then wire sense-splitting into the unified
+   loop's stage B so it is a standing capability, not a phase script.
+
+---
+
+## N2 — A logic layer that runs with the field absent
+
+**Claim.** Transition learning, extracted behind a confidence-gated
+`EventBoundary`, supports multi-step inference, imagination, and planning
+**with the perceptual field switched off** — and the separation is
+measurably load-bearing, not cosmetic.
+
+**Evidence.** `phase30_symbolic_reasoning.py`: k-step inference corr
+0.995–0.999 vs a permutation null ~0.45; field-free rollout bigram corr
+0.999 against field recall's 0.939 at ~20× the speed; directed recall
+reaches every goal at exactly true shortest-path length (1.8 hops, 100%)
+vs 23.2 hops undirected. Pinned in harness §6. Refactor was behavior-
+identical (demo bitwise, harness values unchanged).
+
+**Why it's novel.** Neuro-symbolic hybrids usually bolt a symbolic module
+onto a learned encoder. Here the graph is *the same object the field
+built*, mutated only through `observe`/`merge`/`retire`/`fold`, and the
+demonstrated consequence is an **aphasia property**: damage perception,
+reasoning continues. That is a falsifiable architectural prediction that
+was made and then confirmed.
+
+**Scope caveats.** Demonstrated on a 6-regime hub-and-branch synthetic
+world, not on the real-text graph. Planning is Dijkstra over hop counts —
+no uncertainty, no compositional goals, no temporal abstraction. The
+"aphasia" claim is qualitative until phase 31 measures it.
+
+**Mini-roadmap.**
+1. *Implement* — **T6.3 / phase 40**: confidence-weighted planning (path
+   reliability, not just hop count), compositional goals (reach A without
+   passing B), macro-edges via the existing `fold` primitive, and the
+   sparse-P speedup (33g measured P at ~6% dense — reasoning should get
+   materially faster with bitwise-equal results).
+2. *Improve* — **T4.1 / phase 31**: graded lesion curves turning the
+   aphasia property from anecdote into measurement, now with registry-
+   identity survival and bitwise-E3 recovery as controls.
+3. *Perfect* — run the logic layer on the **real-text** graph (phase 27's
+   598 slots): does planning/inference hold up when the world model came
+   from prose rather than a designed world? That is the honest scaling
+   test, and nobody has run it.
+
+---
+
+## N3 — Attractor Crowding Collapse: a named failure mode, fixed label-free
+
+**Claim.** A fixed-dimensional attractor store degrades as the number of
+stored items grows — but the binding constraint is **selection, not
+storage**, and routing selection hierarchically fixes it at inference time
+with categories the system discovers itself.
+
+**Evidence.** `phase34_capacity_scaling.py`: grammaticality collapses
+0.994 → 0.284 as vocabulary grows 50→800 at fixed N=128, while a bigram
+table holds ~0.85–0.87 flat at up to ~900× less compute (the honest
+comparison that makes the finding sting). `phase35_hierarchical_recall.py`:
+category-then-word routing holds ~0.84–0.85 flat across the same sweep,
+recovering 98% of the flat-vs-oracle gap at 800 words — but with oracle
+categories. `phase36_unsupervised_hierarchical_recall.py`: **oracle caveat
+closed** — `discover_categories_v2` + distinctness k-selection gives
+ρ = 1.02 (discovered routing matches or beats oracle at every vocabulary),
+k=5 selected correctly at all scales, MI-null z up to 25 624.
+
+**Why it's novel.** Two parts. Naming and isolating the mechanism —
+crowding is amplified by one-shot K-way selection into cascading errors,
+which a resampling baseline doesn't suffer — and then showing the fix needs
+**no retraining and no labels**: same Hebbian weights, same attractors,
+only the selection procedure changes.
+
+**Scope caveats.** Synthetic cyclic grammar only. Discovery was *perfect*
+there (purity 1.000), so the pre-registered purity floor was never
+exercised — whether routing survives real-text category quality
+(V ≈ 0.55) is **open**. Phase 27's k-collapse (below) makes that question
+sharper, not softer.
+
+**Mini-roadmap.**
+1. *Implement* — done (phase 36).
+2. *Improve* — run hierarchical routing on real-text categories at
+   phase-23/27 quality and **measure the purity floor** the synthetic run
+   couldn't reach. This is the single most informative open experiment
+   attached to N3.
+3. *Perfect* — recursion: if one level of hierarchy rescues selection, does
+   a second (T2.4 / phase 29, phrase-level motifs)? Pre-registered risk
+   stands — "level 2 learns nothing" is a legitimate outcome.
+
+---
+
+## N4 — Gradient-free continual learning
+
+**Claim.** Online, single-pass, unsupervised continual learning with
+**2× the retention of gradient baselines** — no rehearsal buffer, no
+importance weights, no second pass over data.
+
+**Evidence.** `phase33c_gate_retest.py` (class-incremental split-digits):
+organism 0.712 ACC / 0.169 FORG vs SGD 0.323/0.842 and EWC 0.322/0.844.
+`phase33b_slot_budget.py` lifted the flooding ceiling (task-0 retention
+0.732 → 0.939). `phase33d_capacity_sweep.py`: ACC rises monotonically with
+capacity to 0.900 / FORG 0.033 at K=160. Earlier: `phase2_forgetting.py`
+beat a neural net; `simulate_scenarios.py` measured a second vocabulary
+learned to 100% coverage with ~15% forgetting of the first.
+
+**Scope caveats — the important ones.** **Not SOTA.** A supervised
+prototype baseline wins raw accuracy outright (0.872) and experience replay
+tops the entire ladder on both axes (0.913 / 0.105). Bar-crossing accuracy
+is reachable only as a protocol variation (K=160), and the cost branch has
+a **measured floor of 2.24× the bar's KB-per-accuracy-point** (phase 33h,
+held-out seeds) — arithmetic, not tuning. Every public statement about
+continual learning must carry the "not benchmark dominance" clause that
+phase 33 wrote.
+
+**Mini-roadmap.**
+1. *Implement* — **T6.1 / phase 38**: re-run the ladder on a
+   **boundary-free** stream. This tests the differentiated claim rather
+   than the borrowed one: EWC needs boundaries to snapshot Fisher
+   information, replay needs them to balance its buffer, the organism needs
+   neither. Also measure whether recruitment rate localizes transitions
+   above a null. Honest framing required — if the gap narrows because
+   gradient arms degrade, say exactly that.
+2. *Improve* — **T6.2 / phase 39**: factorize what actually protects old
+   memories (window, victim rule, `p_decay`, headroom) against a
+   random-eviction control, so retention becomes tunable rather than
+   emergent.
+3. *Perfect* — longer task sequences and re-emergence (classes that come
+   back), which is where slot recycling either shines or breaks; then
+   restate the claim on the axes the ladder cannot score: unsupervised
+   representation + structure learning + persistence in one mechanism.
+
+---
+
+## N5 — Category validity without geometry
+
+**Claim.** Silhouette is the wrong certificate for soft distributional
+categories. Class-bigram mutual information against a measured permutation
+null certifies validity; category-profile *distinctness* selects k — and
+**k-selection is a parsimony problem, not a prediction problem**.
+
+**Evidence.** `phase24_category_validity.py`: MI clears its null by 14–98σ
+at every k≥4 where silhouette is flat (~0.03–0.044); MDL *and* held-out
+class-bigram perplexity both run monotonically to the finest k (a
+class-based bigram model with k²+V params never overfits at 408K pairs);
+distinctness peaks at k=6, which **equals** the V-measure argmax against
+universal POS tags (0.547) that the label-free criterion never saw.
+
+**Why it's novel.** The negative is the contribution: two standard
+model-selection criteria are shown to be structurally incapable of picking
+k here, with the reason measured. The replacement is label-free and
+validated against an oracle it never touched.
+
+**Scope caveats.** Phase 27 is a real dent: at 5.22M words distinctness-
+argmax **collapsed to k=2** (the pre-registered falsification fired) and
+z fell at every comparable k, because the null's MI floor rises with k
+faster than measured MI. Validity itself survived overwhelmingly (17–61σ)
+— categories are real, they did not *sharpen*. A confound is on record
+(MIN_COUNT 150→1500 changed vocabulary composition toward function words),
+so the failure is not yet attributable.
+
+**Mini-roadmap.**
+1. *Implement* — done (phase 24), pinned.
+2. *Improve* — resolve phase 27's k-collapse: re-run at matched vocabulary
+   composition to separate "scale breaks distinctness" from "the MIN_COUNT
+   confound broke it". Until that is done, k-selection at scale is **open**,
+   and N3/N5 both inherit the uncertainty.
+3. *Perfect* — hierarchy-aware k-selection (the phase-29 dependency), and a
+   distinctness variant whose null is stable in k.
+
+---
+
+## N6 — Bitwise persistence and stable symbol identity
+
+**Claim.** Save → load → continue is **bitwise identical to never
+stopping**, and symbol identity survives fusion, recycling, and
+consolidation without perturbing a single bit of organism state.
+
+**Evidence.** `organism_state.py` (E3): schema-versioned .npz, rng state
+included; pinned in harness §8 — max |Δxi| = |ΔP| = 0, deterministic
+replay, cross-backend restore. `organism.py::SymbolRegistry` (T3.3): driven
+only from EventBoundary's existing `commit`/`remap`/`invalidate`, opt-in,
+and registry-on state is bitwise identical to registry-off on both
+backends; both backends emit identical identity events in the same order.
+Schema now v3; v1 and v2 files still load. `organism_compress.py` (33g)
+adds 3.85× smaller stores at **exactly zero** accuracy cost.
+
+**Why it matters.** Individually ordinary engineering; together they mean
+an episodic memory that is *provably the same organism* after a restart —
+which is the defining property of the first intended product, and the thing
+a checkpointed neural net cannot honestly say.
+
+**Scope caveats.** Persistence is proven for the mechanism's own state, not
+for downstream artifacts; the registry is opt-in and observational, so
+nothing yet *depends* on stable IDs. Compression is lossless at measured
+scales, not proven so in general.
+
+**Mini-roadmap.**
+1. *Implement* — done (E3 v3 + registry + compression).
+2. *Improve* — **T4.1 / phase 31**: make identity survive *damage*, not
+   just serialization — registry-identity under lesion, with bitwise-E3
+   restore as the sharpest possible control.
+3. *Perfect* — migrate downstream scripts off raw slot indices onto symbol
+   IDs (the registry's whole point), and make one phase script depend on
+   identity across a save/lesion/restore cycle end-to-end.
+
+---
+
+## N7 — Eviction under recruitment pressure
+
+**Claim.** A slot budget where eviction fires **only** under recruitment
+pressure, reclaiming the least-established *stale* slot, lifts the
+capacity-flooding ceiling — and the staleness window is the load-bearing
+parameter, with a stateable law.
+
+**Evidence.** `phase33b_slot_budget.py`: pre-registered E=2000 **failed**
+(ACC 0.665 → 0.511) because with a long window only previous eras are ever
+stale, so eviction degenerates into a recency flush; at E=250 the stream's
+own churn goes stale mid-task and is recycled first — ACC 0.712, FORG
+0.169, fresh recruits every task. The finding, in one line: **the stale
+pool must contain the present, or eviction eats the past.** Pinned in
+harness §9. `phase33f_eviction_ledger.py` exonerated the victim rule from
+the task-1 regression (H3: not an eviction pathology).
+
+**Scope caveats.** One protocol, one K, one window found post-hoc within a
+measured plateau (100–750). Whether the law generalizes to other stream
+statistics is untested.
+
+**Mini-roadmap.**
+1. *Implement* — done, mechanism + E3-serialized clock.
+2. *Improve* — **T6.2 / phase 39**: factorize window vs victim rule vs
+   decay against a random-eviction control; falsify the count-normalized
+   victim rule that 33f affirmatively did *not* indicate.
+3. *Perfect* — make the window **self-calibrating** from the measured
+   live-slot revisit interval, so the law becomes a mechanism instead of a
+   tuned constant. That would also close a Path-B requirement (products
+   cannot hand-tune E per deployment).
+
+---
+
+## N8 — Phase-superposition binding *(partial — honest)*
+
+**Claim, scoped down.** Relative phase is a real binding code — perfect
+identity readout to ~5 items at N=256 and 1.00 pair-grouping — **but** the
+recall pull collapses superpositions in 9–56 steps.
+
+**Evidence.** `phase16_phase_binding.py`, including the collapse
+measurement, which is the constraint rather than a caveat.
+
+**Status.** A capability with an unsolved protection problem. It is listed
+here so it is not quietly forgotten or quietly oversold.
+
+**Mini-roadmap.**
+1. *Implement* — a protection mechanism (gating the recall pull during
+   binding windows; or a separate slow-timescale channel).
+2. *Improve* — show a downstream task that *needs* binding and improves
+   with it — otherwise this stays a curiosity.
+3. *Perfect* — bind at the symbol layer (N6's registry) rather than the
+   field, if field protection proves impossible; record that pivot as a
+   measured negative if it comes to it.
+
+---
+
+## N9 — The measurement discipline *(the underrated one)*
+
+**Claim.** This codebase can tell you which of its numbers would survive
+reseeding. Most cannot.
+
+**Evidence.** Pre-registration before committed runs (phases 25/26/27/33b–h
+all record predictions *and* their misses); nulls simulated at the actual
+sample size; negative results preserved as deliverables (phases 8, 9, 17,
+33b's E=2000, 33g's low-rank arm); a 65-check regression harness pinning
+every headline behavior across two backends; and the selection-bias lesson
+paid for three times — T1.6's decoder win vanished on reseeding, T1.8's
+low-rank arm sign-flipped, and **T1.9 correctly declined to bank a 1.96×
+result that failed held-out confirmation**. Also on record: two sessions
+independently ran phase 27 on different hosts and reproduced every number.
+
+**Mini-roadmap.**
+1. *Implement* — done in practice, now written down here.
+2. *Improve* — **T3.2**: corpus-tier harness checks (blocked only on a
+   reproducible Gutenberg fetch), so the real-text headline numbers are
+   pinned like the synthetic ones.
+3. *Perfect* — codify the reseed + held-out rule as a harness tier any
+   phase can call, rather than a convention each agent re-implements.
+
+---
+
+## What is *not* novel (state this before a reviewer does)
+
+- **The substrate.** Complex-valued oscillator attractor networks sit in a
+  deep lineage (Hopfield, Kuramoto, complex-valued associative memories).
+  Novelty lives in what was built on it and what was measured — not the
+  physics.
+- **Distributional category induction.** Brown clustering and PPMI are
+  standard; using PPMI to kill frequency-magnitude bias was a *fix for a
+  known trap*, well applied, not a new idea.
+- **Prototype/exemplar continual learning.** The prototype baseline that
+  beats us is old and simple. That is the point of keeping it on the ladder.
+- **Benchmark performance.** Nothing here is SOTA on a standard benchmark,
+  and phases 33/33c–h say so with floors attached.
+
+## The one-sentence claim
+
+**One continuously-running system that perceives, remembers, learns world
+structure, reasons with its perception switched off, and persists exactly —
+online, single-pass, label-free, gradient-free.** Every clause has a phase
+script and pinned harness numbers behind it; the clause that is *not* there
+is "and wins benchmarks."
