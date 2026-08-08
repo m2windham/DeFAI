@@ -60,6 +60,16 @@ Sections (fast tier only; corpus-tier joins once E2/Numba makes it cheap):
      held-out next-category gain over the MATCHED-CAPACITY control clears
      the pre-registered +0.02 bar. The capacity match itself is pinned
      exact -- it is the structural invariant the whole comparison rests on.
+ 14. task-free continual learning (T6.1, phase 38) -- the boundary-free
+     ladder's structure, and its two negatives. Pinned exact: the three
+     conditions really are blocked (A), signal-free on the same stream (B)
+     and drifted (C), and ORGANISM+B's accuracy is INVARIANT between A and B
+     because the organism has no boundary input to remove -- the one part of
+     T6.1's thesis that survived. Pinned as bands, deliberately negative:
+     the organism's near-indifference to the stream as well, and the
+     FALSIFIED localization claim (recruitment does not spike at unannounced
+     novelty), so that a future reversal has to be earned rather than
+     silently celebrated.
 
 Run: `python regression_harness.py`. Exit code is nonzero if any check fails
 its tolerance. Each check prints its own measured value, tolerance band, and
@@ -944,6 +954,63 @@ def section_13_detection_driven_split():
                "committed 5-seed run at full scale measured +0.063")
 
 
+# ==================== 14. task-free continual learning (T6.1, phase 38)
+def section_14_task_free_continual():
+    print("\n(14) task-free continual learning (T6.1, phase 38)")
+    import phase38_task_free_continual as p38
+
+    rs = [p38.harness_probe(seed=s, cls=Organism) for s in (0, 1)]
+
+    def mean(k):
+        return float(np.mean([r[k] for r in rs]))
+
+    def worst(k):
+        return float(np.max([abs(r[k]) for r in rs]))
+
+    # --- the three conditions must actually BE what the phase claims.
+    # These are structural, so they are exact: if the stream stops being
+    # blocked in A or stops being mixed in C, the phase measures nothing.
+    check("condition A chunks that are a single task (of 20)",
+          mean('pure_chunks_A'), 20.0, 20.0,
+          note="A is the blocked control -- every chunk pure, exact")
+    check("condition C chunks that are a single task (of 20)",
+          mean('pure_chunks_C'), 0.0, 0.0,
+          note="C is gradual drift -- no chunk is ever one task, exact")
+    check("A vs B stream index mismatch", worst('AB_stream_identical'),
+          0.0, 0.0,
+          note="A and B MUST share the stream byte-for-byte -- B removes only "
+               "the boundary signal, so any drift here confounds the two")
+    check("draw-count difference between conditions",
+          worst('draw_count_delta'), 0.0, 0.0,
+          note="equal exposure: conditions differ in composition, not amount")
+    check("cold-start chunk counted as novelty",
+          worst('novelty_excludes_cold_start'), 0.0, 0.0,
+          note="chunk 0 recruits because the store is empty; counting it "
+               "would inflate localization with a trivial effect")
+
+    # --- the one structural claim that survived phase 38, pinned exact.
+    # The organism consumes no boundary information, so removing it cannot
+    # move a single bit. This is what "task-free by construction" MEANS, and
+    # it is the only part of T6.1's thesis the measurement supported.
+    check("ORGANISM+B accuracy delta between A and B", worst('AB_acc_delta'),
+          0.0, 0.0,
+          note="invariance to the boundary signal is exact, not a band -- "
+               "the organism has no boundary input to remove")
+
+    # --- and the two measured NEGATIVES, banded so a silent reversal is
+    # caught rather than quietly celebrated.
+    check("organism |A->C| accuracy shift (2-seed mean)",
+          abs(mean('AC_acc_delta')), 0.0, 0.15,
+          note="the organism is near-indifferent to the stream too "
+               "(5-seed committed mean +0.003); seed spread is wide, so this "
+               "bands the magnitude, not the sign")
+    check("recruitment-localization z at novelty chunks",
+          mean('localization_z'), -2.5, 0.5,
+          note="phase 38 (b) FALSIFIED: recruitment does NOT spike at "
+               "unannounced novelty -- committed 5-seed pooled z -1.53. "
+               "Banded negative on purpose: a future positive must be earned")
+
+
 if __name__ == "__main__":
     t0 = time.time()
     print("REGRESSION HARNESS -- fast tier (E1)")
@@ -963,6 +1030,7 @@ if __name__ == "__main__":
     section_11_symbol_registry()
     section_12_logic_depth()
     section_13_detection_driven_split()
+    section_14_task_free_continual()
 
     dt = time.time() - t0
     print(f"\n{'='*70}")

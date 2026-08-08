@@ -17,14 +17,20 @@ BOTH backends (`DEFAI_BACKEND=numpy|numba`) before trusting any change;
 Verification state as of 2026-08-08, on the merged tree carrying T1.9
 (phase 33h), T2.1 (phase 27's outcome), T3.3 (the symbol registry), T6.3
 (phase 40's logic-layer depth), T6.4 (phase 41's detection-driven
-splitting) and T6.5 (phase 42's re-baseline):
-E1 ALL PASS both backends (84 checks: 31 + T1.8's section 10 + T3.3's
-section 11 + T6.3's section 12 + T6.4's section 13),
+splitting), T6.5 (phase 42's re-baseline) and T6.1 (phase 38's task-free
+falsification):
+E1 ALL PASS both backends (92 checks: 31 + T1.8's section 10 + T3.3's
+section 11 + T6.3's section 12 + T6.4's section 13 + T6.1's section 14),
 `test_fastpath_equivalence.py` green incl. the narrowed-store section 7 and
 the symbol-registry section 8, `test_label_readout.py` green,
 E3 round-trips green for schema v3 uncompressed/compressed and v1 + v2
-backward load. Torch is NOT installed on any of these hosts, so the ladder's
-torch arms rest on 33c's committed values. See ROADMAP "Verification log".
+backward load. **Torch status changed on 2026-08-08**: it is installed on
+the T6.1 host (2.13.0+cpu, the same version 33c's committed run used), and
+`phase33c_gate_retest.py` was re-run there and reproduced EXACTLY, torch
+arms included — prototypes 0.872, organism 0.665/0.200, ORGANISM+B
+0.712/0.169. The ladder's torch arms are therefore no longer resting on
+committed values alone. Earlier hosts had no torch; if yours does not, say
+so rather than assuming this one's state. See ROADMAP "Verification log".
 
 ---
 
@@ -746,7 +752,7 @@ Standing rules apply unchanged, plus two lessons this project paid for:
 grid-selected claim** (T1.6/T1.8/T1.9), and **reseed the baseline on the
 same split** — an unpaired fixed-seed baseline is a bug (T1.9).
 
-### T6.1 — Task-free continual learning (phase 38)  `[claimed: —]`
+### T6.1 — Task-free continual learning (phase 38)  `[DONE 2026-08-08: claude/agent-target-open-items-uyyq8o — BOTH predictions falsified, see ROADMAP row 38]`
 - **Why this first**: the split-digits ladder hands every learner explicit
   task boundaries — the one thing the organism does not need and every
   gradient arm does. EWC needs boundaries to snapshot Fisher information;
@@ -774,6 +780,49 @@ same split** — an unpaired fixed-seed baseline is a bug (T1.9).
 - **Done when** (plus the Standing Operating Protocol, section C): `phase38_*.py` with the boundary-free protocol, all arms
   reseeded and the baseline reseeded on the same split; ROADMAP row;
   harness green both backends.
+- **RESULT (2026-08-08, `phase38_task_free_continual.py`, 5 paired seeds,
+  torch 2.13.0+cpu)**: **both headline predictions FALSIFIED, and what
+  failed is this target's own premise.** Read the premise above — "EWC
+  needs boundaries to snapshot Fisher information, replay needs them to
+  balance its buffer" — then the measurement: removing the boundary
+  **signal** with the stream held fixed costs the gradient arms essentially
+  nothing. mlp-seq +0.000 (it never used boundaries), **mlp-ewc +0.056** —
+  it *gains* from a misaligned period-5 snapshot schedule versus being told
+  the true task ends — mlp-replay −0.005 for reservoir vs a per-task
+  balanced buffer. Prediction (a) fails on **0 of 5 seeds** and in the
+  opposite direction: on the drifted stream the gradient arms improve
+  enormously (mlp-seq 0.296→0.924, mlp-ewc 0.318→0.910) while ORGANISM+B
+  moves +0.003. Prediction (b) fails with the **sign reversed** —
+  recruitment is *lower* at unannounced-novelty chunks (pooled −1.39
+  slots/chunk, z = −1.53 vs 2000 permutations, p = 0.94, 0/5 seeds
+  positive), because gradual drift smears novelty and leaves no spike to
+  localize. (c)'s collapse clause did not fire (+0.003 > −0.10).
+- **Why, and it is worth internalizing before writing the next target**: a
+  three-condition design (A blocked+told, B same stream untold, C drifted)
+  decomposes A→C into "signal removed" and "stream unblocked", and **all of
+  the movement is in the second**. Catastrophic forgetting is caused by
+  **sequential blocking**; a task boundary is only the annotation of the
+  blocking, and the annotation is nearly worthless once the blocking
+  exists. Any drifting, re-emerging stream is *interleaved* — the textbook
+  cure for forgetting — so "task-free" as specified here hands the gradient
+  arms a gift. That is a confound in the framing, not in the measurement.
+- **What survives, pinned exact in harness §14**: ORGANISM+B is **bitwise
+  invariant** between A and B (max |ΔACC| = 0.0e+00 across seeds) because
+  it consumes no boundary information at all. mlp-seq and prototypes are
+  exactly invariant too, which is the internal-validity check that the
+  condition plumbing measures what it claims rather than leaking. The
+  invariance is architecturally real; it is just not worth much here.
+- **What was dropped**: "task-free operation is a differentiator" is not
+  claimable from this protocol. NOVELTY N4 edited down (not deleted): its
+  "everyone else needs a teacher marking where each lesson ends" line is
+  now measured false and says so. In condition C, replay reaches
+  0.968/0.031 against ORGANISM+B's 0.759/0.140 while storing 200 raw
+  labelled samples. Phase 33c's boundaried verdict is untouched.
+- **Follow-on this exposes** (deliberately NOT smuggled into this target):
+  the question worth asking is the reverse one — *how blocked must a stream
+  be before gradient methods need the annotation at all?* That is a sweep
+  over blocking, and it is the honest version of what T6.1 was reaching
+  for. It would also give T6.2 its stream.
 
 ### T6.2 — Retention mechanism study (phase 39)  `[claimed: —]`
 - **Objective**: characterize *what actually protects old memories*, so
