@@ -63,6 +63,17 @@ memory) and the roadmap records exactly why each was rejected.
   the graph with the field absent: `kstep` (multi-step inference), `rollout`
   (field-free imagination), `next_hops`/`plan` (Dijkstra planning).
   `Organism.P` is a delegating property so old phase scripts still work.
+  Phase 40 (T6.3) went deeper on the same field-free footing, all additive:
+  `dijkstra` (one algorithm, several notions of "best" — `next_hops` now
+  delegates to it and is pinned bitwise identical to its old body),
+  `confidence` (Wilson lower bounds — **the point estimate is
+  evidence-blind: three visits all going one way reads as certainty**),
+  `edge_quality`/`plan_reliable`/`path_report` (planning on reliability and
+  reporting it, with the weakest link and its observation count),
+  `plan_visit` + `avoid=` (conjunctive and negated goals),
+  `passthrough_census`/`contracted`, plus `MacroGraph` (temporal
+  abstraction) and `SparseTransitions` (a bitwise-equal sparse port — see
+  the ROADMAP row for where it does and does not pay).
 - **`EventBoundary`**: the single call-site where recognitions become
   relational knowledge — only confident, non-provisional events cross;
   fusion/recycling arrive as explicit `remap`/`invalidate` notifications, so
@@ -87,11 +98,12 @@ memory) and the roadmap records exactly why each was rejected.
   predictive-gain-gated, residual-gated sense splitting (see below).
 
 Engineering spine (all landed, all pinned):
-- **E1** `regression_harness.py`: 65 tolerance-based checks pinning every
+- **E1** `regression_harness.py`: 77 tolerance-based checks pinning every
   headline behavior (§1-5 core/noise/pool/categories/gain, §6 phase-30
   reasoning, §7 phase-26 calibration, §8 E3 serialization, §9 T1.2 slot
-  budget/eviction, §10 T1.8 store compression, §11 T3.3 symbol registry). Every backend, port, and calibration change must pass
-  it before being believed.
+  budget/eviction, §10 T1.8 store compression, §11 T3.3 symbol registry,
+  §12 T6.3 logic-layer depth). Every backend, port, and calibration change
+  must pass it before being believed.
 - **E2** `fastpath.py`: Numba JIT backend for perceive/recall/recall2 +
   vectorized consolidate. Selected via `Organism(backend="auto"|"numba"|
   "numpy")` or `DEFAI_BACKEND` env; default `auto` (JIT when numba is
