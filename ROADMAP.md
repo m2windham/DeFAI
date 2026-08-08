@@ -213,6 +213,53 @@ the baseline on the same split.
   3/3, capacity gap 0.0000 exact, next-category gain over matched capacity
   +0.0485. The correction is label-and-prose only; no measured number moved.
 
+- **2026-08-08 (merge review for PRs #45, #44, #43 — the whole Category-6
+  batch; remote 4-core host, Python 3.11.15, numpy 2.4.6 / numba 0.66.0 /
+  scipy 1.17.1 / sklearn 1.9.0; torch NOT installed, so the phase-33
+  ladder's torch arms rest on 33c's committed values)**: the three PRs were
+  authored concurrently against the same base (`14054db`) and each verified
+  itself there, so none of their merged-tree runs was against a tree
+  containing the other two. Re-verified here in merge order, each on the
+  tree actually being merged. Baseline on arrival at `14054db`: **65/65 both
+  backends** (numpy 132.3s, numba 22.8s), matching the recorded state.
+  After #45: **65/65 both backends** (numpy 124.7s, numba 17.3s) — it adds
+  no harness section. After #44: **77/77 both backends** (numpy 126.4s,
+  numba 17.9s). After #43: **84/84 both backends** (numpy 152.3s, numba
+  46.7s). `test_fastpath_equivalence.py` and `test_label_readout.py` green
+  at every step. All 84 check lines are identical across backends except
+  the E3 compressed-file-size ratio (1.3986 numpy vs 1.3994 numba), an
+  existing tolerance-band check rather than a behavior difference.
+  **The section_12 collision #43 self-flagged was real and was resolved on
+  merge**: #44 keeps `section_12_logic_depth`, #43 renumbered to
+  `section_13_detection_driven_split`, 84 = 65 + 12 + 7. The renumber is a
+  label — every anchor in that section reproduced (dual words detected 3/3,
+  control false positives 0, sense-slots recruited 3/3, unsplit max slots
+  per word 1.0 exact, distinctness vs same-word null 3/3, split-vs-matched
+  live-slot gap 0.0000 exact, held-out next-category gain +0.0485), as did
+  #44's twelve (`next_hops` pre- vs post-refactor delta 0.0000, sparse
+  next_hops/rollout bitwise, first-order macro gain forced 0.0000).
+  **Correction, from the post-merge entry above**: "the renumber is a label"
+  was right about the measurements and incomplete about the labels — the
+  merge renamed the function but left its `print()` at `(12)` and missed
+  five cross-references, so main briefly emitted two `(12)` sections. #47
+  fixed both. The lesson is the one that entry states: the renumber was
+  performed by the merge, so the renamed section had never actually
+  executed in that configuration until it was on main, and reading the
+  diff would not have caught it — only running it did.
+  Remaining conflicts were doc adjacency, not disagreement in measurement:
+  the E1/E2 table rows, the Category-6 table, the verification log itself,
+  and the E1 check-count lines in `FABLE_HANDOFF.md` / `AGENT_TARGETS.md`.
+  Two process notes recorded rather than smoothed over: (i) none of the
+  three PRs pushed its `[claimed: …]` slot to main before starting, which is
+  why three sessions ran concurrently without seeing each other and two took
+  the same section number — protocol rule 2 is what would have prevented it;
+  (ii) the plain-language track (`LAB_NOTES_PLAIN.md`) landed on main
+  mid-merge, so #44 and #45 shipped four documentation surfaces rather than
+  five — their chapters were written in this commit, not by the authoring
+  sessions. Not re-verified: the ladder's torch arms, and no phase script
+  was re-executed here (#45 had re-run phase 27 end-to-end with every
+  committed anchor exact).
+
 - **2026-08-08 (T6.4 phase 41, detection-driven sense splitting; remote host,
   4 cores, Python 3.11.15, numpy 2.4.6 / numba 0.66.0 / scipy 1.17.1 /
   sklearn 1.9.0; torch NOT installed, so no ladder arm was re-run and 33c's

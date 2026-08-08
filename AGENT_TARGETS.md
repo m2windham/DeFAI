@@ -80,7 +80,7 @@ positive results evaporated under reseeding.
     tolerance bands. Unpinned behavior is not landed behavior.
 13. **Anchors reproduce.** Every committed anchor your work could disturb is
     re-run and reported exact (or the drift is explained in the PR).
-14. **Documentation sweep — all four surfaces:**
+14. **Documentation sweep — all five surfaces:**
     - `ROADMAP.md` — the phase row: question, method, measured result,
       **including partials, misses, and confounds**;
     - `AGENT_TARGETS.md` — your claim slot to `DONE` plus an outcome block
@@ -543,11 +543,11 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
   MIN_COUNT 1500, phase-24 criteria in stage B, stage-A E3 checkpoint at
   `/tmp/phase27_stageA_checkpoint.npz`, coverage_map OOM fixed by
   chunking). Stage A measured once (~14.3 min, 598 slots, 3 577 289
-  in-vocab tokens); **the committed run's stage B–D outcomes are NOT yet
-  recorded — that is the open piece.** ROADMAP row 27 stays "in
-  progress" and this target flips to DONE only when P1/P2 verdicts land
-  (partials included). Fold these merge-review follow-ups into the
-  completion commit: (1) use the already-built `train_arr` in
+  in-vocab tokens); at the time of writing, the committed run's stage B–D
+  outcomes were not yet recorded — that was the open piece, and the
+  Result block below closed it on 2026-08-07 (ROADMAP row 27 now reads
+  `done`). The completion commit was required to fold in these
+  merge-review follow-ups, and did: (1) use the already-built `train_arr` in
   `coverage_map`'s member loop instead of re-allocating per slot; (2) add
   a corpus/vocab fingerprint to the stage-A checkpoint and refuse a stale
   load; (3) commit the fetch-time title-verification the docstring leans

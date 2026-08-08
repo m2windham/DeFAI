@@ -254,14 +254,104 @@ predict *what sort of thing* comes next. It does not, yet, help it write.
 And the next problem to solve is no longer the noticing — it's teaching it
 to split a word into *two* memories instead of eleven.
 
-### Chapter 9 — Where we are now
+### Chapter 9 — Teaching the reasoning half to think harder *(phase 40)*
+
+Chapter 5 left the reasoning layer able to do three things with the
+perceiving half switched off. Three is not a lot. This chapter asks how much
+further that half can go on its own.
+
+**Planning that knows what it doesn't know.** The old planner treated "I saw
+this route work three times out of three" as certainty. It isn't — three
+tries is thin evidence, and treating it as solid quietly drags the planner
+toward the corners of the map it has barely visited. So we taught it to
+plan on a pessimistic estimate instead: not "how often did this work" but
+"how often can I be confident this works, given how little I've watched it."
+
+Against a planner that just counts hops, this is a clear win, and it holds
+up on fresh runs. **Against the planner we already had, it mostly isn't.**
+The two disagree on about one plan in seven, and when they disagree the
+cautious one is better only while evidence is scarce — the advantage shrinks
+as the system watches more, and reverses once it has watched a lot. On fresh
+starting points the win didn't reproduce. So we did not adopt it. What we
+kept is the *report*: the planner can now tell you how reliable a route is
+and which single step is the weakest link, which is useful whether or not it
+changes the route.
+
+**Plans with conditions attached.** It can now answer "get to A without
+going through B," and "reach both A and B." We checked these against
+brute-force search on a small map: it finds the genuinely best route every
+time, and it never once trespasses on the thing it was told to avoid. A
+random walker doing the same trip trespasses about three-quarters of the
+time — so the constraint is really being enforced, not just usually
+satisfied.
+
+**The idea that didn't work, which we predicted.** We tried letting the
+system learn shortcuts — "this five-step route comes up often, treat it as
+one move." The gain was **exactly zero**, and it has to be: a shortcut's
+reliability is just the reliability of the steps inside it, which the
+planner was already accounting for. Worth knowing rather than assuming. But
+the interesting part is *why*, and it points somewhere: shortcuts are
+worthless when the world only depends on where you are right now. On a world
+that depends on the last *two* places you were, the same shortcuts pay off
+well. So it's not a dead end, it's a signpost for the level-up experiment.
+
+**Speed.** We predicted a 2× speedup from skipping the empty parts of the
+map, at a size we actually use. We got it — but only at maps five times
+larger than predicted, and one operation got 5–10× *slower*. A different
+operation got hundreds of times faster. The honest version is: this helps a
+lot, in specific places, at large sizes, and you must say which operation
+you mean.
+
+### Chapter 10 — Re-measuring ourselves, and calling off a build *(phase 42)*
+
+Every speed number we had was recorded before three changes that altered the
+system's shape. This chapter re-measures, and its main product is a decision
+*not* to build something.
+
+**A pinned number we couldn't reproduce, and what that taught us.** Our
+recorded throughput figure didn't come back. Before blaming the machine, we
+ran the current system and two older versions of it head-to-head, on the
+same machine, in the same session, interleaved. They came out the same. The
+machine itself, doing byte-for-byte identical work, varies by about 20% run
+to run — a spread wide enough to swallow the number we had pinned. So the
+finding isn't "we got slower," it's that **a single absolute speed number
+was never a usable alarm**, and we've replaced it with same-session
+comparisons.
+
+**We were about to build a GPU tier. We're not going to.** The case for it
+was that the statistical safety checks — the shuffled-up comparisons that
+keep us honest — were becoming the dominant cost. We finally measured
+instead of assuming: they're **22% of a full run, not the 50% we'd set as
+the bar**. Two-thirds of the time goes to the main perceiving loop, which is
+inherently step-by-step and was never a GPU target in the first place. Even
+making the safety checks *instantly free* would speed up a full run by about
+1.3×.
+
+Then it got better. Two of those checks turn out to be re-expressible as
+ordinary arithmetic that gives **the same answers** — in one case identical
+to the last decimal, taking 0.18 seconds where it used to take 283. After
+those two fixes the safety checks fall under 1% of a run. Days of work
+instead of building a whole graphics-card component, and they remove the
+reason it existed.
+
+**Where the time actually goes** — never measured before, only inferred.
+Three-quarters of every step is one operation. Our long-standing guess about
+*why* was subtly wrong: we thought it was limited by fetching from main
+memory, and it's actually limited by the much faster cache. That correction
+matters, because it changes which optimizations would pay.
+
+### Chapter 11 — Where we are now
 
 Deliberately not chasing new frontiers. The current block deepens the four
 things the system is genuinely differentiated on: continual learning
 without lesson boundaries, the reasoning layer, deliberate damage studies,
-and making the polysemy discovery actually pay off — the last of which now
-has its first real answer (Chapter 8: partly, on one axis) — plus
-re-measuring performance now that the system has changed shape.
+and making the polysemy discovery actually pay off. Three of those now have
+first answers — the reasoning layer went deeper (Chapter 9), polysemy pays
+off on one axis and not the one we most wanted (Chapter 8), and performance
+has been re-measured with a build called off as a result (Chapter 10). What
+is still untouched: learning from a stream that never announces when the
+lesson changes, a proper study of what protects old memories, and the
+damage-and-recovery experiment.
 
 ---
 
