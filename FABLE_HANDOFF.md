@@ -111,12 +111,21 @@ Engineering spine (all landed, all pinned):
   reference. Measured **13.0× at phase-23 corpus shape (18.2 min →
   1.40 min)**; equivalence pinned by `test_fastpath_equivalence.py`
   (state agreement ~1e-15 on short streams; recall sequences match
-  exactly — same RNG consumption order). `organism_numba.py`'s
+  exactly — same RNG consumption order). **Do not treat "13.0×" or "58K
+  frames/s" as a pin** — T6.5 (phase 42, 2026-08-08) measured a ±20% band
+  (43.7–58.2K) on bit-identical work on one host, straddling that number.
+  Detect throughput regressions with a same-session A/B against a reference
+  tree; phase 42's did, and found the current tree indistinguishable from
+  pre-33g and pre-T3.3. `organism_numba.py`'s
   `NumbaOrganism` is a thin alias kept for the harness/E3 seams — two
   sessions built E2 in parallel and the implementations were unified
   (the ROADMAP E2 row records both). Remaining bound is the K×N overlap
-  matvec (memory bandwidth), not the interpreter: the next speedup is
-  algorithmic or E4 (GPU statistics tier), not more JIT.
+  matvec, not the interpreter: the next speedup is algorithmic, not more
+  JIT. Phase 42 measured the matvec at 75% of a 14 614 ns frame at K=1580
+  and corrected the reason: the 1.2 MB operand is cache-resident, so this is
+  cache bandwidth rather than DRAM — which is why halving the operand width
+  buys 1.48–1.77× (priced, not taken; compute width is pinned at
+  complex128 by `Organism.perceive`'s dtype guard, deliberately).
 - **E3** `organism_state.py`: schema-versioned .npz save/load, rng state
   included. Pinned: mid-stream save→load→continue is bitwise identical to
   never stopping; deterministic replay; cross-backend restore. Schema is
@@ -233,8 +242,19 @@ module — persistence is its defining feature, hence E3).
    unchanged. Honest scope: identity is lineage, not content -- pool-mode
    plasticity re-centers mature traces at the same rate by ID as by slot.
    See ROADMAP row E5 and harness §11.
-7. **E4 — GPU statistics tier** (permutation nulls, all-pairs similarity;
-   Rust/wgpu shape for Windows+AMD reality). Timed for phases 27/28.
+7. ~~**E4 — GPU statistics tier**~~ — **DEFERRED 2026-08-08 (T6.5, phase 42),
+   on measurement.** With phase 27 run, E4's premise is testable and fails:
+   permutation nulls are 265s of the 1184s corpus-tier run (22.4%), so making
+   them free caps total speedup at 1.29× (1.45× including all-pairs
+   similarity, E4's other named target). The bill is stage A perceive at
+   785s = 66.3% — which E4 correctly never claimed. And phase 42 priced two
+   *exact* CPU reformulations that take the null work under 10s: the stage-B
+   category-bigram null is `G^T W G` over precomputed word-pair counts
+   (bit-identical, 282.6s → 0.18s), and the stage-C per-word null is a
+   multivariate-hypergeometric draw of the same contingency table (O(k²)
+   rather than O(n); 4–255× by word size). Do those before considering a GPU
+   crate; re-open E4 only if a future phase makes nulls dominant again, and
+   re-measure first. See ROADMAP rows 42 and E4.
 8. **In-flight PR #23**: demo/outreach track (D1-D4, phase 31 self-lesion
    protocol) + phases 32/33. Reconcile with it before touching those areas.
 
