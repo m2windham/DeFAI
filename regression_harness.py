@@ -900,7 +900,7 @@ def section_12_logic_depth():
           note="phase 40 (C2): forced zero -- a macro cannot beat its own parts")
 # ================== 13. detection-driven sense splitting (T6.4, phase 41)
 def section_13_detection_driven_split():
-    print("\n(12) detection-driven sense splitting (T6.4, phase 41)")
+    print("\n(13) detection-driven sense splitting (T6.4, phase 41)")
     import phase41_detection_driven_split as p41
 
     rs = [p41.harness_probe(seed=s) for s in (0, 1)]

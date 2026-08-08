@@ -901,7 +901,7 @@ total, both backends).
   every seed). **Prediction (b) survives on held-out next-CATEGORY accuracy:
   +0.063 over an EXACTLY matched-capacity control (positive on all five
   seeds; 56% of the 0.114 headroom to the eval-only ceiling 0.786).** The
-  capacity match is exact at every seed and pinned in harness §12. Note the
+  capacity match is exact at every seed and pinned in harness §13. Note the
   threshold caveat: +0.02 is T1.6's ACCURACY bar, so the ll/token survival
   is corroboration, not a second independent win.
 - **What a follow-on should take from this**: (i) the fragmentation is now
@@ -921,7 +921,7 @@ total, both backends).
   (33g), the symbol registry (T3.3), and the 5M-word corpus (phase 27).
   Re-measure and re-profile: `e2_benchmark.py` at current shapes and with
   CSR P; harness wall-clock both backends (it has grown 27 → 72 checks, and
-  T6.4's §12 is the most expensive single section — ~16s of the numpy run);
+  T6.4's §13 is the most expensive single section — ~16s of the numpy run);
   phase-27 stage timings; and **where the time actually goes now** — the
   K×N overlap matvec was the bound at K≈1580 dense, but sparse P and
   narrowed dtypes move it. Output an honest optimization shortlist ranked

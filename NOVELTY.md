@@ -76,7 +76,7 @@ lexical polysemy, 101/119 grammatical context-sensitivity) →
 `phase41_detection_driven_split.py` (**T6.4: detection now drives the field
 and the result is measured, not assumed** — see the downstream paragraph
 below). Pinned in harness §5 (dual-role gain 0.806 vs monosemous 0.003) and
-§12 (the closed loop end to end, including the matched-capacity invariant).
+§13 (the closed loop end to end, including the matched-capacity invariant).
 
 **Downstream utility — the open question, now answered, and narrower than
 the claim assumed (phase 41, 2026-08-08).** Detection driving phase-10
@@ -131,7 +131,7 @@ the free-slot budget on the detected words, so each splits into ~11 slots
    downstream utility survives on next-category accuracy (+0.063) and fails
    on both generation metrics by sign flip. The blanket honest-negative
    ("flat at matched capacity ⇒ a representational nicety") did NOT fire,
-   but neither did the strong reading — see ROADMAP row 41 and harness §12.
+   but neither did the strong reading — see ROADMAP row 41 and harness §13.
 2. *Improve* — **the binding problem is now fragmentation, not the trigger**:
    move beyond binary splits to **n-way sense counts** (how many senses, not
    just "more than one"), which is what would let the ~11 slots per split
