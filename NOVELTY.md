@@ -33,6 +33,17 @@ ROADMAP row they cite. If a claim is weakened by a later run, it is
 
 ## N1 — Predictive polysemy detection (Myhill–Nerode criterion)
 
+> **In plain terms.** How do you notice that "bank" means two different
+> things, when nobody ever tells you? The obvious approach is to look at the
+> word and ask whether it *looks* different in different sentences. It
+> doesn't — and we didn't just fail at that, we proved it can't work. What
+> does work: watch what comes **next**. If knowing the words before it
+> changes what you'd bet on the word after, the word is doing more than one
+> job. The system notices its own predictions splitting in two. No labels,
+> no dictionary, no human in the loop — and it found "right" as a
+> multi-role word in eight novels by itself, then again in forty-two.
+
+
 **Claim.** To detect that a word carries two senses, do not ask whether its
 representation drifts in context — ask whether knowing the context changes
 *what you predict next*. A state-splitting test on successor-category
@@ -126,6 +137,18 @@ the free-slot budget on the detected words, so each splits into ~11 slots
 
 ## N2 — A logic layer that runs with the field absent
 
+> **In plain terms.** The system keeps two things apart: the part that
+> recognizes things, and the map of what-tends-to-follow-what. Switch the
+> recognizing part completely off and the map still works — it can still
+> infer, plan a route, and imagine a sequence. It's the machine version of
+> someone who has lost the ability to recognize or name things but can
+> still reason and plan perfectly well. That was a *prediction* the design
+> made; we then measured it: planning found the exact shortest route every
+> single time, and imagining ran about twenty times faster with the
+> perceptual machinery switched off. The split isn't cosmetic — it earns
+> its keep.
+
+
 **Claim.** Transition learning, extracted behind a confidence-gated
 `EventBoundary`, supports multi-step inference, imagination, and planning
 **with the perceptual field switched off** — and the separation is
@@ -167,6 +190,17 @@ no uncertainty, no compositional goals, no temporal abstraction. The
 ---
 
 ## N3 — Attractor Crowding Collapse: a named failure mode, fixed label-free
+
+> **In plain terms.** Memories here are like dips in a landscape that a
+> ball rolls into. Put too many dips in a small space and they blur
+> together; pick the wrong one and your next pick starts from the wrong
+> place, so mistakes compound. Going from 50 words to 800, quality fell
+> from 99% to 28%. The fix was not a bigger landscape. It was to choose in
+> two steps — first *what kind* of thing (noun-ish? verb-ish?), then which
+> specific item within that kind. Five choices, then a handful, instead of
+> 800 at once. Quality held at ~85% all the way up. And the "kinds" are
+> ones the system worked out for itself; nobody told it what a noun is.
+
 
 **Claim.** A fixed-dimensional attractor store degrades as the number of
 stored items grows — but the binding constraint is **selection, not
@@ -210,6 +244,19 @@ sharper, not softer.
 
 ## N4 — Gradient-free continual learning
 
+> **In plain terms.** A normal neural network is one big sheet, and every
+> lesson writes on the same sheet — so lesson two smudges lesson one. Ours
+> uses folders: something new gets a new folder, something familiar refines
+> an existing one. New knowledge goes in new places instead of on top of
+> old places. No error-correction pass, no second look at the data, nobody
+> labelling anything. Result: it keeps about **twice** what the standard
+> methods keep. The honest half: it doesn't win the benchmark — a simple
+> supervised method scores 87% to our 71%. The real difference isn't the
+> score. It's that everyone else needs a teacher marking where each lesson
+> ends, and most need to keep the old homework around to re-study. We need
+> neither. Real data doesn't arrive in labelled chapters.
+
+
 **Claim.** Online, single-pass, unsupervised continual learning with
 **2× the retention of gradient baselines** — no rehearsal buffer, no
 importance weights, no second pass over data.
@@ -252,6 +299,19 @@ phase 33 wrote.
 
 ## N5 — Category validity without geometry
 
+> **In plain terms.** When the system sorts words into groups on its own,
+> how do you know the groups are real and not wishful thinking? The usual
+> test asks whether the clusters sit far apart in space — the wrong
+> question for word categories, which overlap heavily but *behave*
+> differently. Better question: do the groups predict each other? Then
+> shuffle the labels thousands of times to see what pure luck looks like.
+> Ours beat luck by a margin you'd essentially never see by chance. We also
+> found that the standard way of deciding *how many* groups quietly fails
+> here — it always answers "more, please," forever. Our replacement asks
+> which number keeps every group doing a distinct job. It said six; a
+> human-labelled grammar check it had never seen also said six.
+
+
 **Claim.** Silhouette is the wrong certificate for soft distributional
 categories. Class-bigram mutual information against a measured permutation
 null certifies validity; category-profile *distinctness* selects k — and
@@ -290,6 +350,17 @@ so the failure is not yet attributable.
 
 ## N6 — Bitwise persistence and stable symbol identity
 
+> **In plain terms.** Save it, shut it down, load it back, carry on — and
+> what you get is *identical, digit for digit*, to never having stopped.
+> That sounds mundane and isn't: it means the thing you reloaded is
+> provably the same individual, not a good-enough copy. On top of that,
+> every memory keeps a stable name even as memories merge or get recycled,
+> so "memory #47" still means the same memory next month. For a product
+> whose entire promise is "it will remember you," this is the whole
+> ballgame — and it's a promise a normal checkpointed model can't honestly
+> make.
+
+
 **Claim.** Save → load → continue is **bitwise identical to never
 stopping**, and symbol identity survives fusion, recycling, and
 consolidation without perturbing a single bit of organism state.
@@ -326,6 +397,18 @@ scales, not proven so in general.
 
 ## N7 — Eviction under recruitment pressure
 
+> **In plain terms.** The filing cabinet has a fixed number of folders. When
+> it's full and something new arrives, which folder do you throw out? Only
+> one that is both *unused recently* and *never got properly established*.
+> The subtle bit — and it cost us a failed experiment to learn — is what
+> "recently" means. Set the bar at "untouched for ages" and the only
+> candidates are your oldest memories, so you flush your own history and
+> get worse. Set it short and the junk you created five minutes ago goes
+> stale first, so you recycle your own clutter and keep the past. The
+> one-line law: **the stale pile has to contain the present, or throwing
+> out stale things eats your history.**
+
+
 **Claim.** A slot budget where eviction fires **only** under recruitment
 pressure, reclaiming the least-established *stale* slot, lifts the
 capacity-flooding ceiling — and the staleness window is the load-bearing
@@ -358,6 +441,16 @@ statistics is untested.
 
 ## N8 — Phase-superposition binding *(partial — honest)*
 
+> **In plain terms.** A way of holding several things in mind at once by
+> giving each a different timing offset — like several people humming
+> different notes and still being able to pick out each voice. It works
+> cleanly for about five things at a time. The catch: the system's own
+> recall process squashes the chord back into a single note within a few
+> dozen steps. So the capability is real but we can't yet hold it open.
+> It's written down here specifically so we neither forget it nor oversell
+> it.
+
+
 **Claim, scoped down.** Relative phase is a real binding code — perfect
 identity readout to ~5 items at N=256 and 1.00 pair-grouping — **but** the
 recall pull collapses superpositions in 9–56 steps.
@@ -380,6 +473,19 @@ here so it is not quietly forgotten or quietly oversold.
 ---
 
 ## N9 — The measurement discipline *(the underrated one)*
+
+> **In plain terms.** Before running an experiment we write down what we
+> expect **and** what result would prove us wrong — then commit that to the
+> record before we see the answer. We simulate what pure luck would produce
+> and refuse to believe anything that doesn't beat it. We keep our failures
+> in writing, in the same detail as our wins. And we re-run everything from
+> different random starting points, because three separate times now a
+> beautiful-looking result turned out to be a fluke — including one we
+> caught and threw away *after* it looked like a win. Most research code
+> cannot tell you which of its numbers would survive that treatment. This
+> one can, and that's the reason any of the claims above are worth
+> anything.
+
 
 **Claim.** This codebase can tell you which of its numbers would survive
 reseeding. Most cannot.

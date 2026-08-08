@@ -85,7 +85,12 @@ positive results evaporated under reseeding.
     - `AGENT_TARGETS.md` — your claim slot to `DONE` plus an outcome block
       a stranger could act on;
     - `NOVELTY.md` — the N-item your result touches, **edited down as
-      readily as up**; a weakened claim is edited, never deleted;
+      readily as up**; a weakened claim is edited, never deleted, and its
+      "In plain terms" sidebar is updated in the same commit;
+    - `LAB_NOTES_PLAIN.md` — the plain-language twin of the lab record.
+      Update it whenever your result changes what can be claimed. **A
+      weakened claim follows down here too** — this file must never be the
+      optimistic copy. New capability gets a chapter, not an adjective;
     - `FABLE_HANDOFF.md` — only if architecture, invariants, or the open-
       thread ordering changed.
 15. **Verification log.** Add the ROADMAP "Verification log" entry: host,
