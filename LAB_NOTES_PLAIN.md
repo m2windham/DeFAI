@@ -340,17 +340,78 @@ Three-quarters of every step is one operation. Our long-standing guess about
 memory, and it's actually limited by the much faster cache. That correction
 matters, because it changes which optimizations would pay.
 
-### Chapter 11 — Where we are now
+### Chapter 11 — A claim of ours, tested and withdrawn *(phase 38)*
 
-Deliberately not chasing new frontiers. The current block deepens the four
-things the system is genuinely differentiated on: continual learning
-without lesson boundaries, the reasoning layer, deliberate damage studies,
-and making the polysemy discovery actually pay off. Three of those now have
-first answers — the reasoning layer went deeper (Chapter 9), polysemy pays
-off on one axis and not the one we most wanted (Chapter 8), and performance
-has been re-measured with a build called off as a result (Chapter 10). What
-is still untouched: learning from a stream that never announces when the
-lesson changes, a proper study of what protects old memories, and the
+This is the chapter where we go looking for our own best argument and find
+out it doesn't hold. It is the most useful thing in this file.
+
+**The claim.** Standard learning methods are usually taught in blocks — all
+of topic one, then all of topic two — and they need a teacher to say "topic
+one ends here." One popular method uses that moment to write down which
+parts of itself matter most; another uses it to keep a balanced sack of old
+examples. Ours needs no such announcement. We had been saying that this is a
+real advantage, because real data doesn't arrive with chapter headings.
+
+**How we tested it.** Three versions of the same experiment, identical in
+every other respect — same amount of data, same amount of study time. In the
+first, topics come in blocks and the other methods are told where the breaks
+are. In the second, **the same blocked stream, but nobody is told** — the
+methods have to guess, on a fixed timetable that doesn't line up with the
+real breaks. In the third, topics **blend into each other**, old ones drift
+back, and new ones appear with no announcement at all. The middle version is
+the one that does the real work, and building it is what made the answer
+clear.
+
+**The result: we were wrong.** Taking the announcements away costs the other
+methods almost nothing. One of them got slightly *better* without them —
+guessing on a regular timetable beat being told the truth. So the
+announcement was never what they needed.
+
+**What they actually needed was for the topics not to be blocked.** When we
+let the topics blend — which is what a natural stream does — the other
+methods recovered nearly all of their lost ground on their own, going from
+about 30% to about 92%. Ours moved by less than half a percentage point.
+The teacher's markings were never the load-bearing thing; being forced to
+study one topic at a time was, and the markings are just a label stuck on
+that.
+
+**A second thing we hoped for, also absent.** We expected the system to give
+away the topic changes by recruiting new memory in bursts right when
+something new appeared — computing for itself the signal the other methods
+have to be handed. It doesn't. Recruitment at those moments is, if anything,
+slightly *below* average. When topics blend gradually there is no sharp
+moment to detect, so there is no burst.
+
+**What is left, stated honestly.** One thing survived, and it is exact
+rather than approximate: our system scores *identically* — to the last
+decimal — whether or not it is told where the breaks are, because it never
+had anywhere to put that information. That is a genuine property of how it
+is built. It is just worth much less than we were claiming, because the
+thing it is immune to wasn't hurting anybody else much either.
+
+We have taken the claim out of the pitch. What replaces it is a better
+question we now know how to ask: *how blocked does a stream have to be
+before the announcement is worth anything to anyone?*
+
+### Chapter 12 — Where we are now
+
+Deliberately not chasing new frontiers. The current block set out to deepen
+the four things we believed the system was differentiated on: continual
+learning without lesson boundaries, the reasoning layer, deliberate damage
+studies, and making the polysemy discovery actually pay off.
+
+All but one now have first answers, and the pattern across them is worth
+saying plainly: **each came back partial or negative, and the project is
+better for it.** The reasoning layer went deeper, with its most promising
+new idea measured and then *not* adopted (Chapter 9). Polysemy pays off on
+one axis and not the one we most wanted (Chapter 8). Performance was
+re-measured and a planned build was called off as a result (Chapter 10).
+And the continual-learning differentiator — the one we were most confident
+about — was tested and **withdrawn** (Chapter 11).
+
+That last one cost us an argument we liked. It also replaced it with a
+sharper question we can actually answer, which is the better trade. What
+remains untouched: a proper study of what protects old memories, and the
 damage-and-recovery experiment.
 
 ---
@@ -359,10 +420,15 @@ damage-and-recovery experiment.
 
 **"It doesn't beat the benchmarks, so why does it matter?"**
 Because the benchmark measures one axis and the system is differentiated on
-others. Every method that beats us needs someone to mark where each lesson
-ends and, in most cases, to keep the old training data around to re-study.
-Ours needs neither, sees each item once, and nobody labels anything. Real
-data doesn't arrive in labelled chapters.
+others: it sees each item once, nobody labels anything, and it learns the
+structure of what it sees rather than just a score.
+
+This answer used to continue: "and every method that beats us needs someone
+to mark where each lesson ends." **We tested that claim and it did not
+survive** — see Chapter 11. Take the markings away and the other methods
+barely notice. We have edited the answer rather than quietly keeping the
+better-sounding version, because a file that only ever gets more optimistic
+is not a lab record.
 
 **"Isn't 'no gradients' just a limitation you're dressing up?"**
 It's a constraint we chose, and it costs us accuracy — that's on the record.

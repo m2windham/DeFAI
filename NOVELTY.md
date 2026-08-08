@@ -312,10 +312,18 @@ sharper, not softer.
 > old places. No error-correction pass, no second look at the data, nobody
 > labelling anything. Result: it keeps about **twice** what the standard
 > methods keep. The honest half: it doesn't win the benchmark — a simple
-> supervised method scores 87% to our 71%. The real difference isn't the
-> score. It's that everyone else needs a teacher marking where each lesson
-> ends, and most need to keep the old homework around to re-study. We need
-> neither. Real data doesn't arrive in labelled chapters.
+> supervised method scores 87% to our 71%.
+>
+> We used to add: "and everyone else needs a teacher marking where each
+> lesson ends, while we don't." **We tested that in phase 38 and it is
+> false.** Take the teacher's markings away and the other methods barely
+> notice — one of them actually did slightly *better* without them. What
+> hurts them is not the missing markings, it's being made to study one
+> topic at a time; the markings are just a label on that. Let the topics
+> blend, the way real streams do, and they mostly recover on their own.
+> Ours is genuinely indifferent to the markings — provably, to the last
+> decimal — but that turns out to be worth much less than we claimed,
+> because it wasn't costing anyone else much either.
 
 
 **Claim.** Online, single-pass, unsupervised continual learning with
@@ -339,14 +347,37 @@ held-out seeds) — arithmetic, not tuning. Every public statement about
 continual learning must carry the "not benchmark dominance" clause that
 phase 33 wrote.
 
+**The boundary-freedom claim is retired (phase 38, T6.1).** This item used
+to argue that the differentiator was needing no task boundaries, since EWC
+must snapshot Fisher at one and replay must balance its buffer at one.
+Measured, that is wrong: removing the boundary *signal* with the stream held
+fixed costs the gradient arms essentially nothing — mlp-seq +0.000, **EWC
++0.056 (it gains** from a misaligned fixed-period schedule versus being told
+the true task ends**)**, replay −0.005 for reservoir sampling. The
+forgetting is produced by **sequential blocking of the stream**, and a task
+boundary is only the annotation of that blocking. On a drifted,
+re-emerging — i.e. interleaved — stream, the gradient arms recover almost
+the whole gap unaided (mlp-seq 0.296→0.924, EWC 0.318→0.910) while the
+organism moves +0.003. What remains true and is now pinned exact in harness
+§14: the organism's accuracy is **bitwise identical** with and without the
+boundary signal, because it consumes none. That invariance is architecturally
+real and worth stating; it is not worth *much*, and this item no longer
+claims otherwise. Do not reintroduce "needs no task boundaries" as a selling
+point without a protocol where boundary information demonstrably pays.
+
 **Mini-roadmap.**
-1. *Implement* — **T6.1 / phase 38**: re-run the ladder on a
-   **boundary-free** stream. This tests the differentiated claim rather
-   than the borrowed one: EWC needs boundaries to snapshot Fisher
+1. *Implement* — ~~**T6.1 / phase 38**: re-run the ladder on a
+   **boundary-free** stream... EWC needs boundaries to snapshot Fisher
    information, replay needs them to balance its buffer, the organism needs
-   neither. Also measure whether recruitment rate localizes transitions
-   above a null. Honest framing required — if the gap narrows because
-   gradient arms degrade, say exactly that.
+   neither.~~ **DONE 2026-08-08 and the premise was falsified** — see the
+   scope caveat above. The gradient arms do not need the boundary; they
+   need the stream not to be blocked. Recruitment also does *not* localize
+   transitions (z = −1.53, wrong sign, 0/5 seeds). The honest-framing
+   clause was exercised: the gap did narrow, but because the gradient arms
+   *improved*, which is not a result for us. **Replacement item, and the
+   sharper question this exposed**: sweep how *blocked* a stream must be
+   before boundary annotation pays for anyone. That is the experiment that
+   would show whether this axis has a differentiator on it at all.
 2. *Improve* — **T6.2 / phase 39**: factorize what actually protects old
    memories (window, victim rule, `p_decay`, headroom) against a
    random-eviction control, so retention becomes tunable rather than
