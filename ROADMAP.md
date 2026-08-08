@@ -199,7 +199,11 @@ the baseline on the same split.
   E1 `regression_harness.py` ALL PASS both backends — **65 checks**, numpy
   76.0s / numba 14.8s — and `test_fastpath_equivalence.py` green including
   its narrowed-store §7 and symbol-registry §8. After: ALL PASS both backends
-  with the new section 12 — **72 checks**, numpy 82.9s / numba 31.2s — and
+  with the new section 12 — **72 checks**, numpy 82.9s / numba 31.2s on the
+  branch, and re-run on the MERGED tree (origin/main at 14054db) at numpy
+  93.0s / numba 30.7s, 72/72 both times, plus
+  `test_fastpath_equivalence.py` 27/27 and `test_label_readout.py` 24/24 on
+  the merged tree — and
   section 12's measured values are IDENTICAL on the two backends (detection
   3/3, distinctness 3/3, capacity gap 0.0000 exact, next-category gain over
   matched capacity +0.0485 on both). No library file was touched: the phase
