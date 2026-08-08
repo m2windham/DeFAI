@@ -43,6 +43,15 @@ Sections (fast tier only; corpus-tier joins once E2/Numba makes it cheap):
      consolidation view is not an identity mutation, the registry
      round-trips bitwise through E3 schema v3 (v1 and v2 files still load),
      and registry-on is bitwise identical to registry-off.
+ 12. logic-layer depth (T6.3, phase 40) -- the reasoning ops built on top of
+     phase 30's three, all field-free: the shared-Dijkstra refactor leaves
+     `next_hops` bitwise unchanged, confidence bounds never invent an
+     unobserved edge, confidence-weighted planning beats hop-count planning
+     on an under-evidenced graph, the compositional planners match
+     brute-force optimal walks (avoidance is a constraint, not a
+     preference), the sparse port is bitwise for next_hops/rollout and
+     within tolerance for kstep, and a first-order macro-edge cannot improve
+     a plan built from its own parts -- that zero is pinned.
 
 Run: `python regression_harness.py`. Exit code is nonzero if any check fails
 its tolerance. Each check prints its own measured value, tolerance band, and
@@ -743,6 +752,146 @@ def section_11_symbol_registry():
           note="identity tracking is observation only -- bitwise, not a band")
 
 
+# ============================================ 12. logic-layer depth (phase 40)
+def section_12_logic_depth():
+    """T6.3: the reasoning ops phase 40 added on top of phase 30's three.
+
+    Everything here is graph arithmetic -- no field is constructed anywhere
+    in this section, which is the isolation discipline phase 30 established
+    and the precondition for the whole layer. The checks pin four contracts:
+
+      - the shared-Dijkstra refactor left `next_hops` BITWISE unchanged, so
+        phase 30's committed planning numbers cannot drift underneath
+        section 6 (which pins their values but only to a tolerance);
+      - `confidence` is a genuine lower bound and never invents an edge the
+        organism has not observed -- a smoothing rule that hallucinated hops
+        would let the planner route through transitions that never happened;
+      - the compositional planners are CORRECT, not merely plausible:
+        avoidance is a constraint (zero violations) and both the negated and
+        conjunctive plans match brute-force optimal walks on a graph small
+        enough to enumerate exhaustively;
+      - the sparse port is equal, not approximately equal: next_hops and
+        rollout bitwise (including the RNG stream), kstep to tolerance,
+        because skipping zeros reorders a float reduction;
+      - the mined-macro null: a first-order macro CANNOT improve a plan it
+        is built out of, and that zero is pinned so a future macro change
+        that appears to beat plain planning is caught as a bug in the
+        accounting rather than banked as a result.
+    """
+    print("\n(12) logic-layer depth and optimization (phase 40, T6.3)")
+    from organism import MacroGraph, SparseTransitions, TransitionGraph
+    from phase40_logic_depth import (brute_force_best, composition_world,
+                                     log_true, phase30_next_hops_reference,
+                                     plan_all, unreliable_world)
+
+    # --- the phase-30 anchor: refactor must be bitwise --------------------
+    worst_n = worst_d = 0.0
+    for s in range(2):
+        g, T, _ = unreliable_world(s, n=60, steps=6000)
+        idx = np.arange(60)
+        for goal in (0, 13, 59):
+            r_n, r_d = phase30_next_hops_reference(g, idx, goal)
+            n_n, n_d = g.next_hops(idx, goal)
+            worst_n = max(worst_n, float(np.abs(r_n - n_n).max()))
+            fin = np.isfinite(r_d) & np.isfinite(n_d)
+            if not np.array_equal(np.isfinite(r_d), np.isfinite(n_d)):
+                worst_d = np.inf
+            elif fin.any():
+                worst_d = max(worst_d, float(np.abs(r_d[fin] - n_d[fin]).max()))
+    check("next_hops pre- vs post-refactor: next-hop delta", worst_n, 0.0, 0.0,
+          note="one Dijkstra now serves every planner -- phase 30's must not move")
+    check("next_hops pre- vs post-refactor: distance delta", worst_d, 0.0, 0.0)
+
+    # --- confidence is a bound, and invents nothing -----------------------
+    g, T, _ = unreliable_world(0, n=120, steps=2000)
+    idx = np.arange(120)
+    Pn = g.normalized(idx); C = np.asarray(g.P[np.ix_(idx, idx)], float)
+    leaks = 0.0
+    for mode in ("wilson", "laplace"):
+        L = g.confidence(idx, 0.05, mode)
+        leaks += float((L[C == 0] > 0).sum())
+    check("confidence: edges invented where nothing was observed", leaks, 0.0, 0.0,
+          note="smoothing must not hand the planner a hop that never happened")
+    above = float((g.confidence(idx, 0.05, "wilson") > Pn + 1e-12).sum())
+    check("wilson bounds exceeding the point estimate", above, 0.0, 0.0,
+          note="wilson is a LOWER bound; laplace is a posterior mean and "
+               "legitimately lifts rare edges, so it is not checked here")
+
+    # --- confidence-weighted planning beats hop-count planning ------------
+    goals = list(np.argsort(-g.P.sum(1))[:12])
+    ph = plan_all(g.edge_quality(idx, "hops"), goals, 120)
+    pl = plan_all(g.confidence(idx, 0.05), goals, 120)
+    pairs = set(ph) & set(pl)
+    adv = (np.mean([log_true(pl[k], T) for k in pairs])
+           - np.mean([log_true(ph[k], T) for k in pairs]))
+    check("confidence planner advantage over hop-count (nats/plan)", float(adv),
+          0.40, 3.00,
+          note="phase 40 (A): +1.04 mean over 5 seeds, 0/5 sign flips, above null")
+
+    # --- compositional goals are correct, certified by brute force --------
+    gc = composition_world(); nc = 12; ic = np.arange(nc)
+    viol = 0.0; gap = 0.0; cover = 0.0
+    for a, b in [(0, 5), (0, 8), (2, 7), (3, 10)]:
+        free = gc.plan_reliable(ic, a, b, weights="mle")
+        gate = int(free.path[1]) if free.hops >= 2 else int(free.path[-1])
+        con = gc.plan_reliable(ic, a, b, weights="mle", avoid=[gate])
+        viol += float(con is None or gate in con.path)
+        if con is not None:
+            bf, _ = brute_force_best(gc.P, a, b, max_hops=9, avoid=[gate])
+            gap = max(gap, abs(bf - float(np.log(con.p_mle))))
+    for a, gs in [(0, (5, 9)), (2, (7, 11))]:
+        rep = gc.plan_visit(ic, a, list(gs), weights="mle")
+        cover += float(rep is not None and all(x in rep.path for x in gs))
+        if rep is not None:
+            bf, _ = brute_force_best(gc.P, a, None, max_hops=max(9, rep.hops),
+                                     must=gs)
+            gap = max(gap, abs(bf - float(np.log(rep.p_mle))))
+    check("compositional: avoidance constraint violations", viol, 0.0, 0.0,
+          note="'without passing B' is a constraint, not a preference")
+    check("compositional: conjunctive goals covered", cover, 2.0, 2.0)
+    check("compositional: gap vs brute-force optimal walk", gap, 0.0, 1e-9,
+          note="exhaustive search on 12 symbols certifies both planners optimal")
+
+    # --- sparse port equality ---------------------------------------------
+    bit_n = bit_r = 0.0; kerr = 0.0
+    for K in (40, 160):
+        gs = TransitionGraph(K)
+        rr = np.random.default_rng(400 + K)
+        for i in range(K):
+            su = rr.choice(K, size=min(10, K - 1), replace=False)
+            gs.P[i, su[su != i]] = rr.integers(1, 400, size=int((su != i).sum()))
+        ii = np.arange(K)
+        sp = SparseTransitions.from_graph(gs, ii)
+        dn, dd = gs.next_hops(ii, 1); sn, sd = sp.next_hops(1)
+        fin = np.isfinite(dd) & np.isfinite(sd)
+        bit_n += float(np.array_equal(dn, sn)
+                       and np.array_equal(np.isfinite(dd), np.isfinite(sd))
+                       and np.array_equal(dd[fin], sd[fin]))
+        bit_r += float(np.array_equal(
+            gs.rollout(ii, 0, 600, np.random.default_rng(5)),
+            sp.rollout(0, 600, np.random.default_rng(5))))
+        kerr = max(kerr, float(np.abs(gs.kstep(ii, 2) - sp.kstep(2)).max()))
+    check("sparse next_hops bitwise identical to dense", bit_n, 2.0, 2.0,
+          note="same settle order, same values -- a port, not an approximation")
+    check("sparse rollout bitwise identical (incl. RNG stream)", bit_r, 2.0, 2.0)
+    check("sparse kstep max |delta| vs dense", kerr, 0.0, 1e-9,
+          note="skipping zeros reorders a float reduction: tolerance, not bit")
+
+    # --- the mined-macro null ---------------------------------------------
+    mg = MacroGraph(g); mg.mine(idx, top=32)
+    worst = 0.0
+    for gl in goals[:6]:
+        for a in range(0, 120, 17):
+            if a == gl:
+                continue
+            base = g.plan_reliable(idx, a, int(gl), weights="lcb")
+            wm = g.plan_reliable(idx, a, int(gl), weights="lcb", macros=mg)
+            if base is not None and wm is not None:
+                worst = max(worst, abs(wm.p_lcb - base.p_lcb))
+    check("first-order macro-edge reliability gain", worst, 0.0, 0.0,
+          note="phase 40 (C2): forced zero -- a macro cannot beat its own parts")
+
+
 if __name__ == "__main__":
     t0 = time.time()
     print("REGRESSION HARNESS -- fast tier (E1)")
@@ -760,6 +909,7 @@ if __name__ == "__main__":
     section_9_slot_budget()
     section_10_compression()
     section_11_symbol_registry()
+    section_12_logic_depth()
 
     dt = time.time() - t0
     print(f"\n{'='*70}")

@@ -14,7 +14,8 @@ BOTH backends (`DEFAI_BACKEND=numpy|numba`) before trusting any change;
 
 Verification state as of 2026-08-07, on the merged tree carrying T1.9
 (phase 33h), T2.1 (phase 27's outcome) and T3.3 (the symbol registry):
-E1 ALL PASS both backends (65 checks: 31 + T1.8's section 10 + T3.3's
+E1 ALL PASS both backends (65 checks then; 77 since T6.3's section 12 —
+see the 2026-08-08 verification-log entry: 31 + T1.8's section 10 + T3.3's
 section 11), `test_fastpath_equivalence.py` green incl. the narrowed-store
 section 7 and the symbol-registry section 8, `test_label_readout.py` green,
 E3 round-trips green for schema v3 uncompressed/compressed and v1 + v2
@@ -704,7 +705,32 @@ same split** — an unpaired fixed-seed baseline is a bug (T1.9).
 - **Done when**: factor table with effect sizes, reseeded; the tunable
   retention story written into the ROADMAP row.
 
-### T6.3 — Logic-layer depth & optimization (phase 40)  `[claimed: claude/phase-40-logic-depth-o2w1p5, 2026-08-08]`
+### T6.3 — Logic-layer depth & optimization (phase 40)  `[DONE 2026-08-08: claude/phase-40-logic-depth-o2w1p5 — see ROADMAP row 40]`
+**Outcome in one paragraph.** (a) CONFIRMED: confidence-weighted planning
+beats hop-count planning by +1.04 nats/plan of true log-reliability (0/5
+sign flips) above a shuffled-shrinkage null, held-out verified at the
+pre-registered alpha. Against the MLE planner phase 30 already had — a
+sharper comparison that was NOT pre-registered — the arms disagree on 13.7%
+of plans and confidence wins +0.379 nats when they do at 2000 observations,
+decaying to −0.074 at 60 000; it clears T1.6's survival rule on the
+selection seeds and FAILS on held-out seeds, so it is recorded as a
+direction and not banked. The durable half of the op is `PathReport`
+(reliability, weakest link, that link's observation count), not the router.
+(b) SPLIT: equality MET (next_hops and rollout bitwise incl. the RNG stream,
+kstep to 1e-17), speed NOT MET as written — 2× arrives at K=800, not K=112,
+reaching 6.1× at K=1580; sparse full `kstep` is a measured NEGATIVE (0.1–0.2×
+— a dense K² output is BLAS's home ground) and the real win is `kstep_row`
+at 4×→356×. (c) The negative fired and its condition is now measured: mined
+first-order macros move reliability by exactly 0.0 (forced by construction)
+and the pass-through census finds nothing to fold, but observed trigram
+macros gain +0.443 nats on a second-order world (held-out +0.581, survives)
+while collapsing to |Δ|≤4e-04 on a first-order control. **The boundary is an
+ORDER, not a graph size** — worth carrying into T2.4 (phase 29), whose
+"level 2 learns nothing" risk is the same question one level up. Library
+additions are purely additive on `TransitionGraph` plus `MacroGraph` /
+`SparseTransitions`; `next_hops` moved onto a shared Dijkstra and is pinned
+bitwise against its pre-refactor body in harness §12 (12 new checks, 77
+total, both backends).
 - **Objective**: the field-free logic layer is the least-developed part of
   a differentiated capability. Extend and optimize it *as reasoning*, not
   as plumbing: (i) **multi-step planning under uncertainty** — plan with

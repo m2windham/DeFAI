@@ -48,11 +48,16 @@ during logic tasks -- MIT/McGovern 2026):
   index that stays correct across slot churn.
 """
 
+import collections
+import itertools
+import math
 import os
 
 import numpy as np
 
 import fastpath
+
+_SQRT2 = math.sqrt(2.0)
 
 
 def normalize(v, norm):
@@ -119,13 +124,21 @@ class TransitionGraph:
             seq.append(cur)
         return np.array(seq, int)
 
-    def next_hops(self, idx, goal, eps=1e-12):
-        """Planning: for every symbol, the first hop on the most-probable
-        path to `goal` (Dijkstra on -log transition probability, run backward
-        from the goal). Returns (nxt, dist): nxt[i] = -1 if goal unreachable
-        from i, dist[i] = -log P(best path i -> goal)."""
-        Pn = self.normalized(idx); n = Pn.shape[0]
-        W = -np.log(Pn + eps)
+    @staticmethod
+    def dijkstra(Q, goal, eps=1e-12):
+        """Backward Dijkstra over an edge-QUALITY matrix `Q` (higher is
+        better; Q[i,j] is a probability-like score for the hop i -> j, and
+        Q[i,j] <= eps means "no such edge"). Edge cost is -log Q, so the
+        tree returned maximizes the PRODUCT of qualities along the path.
+
+        Factored out of `next_hops` in phase 40 (T6.3) because every planner
+        this layer grows differs from the others only in how Q is built --
+        point-estimate transitions, confidence lower bounds, unit hop costs,
+        a graph with symbols forbidden, a graph with macro-options added.
+        One algorithm, several notions of "best", and the sparse port has a
+        single dense implementation to be equal to."""
+        n = Q.shape[0]
+        W = -np.log(Q + eps)
         dist = np.full(n, np.inf); dist[goal] = 0.0
         nxt = np.full(n, -1, int); nxt[goal] = goal
         done = np.zeros(n, bool)
@@ -134,23 +147,623 @@ class TransitionGraph:
             if not np.isfinite(dist[u]) or done[u]:
                 break
             done[u] = True
-            relax = (Pn[:, u] > eps) & (dist[u] + W[:, u] < dist)
+            relax = (Q[:, u] > eps) & (dist[u] + W[:, u] < dist)
             nxt[relax] = u
             dist[relax] = dist[u] + W[relax, u]
         return nxt, dist
+
+    def next_hops(self, idx, goal, eps=1e-12):
+        """Planning: for every symbol, the first hop on the most-probable
+        path to `goal` (Dijkstra on -log transition probability, run backward
+        from the goal). Returns (nxt, dist): nxt[i] = -1 if goal unreachable
+        from i, dist[i] = -log P(best path i -> goal)."""
+        return self.dijkstra(self.normalized(idx), goal, eps)
 
     def plan(self, idx, a, b):
         """Most-probable path a -> b as a list of symbols (inclusive), or
         None if b is unreachable from a."""
         nxt, _ = self.next_hops(idx, b)
-        if nxt[a] < 0:
+        return _trace(nxt, a, b)
+
+    # ---- PHASE 40 (T6.3): reasoning DEPTH -- still pure symbol space -------
+    # Everything below runs on counts alone. No field, no overlaps, no
+    # embeddings: phase 30's isolation discipline is the precondition for the
+    # whole layer, not a property of the three ops it happened to ship with.
+
+    @staticmethod
+    def _z_for(alpha):
+        """Upper-`alpha` quantile of the standard normal, by bisection on
+        erfc. Dependency-free on purpose -- scipy is optional in this project
+        (it rides along with numba) and the logic layer must not need it."""
+        lo, hi = 0.0, 40.0
+        for _ in range(200):
+            mid = 0.5 * (lo + hi)
+            if 0.5 * math.erfc(mid / _SQRT2) > alpha:
+                lo = mid
+            else:
+                hi = mid
+        return 0.5 * (lo + hi)
+
+    def confidence(self, idx, alpha=0.05, mode="wilson"):
+        """EDGE CONFIDENCE: an evidence-aware edge probability, where
+        `normalized` gives the evidence-blind point estimate.
+
+        The count matrix carries EVIDENCE as well as frequency and
+        `normalized` discards it. A symbol visited once, whose one successor
+        was j, gets Pn = 1.0 -- a zero-cost edge that Dijkstra will happily
+        route the entire world through -- while an edge seen 900 times out of
+        1000 visits gets 0.9 and scores worse. Planning on the point estimate
+        is therefore biased toward the least-observed corner of the graph,
+        which is exactly where the model is least entitled to be believed.
+
+        'wilson' returns the Wilson score interval's LOWER END at level
+        `alpha`: a 1/1 edge falls to ~0.21 at alpha=0.05 while a 900/1000
+        edge barely moves, and the result never exceeds the point estimate.
+        'laplace' returns the add-one posterior mean -- the milder classical
+        alternative, and NOT a lower bound: it shrinks confident edges down
+        but also lifts rare ones up, which is correct for a posterior mean
+        and is why only the wilson arm is pinned as a bound (harness 12).
+
+        Unobserved edges stay at exactly 0.0 under both -- smoothing must not
+        invent hops the organism never saw, or the planner will route through
+        transitions that never happened. Rows are NOT renormalized: these are
+        per-edge reliabilities, not a distribution, and planners consume them
+        as such."""
+        C = np.asarray(self.P[np.ix_(idx, idx)], float)
+        n = C.sum(1, keepdims=True)
+        seen = C > 0
+        safe_n = np.where(n > 0, n, 1.0)
+        if mode == "laplace":
+            return np.where(seen, (C + 1.0) / (safe_n + C.shape[1]), 0.0)
+        if mode != "wilson":
+            raise ValueError(f"unknown confidence mode {mode!r}")
+        z = self._z_for(alpha); z2 = z * z
+        p = C / safe_n
+        centre = p + z2 / (2 * safe_n)
+        half = z * np.sqrt(p * (1 - p) / safe_n + z2 / (4 * safe_n * safe_n))
+        lo = (centre - half) / (1 + z2 / safe_n)
+        return np.where(seen, np.maximum(lo, 0.0), 0.0)
+
+    def edge_quality(self, idx, weights="mle", alpha=0.05, mode="wilson"):
+        """The edge-quality matrix a planner runs on -- the one axis that
+        separates phase 40's planners from phase 30's:
+
+          'mle'  row-normalized counts. Phase 30's planner: most-probable
+                 path, evidence ignored.
+          'lcb'  `confidence` lower bounds: most-RELIABLE path.
+          'hops' equal quality on every observed edge, so every hop costs
+                 exactly 1.0 and Dijkstra minimizes hop count. (exp(-1), not
+                 1.0, so the cost stays positive -- Dijkstra is only correct
+                 with non-negative weights.)"""
+        if weights == "mle":
+            return self.normalized(idx)
+        if weights == "lcb":
+            return self.confidence(idx, alpha, mode)
+        if weights == "hops":
+            return np.where(np.asarray(self.P[np.ix_(idx, idx)]) > 0,
+                            math.exp(-1.0), 0.0)
+        raise ValueError(f"unknown planner weights {weights!r}")
+
+    def path_report(self, idx, path, alpha=0.05, mode="wilson", decisions=None):
+        """Score a concrete path: the product of its edge probabilities as a
+        point estimate AND as a lower bound, plus its weakest link and how
+        many times that link was actually observed.
+
+        This is the "report path reliability, not just shortest hops" half of
+        the op. A two-hop plan through an edge seen once is not a better
+        answer than a four-hop plan through edges seen a thousand times, and
+        a caller that is only handed a hop count cannot tell the difference."""
+        Pn = self.normalized(idx)
+        L = self.confidence(idx, alpha, mode)
+        C = np.asarray(self.P[np.ix_(idx, idx)], float)
+        p_mle = p_lcb = 1.0
+        weakest, weakest_n = -1, np.inf
+        for a, b in zip(path[:-1], path[1:]):
+            p_mle *= float(Pn[a, b]); p_lcb *= float(L[a, b])
+            if L[a, b] < weakest_n:
+                weakest, weakest_n = (int(a), int(b)), float(L[a, b])
+        obs = np.inf if weakest == -1 else float(C[weakest[0], weakest[1]])
+        hops = len(path) - 1
+        return PathReport(tuple(int(s) for s in path), hops,
+                          hops if decisions is None else int(decisions),
+                          p_mle, p_lcb, weakest, obs)
+
+    @staticmethod
+    def _forbid(Q, avoid):
+        """The negated half of a compositional goal: delete forbidden
+        symbols from the graph the planner sees. Deleting the symbol (row AND
+        column) rather than scoring it badly is what makes "without passing
+        B" a constraint instead of a preference."""
+        if avoid is None or len(avoid) == 0:
+            return Q
+        Q = Q.copy()
+        av = np.asarray(sorted({int(v) for v in avoid}), int)
+        Q[av, :] = 0.0; Q[:, av] = 0.0
+        return Q
+
+    def plan_reliable(self, idx, a, b, weights="lcb", alpha=0.05,
+                      mode="wilson", avoid=(), macros=None, eps=1e-12):
+        """Phase 40's planner: `plan` generalized along three axes -- which
+        notion of edge quality (`weights`), which symbols are off limits
+        (`avoid`), and whether multi-hop macro-options may be taken
+        (`macros`, a MacroGraph). Returns a PathReport scored on the plain
+        transition statistics whatever the planner optimized, so arms are
+        comparable, or None if `b` is unreachable under the constraints."""
+        a, b = int(a), int(b)
+        if a in set(int(v) for v in avoid) or b in set(int(v) for v in avoid):
             return None
-        path = [int(a)]
-        while path[-1] != b:
-            path.append(int(nxt[path[-1]]))
-            if len(path) > len(nxt):        # defensive: no cycles possible,
-                return None                  # but never loop forever
-        return path
+        Q = self._forbid(self.edge_quality(idx, weights, alpha, mode), avoid)
+        Qm = None if macros is None else macros.overlay(Q, avoid)
+        nxt, _ = self.dijkstra(Q if Qm is None else np.maximum(Q, Qm), b, eps)
+        path = _trace(nxt, a, b)
+        if path is None:
+            return None
+        decisions = len(path) - 1                # choices BEFORE expansion:
+        if Qm is not None:                       # the only thing a first-order
+            path = macros.expand(path, Q, Qm)    # macro can actually move
+        return self.path_report(idx, path, alpha, mode, decisions)
+
+    def plan_visit(self, idx, a, goals, ordered=False, weights="lcb",
+                   alpha=0.05, mode="wilson", avoid=(), eps=1e-12):
+        """CONJUNCTIVE goals: a walk from `a` that visits every symbol in
+        `goals` -- in the given order if `ordered`, otherwise in whichever
+        order is cheapest -- while respecting `avoid`.
+
+        Segment costs are additive and the graph is memoryless, so stitching
+        per-segment optimal paths is optimal for a FIXED order, and the order
+        search is exhaustive; a goal already crossed incidentally by an
+        earlier segment is dropped from the remaining itinerary rather than
+        re-visited, which is where the cheap wins are. Honest scope: the
+        search is over orders of the goals, so `goals` must stay small (6 is
+        the cap -- 720 orders); this is composition, not a TSP solver."""
+        a = int(a); goals = [int(g) for g in goals]
+        banned = {int(v) for v in avoid}
+        if a in banned or any(g in banned for g in goals):
+            return None
+        if len(goals) > 6:
+            raise ValueError("plan_visit exhausts goal orders; keep len(goals) <= 6")
+        Q = self._forbid(self.edge_quality(idx, weights, alpha, mode), avoid)
+        trees = {g: self.dijkstra(Q, g, eps)[0] for g in set(goals)}
+        best = None
+        for order in itertools.permutations(sorted(set(goals))):
+            walk, cur, ok = [a], a, True
+            for g in order:
+                if g in walk:                    # already crossed on the way
+                    continue
+                leg = _trace(trees[g], cur, g)
+                if leg is None:
+                    ok = False; break
+                walk += leg[1:]; cur = g
+            if not ok:
+                continue
+            rep = self.path_report(idx, walk, alpha, mode)
+            if best is None or rep.p_lcb > best.p_lcb:
+                best = rep
+        return best
+
+    def passthrough_census(self, idx, min_count=1):
+        """TEMPORAL ABSTRACTION, the `fold` reading: which symbols are pure
+        pass-throughs -- exactly one observed predecessor and exactly one
+        observed successor -- so that a -> m -> b could be contracted into a
+        single edge by folding m away.
+
+        Returns the list of (pred, m, succ) triples. Run this BEFORE building
+        anything: 33h's redundancy census called the fold verdict there
+        before a single fold ran, and the same question applies here. A graph
+        with no pass-throughs has no free contraction, and every byte a
+        contraction saves then costs structure."""
+        C = np.asarray(self.P[np.ix_(idx, idx)], float)
+        live = C > min_count - 1e-12
+        found = []
+        for m in range(C.shape[0]):
+            preds = np.nonzero(live[:, m])[0]
+            succs = np.nonzero(live[m])[0]
+            if len(preds) == 1 and len(succs) == 1 and preds[0] != m != succs[0]:
+                found.append((int(preds[0]), int(m), int(succs[0])))
+        return found
+
+    def contracted(self, idx, chains=None, min_count=1):
+        """A COPY of this graph with pass-through symbols folded away, built
+        with the layer's own additive primitive (`fold` then `retire`, on the
+        copy -- the live graph is never mutated, so a contraction can never
+        cost the organism a symbol it might still perceive). Returns
+        (graph, surviving_index) where `surviving_index` selects the rows of
+        the contracted graph that are still live."""
+        sub = TransitionGraph(len(idx))
+        sub.P = np.array(self.P[np.ix_(idx, idx)], float)
+        gone = set()
+        for pred, m, succ in (self.passthrough_census(idx, min_count)
+                              if chains is None else chains):
+            if m in gone or pred in gone or succ in gone:
+                continue
+            sub.fold(pred, m)                    # m's relations join pred's
+            sub.P[pred, m] = 0.0; sub.P[m, pred] = 0.0
+            sub.retire(m)
+            gone.add(m)
+        keep = np.array([i for i in range(len(idx)) if i not in gone], int)
+        return sub, keep
+
+
+PathReport = collections.namedtuple(
+    "PathReport", "path hops decisions p_mle p_lcb weakest weakest_n")
+PathReport.__doc__ = """A plan and what it is actually worth (phase 40).
+
+`p_mle` is the product of point-estimate transition probabilities along the
+path, `p_lcb` the same product over confidence lower bounds; `weakest` is the
+(from, to) edge with the lowest lower bound and `weakest_n` how many times
+that edge was observed. Two plans with the same `hops` can differ by orders
+of magnitude in `p_lcb`, which is the entire reason this type exists.
+`decisions` counts the hops the AGENT chooses -- equal to `hops` unless
+macro-options collapsed several of them into one."""
+
+
+def _trace(nxt, a, b):
+    """Walk a Dijkstra next-hop tree from `a` to `b`, or None if unreached."""
+    a, b = int(a), int(b)
+    if nxt[a] < 0:
+        return None
+    path = [a]
+    while path[-1] != b:
+        path.append(int(nxt[path[-1]]))
+        if len(path) > len(nxt):        # defensive: no cycles possible,
+            return None                  # but never loop forever
+    return path
+
+
+class MacroGraph:
+    """TEMPORAL ABSTRACTION over a TransitionGraph (phase 40, T6.3).
+
+    A macro-edge is an OPTION: a multi-hop route the world runs often enough
+    to be worth naming, collapsed into a single decision. There are two ways
+    to get one and the difference between them is the whole experiment.
+
+      `mine`      derives macros from the transition matrix itself. A mined
+                  macro's quality is the PRODUCT of its constituent one-step
+                  probabilities, so it cannot beat planning over its own
+                  parts: Dijkstra already pays exactly that product for the
+                  expanded route. This arm exists to MEASURE that zero, not
+                  to beat it -- the first-order graph already knows
+                  everything a first-order macro could tell it.
+      `observe`   counts committed symbol n-grams directly. P(c | b, a) is
+                  not P(c | b) unless the world is first-order, so an
+                  observed macro CAN carry structure the transition matrix is
+                  structurally unable to represent -- and when the world is
+                  first-order it collapses back onto the product, measurably.
+
+    Nothing here mutates the graph. `TransitionGraph.fold` is the additive
+    primitive for collapsing two symbols that turned out to be the SAME
+    symbol; naming a route between symbols that stay distinct is a different
+    operation, and doing it as a planning-time overlay keeps the four
+    auditable graph mutators intact. (The fold reading of temporal
+    abstraction -- contracting pass-through symbols -- lives on the graph as
+    `passthrough_census` / `contracted`, and is measured separately.)"""
+
+    def __init__(self, graph=None):
+        self.graph = graph
+        self.macros = []                 # (src, dst, path tuple, quality)
+        self.tri = {}                    # (a, b) -> {c: count}, observed
+        self.bi = {}                     # (a, b) -> count, observed
+
+    # ---- construction ---------------------------------------------------
+    def mine(self, idx, top=32, max_len=3, alpha=0.05, mode="wilson",
+             weights="lcb"):
+        """First-order macros: the `top` highest-traffic multi-hop routes,
+        scored as the product of their edge qualities. Traffic is the Markov
+        estimate -- visits to the source times the chained probabilities --
+        so "frequently traversed" is read off the matrix, not remembered."""
+        g = self.graph
+        C = np.asarray(g.P[np.ix_(idx, idx)], float)
+        Pn = g.normalized(idx)
+        Q = g.edge_quality(idx, weights, alpha, mode)
+        visits = C.sum(1)
+        n = C.shape[0]
+        cand = {}
+        for a in range(n):
+            for m in np.nonzero(C[a])[0]:
+                flow2 = visits[a] * Pn[a, m]
+                for b in np.nonzero(C[m])[0]:
+                    if b == a:
+                        continue
+                    flow = flow2 * Pn[m, b]
+                    key = (a, int(b))
+                    q = float(Q[a, m] * Q[m, b])
+                    prev = cand.get(key)
+                    if prev is None or q > prev[1]:
+                        cand[key] = ((a, int(m), int(b)), q, flow)
+                    if max_len >= 3:
+                        for c in np.nonzero(C[b])[0]:
+                            if c in (a, m):
+                                continue
+                            key3 = (a, int(c))
+                            q3 = q * float(Q[b, c])
+                            f3 = flow * Pn[b, c]
+                            p3 = cand.get(key3)
+                            if p3 is None or q3 > p3[1]:
+                                cand[key3] = ((a, int(m), int(b), int(c)), q3, f3)
+        ranked = sorted(cand.values(), key=lambda r: -r[2])[:top]
+        self.macros = [(p[0], p[-1], p, q) for p, q, _ in ranked]
+        return self.macros
+
+    def observe(self, seq):
+        """Count committed symbol bigrams and trigrams from one sequence.
+        The logic layer already emits this sequence at the EventBoundary; a
+        macro layer is what you get by remembering pairs of hops instead of
+        single ones. Label-free, field-free, and additive across calls."""
+        seq = [int(s) for s in seq]
+        for a, b in zip(seq, seq[1:]):
+            self.bi[(a, b)] = self.bi.get((a, b), 0) + 1
+        for a, b, c in zip(seq, seq[1:], seq[2:]):
+            self.tri.setdefault((a, b), {})
+            self.tri[(a, b)][c] = self.tri[(a, b)].get(c, 0) + 1
+        return self
+
+    def mine_observed(self, idx, top=32, min_count=8, alpha=0.05,
+                      mode="wilson"):
+        """Second-order macros: for each observed pair (a, b), the successor
+        c that actually follows it, with the macro's quality taken from the
+        SECOND-ORDER conditional P(c | a, b) rather than the matrix's
+        P(c | b). Both factors get the same Wilson treatment the one-step
+        planner uses, so a trigram seen three times cannot outrank a bigram
+        seen a thousand."""
+        g = self.graph
+        L = g.confidence(idx, alpha, mode)
+        z = g._z_for(alpha)
+        out = []
+        for (a, b), succ in self.tri.items():
+            n_ab = sum(succ.values())
+            if n_ab < min_count or a >= L.shape[0] or b >= L.shape[0]:
+                continue
+            c, c_n = max(succ.items(), key=lambda kv: kv[1])
+            if c >= L.shape[0] or c == a:
+                continue
+            q2 = _wilson_lo(c_n, n_ab, z)
+            out.append(((a, b, int(c)), float(L[a, b]) * q2, n_ab))
+        out.sort(key=lambda r: -r[2])
+        self.macros = [(p[0], p[-1], p, q) for p, q, _ in out[:top]]
+        return self.macros
+
+    # ---- planning-time use ----------------------------------------------
+    def overlay(self, Q, avoid=()):
+        """The macro edges as a quality matrix the same shape as `Q`, so a
+        planner takes `maximum(Q, overlay)` and needs no special cases: a
+        macro is just an edge that happens to expand into several."""
+        banned = {int(v) for v in avoid}
+        M = np.zeros_like(Q)
+        for src, dst, path, q in self.macros:
+            if banned & set(path) or src == dst:
+                continue
+            M[src, dst] = max(M[src, dst], q)
+        return M
+
+    def expand(self, path, Q, Qm, tol=0.0):
+        """Rewrite a plan's macro-hops back into the symbols they stand for,
+        so the returned plan is always a real walk on the base graph."""
+        if not self.macros:
+            return path
+        by_pair = {}
+        for src, dst, mpath, q in self.macros:
+            cur = by_pair.get((src, dst))
+            if cur is None or q > cur[1]:
+                by_pair[(src, dst)] = (mpath, q)
+        out = [int(path[0])]
+        for u, v in zip(path[:-1], path[1:]):
+            hit = by_pair.get((int(u), int(v)))
+            if hit is not None and Qm[u, v] > Q[u, v] + tol:
+                out += [int(s) for s in hit[0][1:]]
+            else:
+                out.append(int(v))
+        return out
+
+
+def _wilson_lo(c, n, z):
+    """Wilson score lower bound for c successes out of n, at quantile z."""
+    if n <= 0 or c <= 0:
+        return 0.0
+    p = c / n; z2 = z * z
+    lo = ((p + z2 / (2 * n) - z * math.sqrt(p * (1 - p) / n + z2 / (4 * n * n)))
+          / (1 + z2 / n))
+    return max(lo, 0.0)
+
+
+class SparseTransitions:
+    """CSR/CSC view of the logic layer's transition matrix, for field-free
+    reasoning at scale (phase 40, T6.3 lever iv).
+
+    33g measured P at 6.1% density at K=160 -- about ten live successors per
+    symbol, and out-degree does not grow with K, so the matrix gets emptier
+    the bigger the organism is. Every phase-30 reasoning op nonetheless walks
+    the dense K x K array: `normalized` gathers and divides K^2 entries and
+    `next_hops` takes K^2 logarithms before it relaxes a single edge. This
+    view pays one O(K^2) scan -- or none at all, when the caller already
+    holds a compressed store, which 33g's persistence path does
+    (`from_csr`) -- and then works over nonzeros only.
+
+    EQUIVALENCE IS THE POINT, so the ops here reproduce the dense ones'
+    arithmetic rather than merely approximating it:
+
+      `next_hops`, `plan`, `rollout`   BITWISE identical to TransitionGraph's,
+          including the RNG consumption order, whenever P holds integer
+          counts (row sums of exact integers are order-independent, so
+          summing only the nonzeros lands on the same float). With p_decay >
+          0 the counts stop being integers and the row sums become
+          order-dependent; equality is then a tolerance, not a bit.
+      `kstep`, `kstep_row`   NOT bitwise, and cannot be: skipping zeros
+          reorders a float reduction. Held to a tolerance instead, per the
+          project's standing rule for ports."""
+
+    def __init__(self, data, indices, indptr, n):
+        self.data = np.asarray(data, float)
+        self.indices = np.asarray(indices, np.int64)
+        self.indptr = np.asarray(indptr, np.int64)
+        self.n = int(n)
+        self.rowsum = np.add.reduceat(
+            np.concatenate([self.data, [0.0]]), self.indptr[:-1])
+        empty = np.diff(self.indptr) == 0
+        self.rowsum = np.where(empty, 0.0, self.rowsum)
+        self._pn = self.data / (self.rowsum[self._rows()] + 1e-9)
+        self._csc = None
+
+    # ---- construction ----------------------------------------------------
+    @classmethod
+    def from_graph(cls, graph, idx):
+        return cls.from_dense(graph.P[np.ix_(idx, idx)])
+
+    @classmethod
+    def from_dense(cls, P):
+        P = np.asarray(P, float)
+        n = P.shape[0]
+        keep = P > 0
+        counts = keep.sum(1)
+        indptr = np.zeros(n + 1, np.int64)
+        np.cumsum(counts, out=indptr[1:])
+        rows, cols = np.nonzero(keep)
+        return cls(P[rows, cols], cols, indptr, n)
+
+    @classmethod
+    def from_csr(cls, data, indices, indptr, n):
+        """Adopt an existing CSR triple -- e.g. `organism_compress`'s
+        compressed store, which already holds P exactly in this layout, so a
+        product that persists compressed never pays the dense scan at all."""
+        return cls(data, indices, indptr, n)
+
+    def _rows(self):
+        return np.repeat(np.arange(self.n), np.diff(self.indptr))
+
+    @property
+    def nnz(self):
+        return int(self.data.size)
+
+    @property
+    def density(self):
+        return self.nnz / max(self.n * self.n, 1)
+
+    def _csc_view(self):
+        """In-edges per symbol: Dijkstra relaxes backward from the goal, so
+        it needs columns, and a column of a CSR matrix is the one thing CSR
+        cannot give cheaply. Built once, reused across goals."""
+        if self._csc is None:
+            rows = self._rows()
+            order = np.argsort(self.indices, kind="stable")
+            cols = self.indices[order]
+            cindptr = np.zeros(self.n + 1, np.int64)
+            np.cumsum(np.bincount(cols, minlength=self.n), out=cindptr[1:])
+            self._csc = (rows[order], self._pn[order], cindptr)
+        return self._csc
+
+    # ---- the ops ---------------------------------------------------------
+    def row(self, i):
+        """Row i of the normalized matrix, densified. Same floats as
+        `TransitionGraph.normalized(idx)[i]`, zeros included."""
+        out = np.zeros(self.n)
+        lo, hi = int(self.indptr[i]), int(self.indptr[i + 1])
+        out[self.indices[lo:hi]] = self._pn[lo:hi]
+        return out
+
+    def next_hops(self, goal, eps=1e-12):
+        """Bitwise-equal port of `TransitionGraph.next_hops`. Same settle
+        order (the argmin scan is kept deliberately -- a heap would reorder
+        ties and stop being equal), but relaxation touches only the goal's
+        real in-edges instead of a K-long column of mostly zeros, and the
+        K^2 logarithms become nnz of them."""
+        crows, cvals, cindptr = self._csc_view()
+        n = self.n
+        dist = np.full(n, np.inf); dist[goal] = 0.0
+        nxt = np.full(n, -1, int); nxt[goal] = goal
+        done = np.zeros(n, bool)
+        for _ in range(n):
+            u = int(np.argmin(np.where(done, np.inf, dist)))
+            if not np.isfinite(dist[u]) or done[u]:
+                break
+            done[u] = True
+            lo, hi = int(cindptr[u]), int(cindptr[u + 1])
+            if hi == lo:
+                continue
+            v = crows[lo:hi]; q = cvals[lo:hi]
+            live = q > eps
+            if not live.any():
+                continue
+            v = v[live]
+            cand = dist[u] - np.log(q[live] + eps)
+            take = cand < dist[v]
+            if take.any():
+                nxt[v[take]] = u
+                dist[v[take]] = cand[take]
+        return nxt, dist
+
+    def plan(self, a, b, eps=1e-12):
+        nxt, _ = self.next_hops(b, eps)
+        return _trace(nxt, a, b)
+
+    def rollout(self, start, steps, rng):
+        """Bitwise-equal port of `TransitionGraph.rollout`, including the RNG
+        stream: the row is densified before sampling precisely so that
+        `rng.choice` sees the same length and the same probabilities and
+        therefore draws the same trajectory. What is saved is the O(K^2)
+        normalize the dense op does up front, not the per-step draw."""
+        seq = []; cur = int(start)
+        for _ in range(steps):
+            row = self.row(cur); s = row.sum()
+            if s <= 0:
+                break
+            cur = int(rng.choice(self.n, p=row / s))
+            seq.append(cur)
+        return np.array(seq, int)
+
+    def rollout_pruned(self, start, steps, rng):
+        """Sampling restricted to the real successors -- O(out-degree) per
+        step instead of O(K). NOT a port: it consumes the RNG differently, so
+        it produces a different (equally valid) trajectory from the same
+        seed. Measured separately for exactly that reason; nothing that has
+        to reproduce a committed sequence may use it."""
+        seq = []; cur = int(start)
+        for _ in range(steps):
+            lo, hi = int(self.indptr[cur]), int(self.indptr[cur + 1])
+            if hi == lo:
+                break
+            w = self._pn[lo:hi]; s = w.sum()
+            if s <= 0:
+                break
+            cur = int(self.indices[lo + rng.choice(hi - lo, p=w / s)])
+            seq.append(cur)
+        return np.array(seq, int)
+
+    def matvec_left(self, v):
+        """v @ Pn, over nonzeros only."""
+        rows = self._rows()
+        return np.bincount(self.indices, weights=v[rows] * self._pn,
+                           minlength=self.n)
+
+    def kstep_row(self, start, k):
+        """Where a symbol lands k hops out -- one row of `kstep`, which is
+        the query a planner or a diagnostic actually asks. O(k * nnz) against
+        the dense op's O(k * K^3): the dense layer has no way to ask this
+        question without building the whole matrix first."""
+        v = np.zeros(self.n); v[int(start)] = 1.0
+        for _ in range(int(k)):
+            v = self.matvec_left(v)
+        return v
+
+    def kstep(self, k, block=256):
+        """Full k-step matrix, sparse-times-dense in column blocks so the
+        nnz x K intermediate never materializes at corpus K."""
+        out = np.zeros((self.n, self.n))
+        for i in range(self.n):
+            lo, hi = int(self.indptr[i]), int(self.indptr[i + 1])
+            out[i, self.indices[lo:hi]] = self._pn[lo:hi]
+        if k == 1:
+            return out
+        rows = self._rows()
+        res = out
+        for _ in range(int(k) - 1):
+            nxt = np.zeros((self.n, self.n))
+            for c0 in range(0, self.n, block):
+                B = res[:, c0:c0 + block]
+                prod = self._pn[:, None] * B[self.indices]
+                seg = np.add.reduceat(prod, self.indptr[:-1], axis=0)
+                nz = np.diff(self.indptr) > 0
+                nxt[nz, c0:c0 + B.shape[1]] = seg[nz]
+            res = nxt
+        return res
 
 
 class SymbolRegistry:
