@@ -746,7 +746,7 @@ Standing rules apply unchanged, plus two lessons this project paid for:
 grid-selected claim** (T1.6/T1.8/T1.9), and **reseed the baseline on the
 same split** — an unpaired fixed-seed baseline is a bug (T1.9).
 
-### T6.1 — Task-free continual learning (phase 38)  `[claimed: —]`
+### T6.1 — Task-free continual learning (phase 38)  `[claimed: claude/agent-target-open-items-uyyq8o, 2026-08-08 — phase number 38 reserved]`
 - **Why this first**: the split-digits ladder hands every learner explicit
   task boundaries — the one thing the organism does not need and every
   gradient arm does. EWC needs boundaries to snapshot Fisher information;
