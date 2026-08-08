@@ -846,7 +846,7 @@ same split** — an unpaired fixed-seed baseline is a bug (T1.9).
 - **Done when** (plus protocol section C): `phase41_*.py` end-to-end (detect → split → score);
   matched-capacity control arm present; reseeded; ROADMAP row.
 
-### T6.5 — Performance re-baseline & profile (phase 42 / E5)  `[claimed: —]`
+### T6.5 — Performance re-baseline & profile (phase 42 / E5)  `[claimed: claude/phase-42-perf-rebaseline-8v80kw, 2026-08-08 — phase number 42 reserved]`
 - **Objective**: every performance number on record predates compression
   (33g), the symbol registry (T3.3), and the 5M-word corpus (phase 27).
   Re-measure and re-profile: `e2_benchmark.py` at current shapes and with
