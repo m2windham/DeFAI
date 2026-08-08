@@ -93,7 +93,61 @@ SCOPE AND METHOD NOTES
   region (compile cost is reported separately, once).
 
 Run: python phase42_perf_rebaseline.py [part ...]
-     parts: bench micro csr harness nulls   (default: all)
+     parts: shapes bench micro csr harness nulls levers   (default: all)
+
+--------------------------------------------------------------------------
+MEASURED OUTCOME (2026-08-08; 4-core Linux host, numpy 2.4.6 / numba 0.66.0;
+full numbers and their scope sentences in ROADMAP row 42)
+--------------------------------------------------------------------------
+FIRST, THE MISSES.
+
+(a) MISSED AS WRITTEN, and the honest-negative branch fired. The pinned 58K
+    frames/s was not reached: four full-load runs at the phase-23 shape gave
+    43.8 / 50.1 / 51.4 / 54.3K (median ~51K, 1.50-1.86 min for the 3-epoch
+    load vs the pinned 1.40). The branch required localizing it rather than
+    blaming the host, so a same-host, interleaved, six-round A/B was run
+    across THREE trees -- current, pre-T3.3 (7e0b639~1), pre-33g (92e9cc9~1)
+    -- on identical work: medians 49.8 / 50.1 / 50.6K, indistinguishable.
+    The registry costs -2.4% (median, ON vs OFF, base `Organism` both arms)
+    against a 17% within-arm spread, and a complex64 store costs +3.6%
+    against a 4% spread; both are INSIDE the noise. So there is no
+    tree-attributable regression -- but the real finding is sharper than
+    "the host was slow": this host spans 43.7-58.2K on bit-identical work,
+    a +-20% band that STRADDLES the pin. A single absolute throughput number
+    cannot function as a regression detector. Use the same-session A/B.
+
+(b) FALSIFIED, and the pre-registered DEFER branch is the answer. Nulls are
+    22.4% of phase-27 wall-clock (265s of 1184s), not the >= 50% that would
+    have justified E4: stage B 163s (169s observed minus 5.8s of measured
+    k-means/silhouette) + stage C 102s. Amdahl ceiling with nulls made FREE
+    is 1.29x on TOTAL corpus-tier time; E4's full named scope (nulls plus
+    all-pairs similarity, i.e. coverage_map's 105s) reaches 31.3% and a
+    1.45x ceiling. The bill is stage A perceive: 785s = 66.3%, which E4
+    explicitly does not target. **E4: DEFER.**
+
+(c) CONFIRMED, on the same host rather than across hosts: the 27-check tree
+    (15cfa65) and the 65-check tree cost numpy 82.2s vs 101.0s (1.23x) and
+    numba 12.4-13.5s vs 12.5-12.7s (~1.00x) for 2.41x the checks. T1.8's and
+    T3.3's 34 new checks add 8.5s numpy / 0.7s numba. No tiering needed.
+
+WHERE THE TIME ACTUALLY GOES (the thing that had never been profiled): at
+K=1580/N=50 the frame is 14 614 ns -- overlap matvec 10 927 (75%), free-slot
+scan + refine 2 135 (15%), argmax 1 441 (10%), the fused z update 111 (0.8%).
+So the 2026-07 hypothesis survives: the matvec is still the bound. One
+correction to the E2 row's wording, though: at these shapes the operand is
+1.2 MB and therefore CACHE-resident, so the bound is cache bandwidth
+(84-94 GB/s effective), not DRAM -- which is why narrowing the operand pays.
+
+THE SHORTLIST IS PRICED, NOT ARGUED (part 6). The two biggest wins are
+algorithmic, CPU-only, and exact -- and they delete most of E4's own
+premise: stage B's null is `G^T W G` over precomputed word-pair counts
+(bit-identical contingency tables, max diff 0.0, 282.6s -> 0.18s), and
+stage C's null is a multivariate-hypergeometric draw of the same table,
+O(k^2) instead of O(n) (p99 agreement to 3 significant figures at n = 3 340
+/ 37 495 / 259 324; 4.0x / 41.3x / 255x). Together they take the 265s of
+null work to under 10s. Narrowing the matvec operand to complex64 is worth
+1.48-1.77x on the matvec, but compute width is pinned at complex128 on
+purpose and this phase only prices it -- it does not propose taking it.
 """
 
 import gc
@@ -165,12 +219,21 @@ def stream_of(emb_c, seq, hold, n_tokens=None):
 
 
 def time_perceive(shape, emb_c, seq, backend, n_tokens, epochs, K=None,
-                  symbols=False, org=None):
-    """Wall-clock one perceive load. Returns (organism, seconds, frames)."""
+                  symbols=None, org=None):
+    """Wall-clock one perceive load. Returns (organism, seconds, frames).
+
+    `symbols=None` builds the `PolysemyOrganism` e2_benchmark uses (which
+    does not forward the T3.3 registry flag); `symbols=True/False` builds a
+    base `Organism`, the only class that takes the flag -- so the registry
+    tax is measured Organism-vs-Organism, never across classes."""
     K = K or shape["K_CAP"]
     if org is None:
-        org = PolysemyOrganism(N=shape["DIM"], K=K, omega=0.15, beta=10.0,
-                               seed=0, backend=backend, symbols=symbols)
+        if symbols is None:
+            org = PolysemyOrganism(N=shape["DIM"], K=K, omega=0.15, beta=10.0,
+                                   seed=0, backend=backend)
+        else:
+            org = Organism(N=shape["DIM"], K=K, omega=0.15, beta=10.0,
+                           seed=0, backend=backend, symbols=symbols)
     gc.collect()
     t0 = time.perf_counter()
     for _ in range(epochs):
@@ -240,9 +303,11 @@ def part_bench():
 
     # --- registry / compressed-store taxes on the SAME shape and stream
     if fastpath.HAVE_NUMBA:
-        print("--- T3.3 / T1.8 tax check (phase-23 shape, 100K tokens, numba)")
+        print("--- T3.3 registry tax (phase-23 shape, 100K tokens, numba, "
+              "base Organism both arms)")
         emb_c, seq = make_corpus(S23)
-        _, t_off, f_off = time_perceive(S23, emb_c, seq, "numba", 100_000, 1)
+        _, t_off, f_off = time_perceive(S23, emb_c, seq, "numba", 100_000, 1,
+                                        symbols=False)
         _, t_on, _ = time_perceive(S23, emb_c, seq, "numba", 100_000, 1,
                                    symbols=True)
         print(f"  registry OFF : {f_off / t_off / 1e3:>5.1f}K frames/s  ({t_off:.1f}s)")
@@ -302,7 +367,11 @@ def part_micro():
         mv = n_it / (time.perf_counter() - t0)
         # bytes touched per matvec: the K x N complex128 operand dominates
         gbs = mv * K * N * 16 / 1e9
+        # measured frame rate for this shape: from part 1 if it ran in this
+        # process, else from P42_RATES (part 1's committed numbers)
         fr = OUT.get("bench", {}).get(shape["name"], {}).get("numba_rate")
+        if fr is None and os.environ.get("P42_RATES"):
+            fr = json.loads(os.environ["P42_RATES"]).get(shape["name"])
         ratio = (mv / fr) if fr else float("nan")
         print(f"  {shape['name']:>10}  {K:>6}  {N:>4}  {mv / 1e3:>9.1f}K  "
               f"{(fr or 0) / 1e3:>9.1f}K  {ratio:>12.2f}x  {gbs:>7.1f}")
@@ -314,6 +383,103 @@ def part_micro():
           "rest of the\n  loop (argmax scan, free-slot scan, the fused z "
           "update, recruit/refine)\n  costs more than the matvec it was "
           "assumed to be dominated by.")
+
+    # --- kernel ladder: add one piece of the real frame at a time, in the
+    # order `_perceive_chunk` executes them, and measure the marginal cost.
+    # Same shapes, same dtypes, JIT-compiled the same way -- the point is the
+    # DELTAS between rungs, which are the per-component frame budget.
+    if fastpath.HAVE_NUMBA:
+        from numba import njit
+
+        @njit(cache=True, fastmath=True)
+        def _rung(frames, xi, xic, used, z, omega, dt, g_in, norm, rung):
+            K, N = xi.shape
+            best_acc = 0.0
+            for t in range(frames.shape[0]):
+                x = frames[t]
+                if rung >= 1:                     # the fused z update
+                    s = 0.0
+                    for i in range(N):
+                        zi = z[i]
+                        zi = zi + dt * (1j * omega * zi + g_in * (x[i] - zi))
+                        z[i] = zi
+                        s += zi.real * zi.real + zi.imag * zi.imag
+                    sc = norm / (np.sqrt(s) + 1e-9)
+                    for i in range(N):
+                        z[i] *= sc
+                if rung >= 2:                     # the K x N overlap matvec
+                    o = np.dot(xic, z)
+                    if rung >= 3:                 # squared-magnitude argmax
+                        k = 0
+                        best = -1.0
+                        for k2 in range(K):
+                            m2 = o[k2].real * o[k2].real + o[k2].imag * o[k2].imag
+                            if m2 > best:
+                                best = m2
+                                k = k2
+                        best_acc += best
+                        if rung >= 4:             # free-slot scan + refine
+                            f = -1
+                            for k2 in range(K):
+                                if not used[k2]:
+                                    f = k2
+                                    break
+                            ok = o[k]
+                            z_al = z * np.exp(-1j * np.arctan2(ok.imag, ok.real))
+                            acc = xi[k] + 0.02 * (z_al - xi[k])
+                            s2 = 0.0
+                            for i in range(N):
+                                s2 += acc[i].real * acc[i].real + acc[i].imag * acc[i].imag
+                            sc2 = norm / (np.sqrt(s2) + 1e-9)
+                            for i in range(N):
+                                xi[k, i] = acc[i] * sc2
+                                xic[k, i] = np.conj(xi[k, i])
+                            best_acc += f
+                    else:
+                        best_acc += o[0].real
+            return best_acc
+
+        print("\n--- kernel ladder: marginal cost of each frame component "
+              "(numba, DIM=50)")
+        print(f"  {'K':>6}  {'rung':>34}  {'ns/frame':>9}  {'marginal':>9}  "
+              f"{'share':>6}")
+        ladder = {}
+        names = {0: "stream read only",
+                 1: "+ fused z update (O(N))",
+                 2: "+ K x N overlap matvec",
+                 3: "+ squared-magnitude argmax (O(K))",
+                 4: "+ free-slot scan & refine (O(K+N))"}
+        for K in (S27["K_CAP"], S23["K_CAP"]):
+            rgen = np.random.default_rng(11)
+            nf = 40_000
+            frames = np.ascontiguousarray(
+                (rgen.standard_normal((nf, 50)) + 1j * rgen.standard_normal((nf, 50))))
+            xi0 = np.ascontiguousarray(
+                (rgen.standard_normal((K, 50)) + 1j * rgen.standard_normal((K, 50))))
+            prev = None
+            ladder[K] = {}
+            for rung in range(5):
+                xi = xi0.copy()
+                xic = np.conj(xi).copy()
+                used = np.ones(K, np.bool_)
+                used[-1] = False
+                z = np.ascontiguousarray(rgen.standard_normal(50)
+                                         + 1j * rgen.standard_normal(50))
+                _rung(frames[:200], xi, xic, used, z, 0.15, 0.05, 5.0,
+                      np.sqrt(50.0), rung)      # compile
+                gc.collect()
+                t0 = time.perf_counter()
+                _rung(frames, xi, xic, used, z, 0.15, 0.05, 5.0,
+                      np.sqrt(50.0), rung)
+                ns = (time.perf_counter() - t0) / nf * 1e9
+                marg = ns - prev if prev is not None else ns
+                ladder[K][names[rung]] = ns
+                prev = ns
+                print(f"  {K:>6}  {names[rung]:>34}  {ns:>9.0f}  "
+                      f"{marg:>9.0f}  {100 * marg / ns:>5.0f}%")
+            prev = None
+            print()
+        res["ladder"] = {str(k): v for k, v in ladder.items()}
 
     # --- numpy-side profile: function-level attribution on the reference path
     print("\n--- cProfile, numpy backend, phase-23 shape, 8K tokens "
@@ -387,34 +553,51 @@ def part_csr():
         # promotes a narrowed store to complex128 on entry and restores it on
         # exit (the T1.8 dtype guard) -- a per-call O(K*N) copy, plus P has to
         # be dense for the kernel's in-place row/column writes.
-        org_c = PolysemyOrganism(N=S23["DIM"], K=K, omega=0.15, beta=10.0,
+        # What does perceiving FROM a compressed store cost? `Organism.perceive`
+        # promotes a narrowed store to complex128 on entry and restores it on
+        # exit (the T1.8 dtype guard) -- an O(K*N) copy per CALL, not per frame.
+        # Both arms start from the SAME state (the narrow arm's store is just
+        # round-tripped through c64) and the two are INTERLEAVED across reps,
+        # because this host's run-to-run spread is larger than the effect.
+        def _fresh(narrow):
+            o = PolysemyOrganism(N=S23["DIM"], K=K, omega=0.15, beta=10.0,
                                  seed=0, backend=backend)
-        cs.apply(org_c)
-        print(f"  store after apply(): xi {org_c.xi.dtype}, P {org_c.P.dtype} "
-              f"{'dense' if isinstance(org_c.P, np.ndarray) else type(org_c.P).__name__}")
-        gc.collect()
-        t0 = time.perf_counter()
-        org_c.perceive(stream_of(emb_c, seq, S23["HOLD"], 40_000), g_in=5.0,
+            o.xi = (org.xi.astype(np.complex64) if narrow else org.xi.copy())
+            o.used = org.used.copy()
+            o.P = org.P.copy()
+            return o
+
+        def _one(narrow, n_tok=40_000):
+            o = _fresh(narrow)
+            gc.collect()
+            t0 = time.perf_counter()
+            o.perceive(stream_of(emb_c, seq, S23["HOLD"], n_tok), g_in=5.0,
                        dt=0.05, eta=0.02, recruit=S23["recruit"])
-        t_narrow = time.perf_counter() - t0
-        org_w = PolysemyOrganism(N=S23["DIM"], K=K, omega=0.15, beta=10.0,
-                                 seed=0, backend=backend)
-        org_w.xi = org.xi.copy()
-        org_w.used = org.used.copy()
-        org_w.P = org.P.copy()
-        gc.collect()
-        t0 = time.perf_counter()
-        org_w.perceive(stream_of(emb_c, seq, S23["HOLD"], 40_000), g_in=5.0,
-                       dt=0.05, eta=0.02, recruit=S23["recruit"])
-        t_wide = time.perf_counter() - t0
+            return time.perf_counter() - t0
+
+        _one(False, 2_000)
+        wide, narrow = [], []
+        for _ in range(5):
+            wide.append(_one(False))
+            narrow.append(_one(True))
         f = 40_000 * S23["HOLD"]
-        print(f"  perceive 160K frames from a complex128 store: {t_wide:.2f}s "
-              f"({f / t_wide / 1e3:.1f}K frames/s)")
-        print(f"  perceive 160K frames from a complex64  store: {t_narrow:.2f}s "
-              f"({f / t_narrow / 1e3:.1f}K frames/s)  "
-              f"tax {100 * (t_narrow / t_wide - 1):+.1f}%")
-        res["perceive_wide_rate"] = f / t_wide
-        res["perceive_narrow_rate"] = f / t_narrow
+        mw, mn = float(np.median(wide)), float(np.median(narrow))
+        print(f"  store dtype on entry: complex64 -> promoted, restored on exit "
+              f"(the T1.8 guard); P must be dense for the kernel's in-place writes")
+        print(f"  perceive {f // 1000}K frames, complex128 store: median {mw:.2f}s "
+              f"({f / mw / 1e3:.1f}K frames/s)  reps "
+              f"{' '.join(f'{t:.2f}' for t in sorted(wide))}")
+        print(f"  perceive {f // 1000}K frames, complex64  store: median {mn:.2f}s "
+              f"({f / mn / 1e3:.1f}K frames/s)  reps "
+              f"{' '.join(f'{t:.2f}' for t in sorted(narrow))}")
+        spread = (max(wide) - min(wide)) / mw
+        print(f"  median difference {100 * (mn / mw - 1):+.1f}%, against a "
+              f"within-arm spread of {100 * spread:.0f}% -- "
+              f"{'INSIDE the noise' if abs(mn / mw - 1) < spread else 'outside the noise'}")
+        res["perceive_wide_rate"] = f / mw
+        res["perceive_narrow_rate"] = f / mn
+        res["wide_reps"] = wide
+        res["narrow_reps"] = narrow
 
     # consolidate + recall at this K, the other two hot paths
     print("\n--- the other two hot paths at this K")
@@ -458,18 +641,15 @@ def part_harness():
     rows = {}
     total0 = time.perf_counter()
     for name, fn in sections:
-        n0 = len(rh.FAILURES)
-        c0 = getattr(rh, "_N_CHECKS", None)
-        buf = []
-        real_print = __builtins__["print"] if isinstance(__builtins__, dict) \
-            else __builtins__.print
         gc.collect()
         t0 = time.perf_counter()
         fn()
         dt = time.perf_counter() - t0
         rows[name] = dt
-        del n0, c0, buf, real_print
     total = time.perf_counter() - total0
+    if rh.FAILURES:
+        print(f"  !! {len(rh.FAILURES)} harness checks FAILED during timing: "
+              f"{rh.FAILURES}")
     # count checks per section by re-reading the harness source (cheap, exact
     # enough for the tiering question: a section's check() call sites)
     src = open(rh.__file__).read()
@@ -495,20 +675,18 @@ def part_nulls():
           "word's own\noccurrence pairs. Both are pure-numpy statistics over "
           "arrays whose sizes\ncome from the phase-27 run itself.\n")
 
-    # ---- shapes from the phase-27 corpus (recomputed here, not assumed)
-    n_pairs = int(os.environ.get("P42_NPAIRS", "0"))
-    word_ns = None
-    stats_path = "/tmp/phase42_p27_shapes.json"
-    if os.path.exists(stats_path):
-        with open(stats_path) as f:
-            d = json.load(f)
-        n_pairs, word_ns = d["n_pairs"], d["word_ns"]
-        print(f"  using phase-27 shapes recorded at {stats_path}: "
-              f"{n_pairs} category-bigram pairs, "
-              f"{len(word_ns)} candidate words with n>=100\n")
-    if not n_pairs:
-        print("  (no phase-27 shape file; run tools/p42_shapes first)")
+    # ---- shapes from the phase-27 corpus, extracted exactly by part `shapes`
+    stats_path = os.environ.get("P42_SHAPES", "/tmp/phase42_p27_shapes.json")
+    if not os.path.exists(stats_path):
+        print(f"  no phase-27 shape file at {stats_path} -- run the `shapes` "
+              f"part first (needs the corpus + stage-A checkpoint)")
         return
+    with open(stats_path) as f:
+        d = json.load(f)
+    n_pairs, word_ns, V_COV = d["n_pairs"], d["word_ns"], d["v_cov"]
+    print(f"  phase-27 shapes (measured, not assumed): {n_pairs} "
+          f"category-bigram pairs over {V_COV} covered words; "
+          f"{len(word_ns)} candidate words with n>=100\n")
 
     K_CATS = 2                     # phase 27's selected k
 
@@ -518,10 +696,12 @@ def part_nulls():
 
     rng = np.random.default_rng(7)
 
-    # ---- stage B null: one MI over the full pair-space array
-    labels = rng.integers(0, K_CATS, size=n_pairs)
-    pred_arr = rng.integers(0, len(labels), size=n_pairs)
-    succ_arr = rng.integers(0, len(labels), size=n_pairs)
+    # ---- stage B null: shuffle the per-WORD label vector (length V_COV),
+    # then gather it through the pair-space index arrays (length n_pairs) --
+    # phase 27's own construction, so the cost model is its cost, not a proxy.
+    labels = rng.integers(0, K_CATS, size=V_COV)
+    pred_arr = rng.integers(0, V_COV, size=n_pairs)
+    succ_arr = rng.integers(0, V_COV, size=n_pairs)
 
     def cat_bigram(lab, k):
         lp, ls = lab[pred_arr], lab[succ_arr]
@@ -534,7 +714,9 @@ def part_nulls():
             term = p * np.log2(p / (pi @ pj + 1e-300) + 1e-300)
         return float(term[p > 0].sum())
 
-    n_rep = 20
+    n_rep = 100
+    for _ in range(5):
+        mutual_information(cat_bigram(rng.permutation(labels), K_CATS))
     gc.collect()
     t0 = time.perf_counter()
     for _ in range(n_rep):
@@ -542,7 +724,23 @@ def part_nulls():
     per_b = (time.perf_counter() - t0) / n_rep
     b_total = per_b * 500 * 11
     print(f"  stage B: one MI null at {n_pairs} pairs = {per_b * 1e3:.1f} ms "
-          f"-> 11 k x 500 shuffles = {b_total:.0f}s")
+          f"-> 11 k x 500 shuffles = {b_total:.0f}s (modelled)")
+
+    # The model is only used to ATTRIBUTE; the authoritative stage-B number is
+    # the observed one, and the non-null part of stage B is measured directly
+    # (k-means + silhouette at the real profile shape) so nulls come out by
+    # subtraction rather than by extrapolation.
+    from polysemy_organism import _kmeans_real, _silhouette_real
+    prof = np.random.default_rng(0).standard_normal((V_COV, 2 * V_COV))
+    prof /= np.linalg.norm(prof, axis=1, keepdims=True) + 1e-9
+    t_nonnull = 0.0
+    for k in range(2, 13):
+        t0 = time.perf_counter()
+        lab_k, _ = _kmeans_real(prof, k, seed=3)
+        _silhouette_real(prof, lab_k)
+        t_nonnull += time.perf_counter() - t0
+    print(f"  stage B: k-means + silhouette, k=2..12 at the real ({V_COV} x "
+          f"{2 * V_COV}) profile shape = {t_nonnull:.1f}s NON-null")
 
     # ---- stage C null: per-word, over that word's occurrence pairs
     def cond_gain(pred, succ):
@@ -577,16 +775,323 @@ def part_nulls():
     print(f"  stage C: 500 shuffles x {len(word_ns)} words "
           f"(sum n = {sum(word_ns)}) = {c_total:.0f}s")
 
-    OUT["nulls"] = dict(n_pairs=n_pairs, stage_b_s=b_total, stage_c_s=c_total,
-                        per_b_ms=per_b * 1e3, n_words=len(word_ns),
-                        sum_n=int(sum(word_ns)))
-    print(f"\n  permutation-null total (B + C) = {b_total + c_total:.0f}s")
-    print("  -> compared against the phase-27 run's total wall-clock in the "
-          "verdict below.")
+    # --- the verdict, against the OBSERVED phase-27 stage wall-clock
+    obs = dict(total=1184, stage_a_perceive=785, stage_a_coverage=105,
+               stage_b=169, stage_c=102, stage_d=3, corpus_emb=20)
+    b_nulls = obs["stage_b"] - t_nonnull
+    c_nulls = obs["stage_c"]          # stage C is 500 nulls per 1 real gain
+    nulls = b_nulls + c_nulls
+    frac = nulls / obs["total"]
+    print(f"\n  OBSERVED phase-27 wall-clock, this host, this run "
+          f"(total {obs['total']}s):")
+    for k, v in (("corpus load + PPMI/SVD embeddings", obs["corpus_emb"]),
+                 ("stage A perceive (3 epochs)", obs["stage_a_perceive"]),
+                 ("stage A consolidate + coverage_map", obs["stage_a_coverage"]),
+                 ("stage B categories (incl. 5500 MI nulls)", obs["stage_b"]),
+                 ("stage C per-word nulls (354 x 500)", obs["stage_c"]),
+                 ("stage D generation", obs["stage_d"])):
+        print(f"    {k:<44} {v:>5}s  {100 * v / obs['total']:>5.1f}%")
+    print(f"\n  permutation-null work = {b_nulls:.0f}s (stage B, by subtraction) "
+          f"+ {c_nulls}s (stage C) = {nulls:.0f}s = {100 * frac:.1f}% of total")
+    ceiling = obs["total"] / (obs["total"] - nulls)
+    print(f"  pre-registered rule: >= 50% -> E4 GO, < 50% -> E4 DEFER  ->  "
+          f"{'GO' if frac >= 0.5 else 'DEFER'}")
+    print(f"  Amdahl ceiling on TOTAL corpus-tier wall-clock with nulls made "
+          f"FREE: {ceiling:.2f}x")
+    allpairs = nulls + obs["stage_a_coverage"]
+    print(f"  E4's full named scope (nulls + all-pairs similarity: "
+          f"coverage_map's {obs['stage_a_coverage']}s) = "
+          f"{100 * allpairs / obs['total']:.1f}% -> ceiling "
+          f"{obs['total'] / (obs['total'] - allpairs):.2f}x")
+    print(f"  the actual bill: stage A perceive, {obs['stage_a_perceive']}s = "
+          f"{100 * obs['stage_a_perceive'] / obs['total']:.1f}% -- explicitly "
+          f"NOT a GPU target (sequential over the stream)")
+    OUT["nulls"] = dict(n_pairs=n_pairs, stage_b_modelled=b_total,
+                        stage_b_nonnull=t_nonnull, stage_b_nulls=b_nulls,
+                        stage_c_modelled=c_total, stage_c_nulls=c_nulls,
+                        null_frac=frac, amdahl=ceiling, observed=obs,
+                        n_words=len(word_ns), sum_n=int(sum(word_ns)))
 
 
-PARTS = dict(bench=part_bench, micro=part_micro, csr=part_csr,
-             harness=part_harness, nulls=part_nulls)
+# ======================================================================
+# PART 0 -- exact phase-27 null shapes, from the corpus + stage-A checkpoint
+# ======================================================================
+def part_shapes():
+    """Extract the two array shapes phase 27's permutation nulls actually run
+    at, from the real corpus and the real stage-A organism -- so part 5's
+    cost model is calibrated on measured sizes rather than estimates.
+
+    Deliberately duplicates phase 27's corpus prep and `coverage_map` rather
+    than importing them: `phase27_5m_word_scale_run.py` has no __main__ guard
+    (importing it would re-run the whole 21-minute phase), and this script is
+    not allowed to edit it."""
+    hdr("PART 0 -- phase-27 permutation-null shapes (exact)")
+    import glob
+    import re
+    from collections import Counter
+    import organism_state
+
+    corpus_dir = os.environ.get("P42_CORPUS", "/tmp/gutenberg_corpus_5m")
+    ckpt = os.environ.get("P42_CKPT", "/tmp/phase27_stageA_checkpoint.npz")
+    if not glob.glob(f"{corpus_dir}/*.txt") or not os.path.exists(ckpt):
+        print(f"  need corpus at {corpus_dir} and stage-A checkpoint at {ckpt}")
+        return
+
+    g_start = re.compile(r"\*\*\*\s*START OF (THE|THIS) PROJECT GUTENBERG EBOOK.*?\*\*\*",
+                         re.IGNORECASE | re.DOTALL)
+    g_end = re.compile(r"\*\*\*\s*END OF (THE|THIS) PROJECT GUTENBERG EBOOK.*",
+                       re.IGNORECASE | re.DOTALL)
+    all_text = []
+    for path in sorted(glob.glob(f"{corpus_dir}/*.txt")):
+        with open(path, encoding="utf-8", errors="replace") as f:
+            text = f.read()
+        m_s, m_e = g_start.search(text), g_end.search(text)
+        all_text.append(text[m_s.end() if m_s else 0:
+                             m_e.start() if m_e else len(text)])
+    raw_tokens = re.findall(r"[a-zA-Z']+", "\n".join(all_text).lower())
+    MIN_COUNT = 1500
+    counts = Counter(raw_tokens)
+    vocab = sorted([w for w, c in counts.items() if c >= MIN_COUNT])
+    w2i = {w: i for i, w in enumerate(vocab)}
+    train_seq = [w2i[w] for w in raw_tokens if w in w2i]
+    N_WORDS, DIM = len(vocab), 50
+    print(f"  corpus: {len(raw_tokens)} raw, {len(train_seq)} in-vocab, "
+          f"V={N_WORDS}")
+
+    # embeddings: phase 27's recipe, needed only to re-run coverage_map
+    WINDOW = 4
+    cooc = np.zeros((N_WORDS, N_WORDS))
+    for i, w in enumerate(train_seq):
+        for j in range(max(0, i - WINDOW), min(len(train_seq), i + WINDOW + 1)):
+            if j != i:
+                cooc[w, train_seq[j]] += 1.0
+    tot = cooc.sum()
+    with np.errstate(divide='ignore', invalid='ignore'):
+        pmi = np.log((cooc * tot) / (cooc.sum(1, keepdims=True)
+                                     @ cooc.sum(0, keepdims=True) + 1e-12) + 1e-12)
+    U, S, _ = np.linalg.svd(np.maximum(pmi, 0.0), full_matrices=False)
+    DIM = min(50, U.shape[1])
+    emb = U[:, :DIM] * np.sqrt(S[:DIM])
+    emb /= (np.linalg.norm(emb, axis=1, keepdims=True) + 1e-9)
+    emb_c = emb.astype(complex)
+
+    org = organism_state.load_state(ckpt, cls=PolysemyOrganism)
+    t0 = time.perf_counter()
+    org.consolidate(merge_thresh=0.84, prune_frac=0.0005)
+    t_cons = time.perf_counter() - t0
+    n_mem = org.mem.shape[0]
+    train_arr = np.array(train_seq)
+    assigns = np.empty(len(train_seq), dtype=np.int64)
+    t0 = time.perf_counter()
+    for i in range(0, len(train_seq), 50_000):
+        states = emb_c[train_arr[i:i + 50_000]]
+        assigns[i:i + 50_000] = np.abs((org.mem.conj() @ states.T) / DIM).argmax(0)
+    t_cov = time.perf_counter() - t0
+    slot_word = {}
+    for k in range(n_mem):
+        members = train_arr[assigns == k]
+        if len(members):
+            slot_word[k] = int(np.bincount(members, minlength=N_WORDS).argmax())
+    covered = sorted(set(slot_word.values()))
+    cidx = {w: i for i, w in enumerate(covered)}
+    pair_seq = [cidx[w] for w in train_seq if w in cidx]
+    n_pairs = len(pair_seq) - 1
+    print(f"  stage A checkpoint: {n_mem} memories, coverage "
+          f"{len(covered)}/{N_WORDS}   (consolidate {t_cons:.1f}s, "
+          f"coverage_map {t_cov:.1f}s)")
+    print(f"  stage B null runs on: {len(covered)}-element label vector "
+          f"gathered through {n_pairs} pair-space indices")
+
+    # stage C: per-word occurrence-pair counts, phase 27's own filter
+    cov_set = set(covered)
+    n_by_word = np.zeros(N_WORDS, dtype=np.int64)
+    ts = train_arr
+    inner = ts[1:-1]
+    ok = np.isin(ts[:-2], list(cov_set)) & np.isin(ts[2:], list(cov_set))
+    for w in range(N_WORDS):
+        n_by_word[w] = int(((inner == w) & ok).sum())
+    word_ns = [int(n) for n in n_by_word if n >= 100]
+    print(f"  stage C null runs on: {len(word_ns)} words with n>=100, "
+          f"sum n = {sum(word_ns)}, max n = {max(word_ns)}")
+
+    dest = os.environ.get("P42_SHAPES", "/tmp/phase42_p27_shapes.json")
+    with open(dest, "w") as f:
+        json.dump(dict(n_pairs=n_pairs, v_cov=len(covered), word_ns=word_ns,
+                       n_mem=n_mem, consolidate_s=t_cons, coverage_map_s=t_cov),
+                  f)
+    print(f"  -> {dest}")
+    OUT["shapes"] = dict(n_pairs=n_pairs, v_cov=len(covered),
+                         n_words=len(word_ns), sum_n=int(sum(word_ns)),
+                         n_mem=n_mem, consolidate_s=t_cons, coverage_map_s=t_cov)
+
+
+# ======================================================================
+# PART 6 -- price the shortlist: measure the levers, don't estimate them
+# ======================================================================
+def part_levers():
+    """Three candidate optimizations, measured rather than argued. Nothing
+    here is APPLIED -- this phase does not touch a mechanism file; the point
+    is to rank the shortlist by measured payoff so whoever takes the work has
+    numbers to start from."""
+    hdr("PART 6 -- shortlist levers, priced")
+    res = {}
+
+    # ---- lever 1: matvec operand width (the 75%-of-frame component)
+    print("LEVER 1 -- overlap-matvec operand width at corpus K.")
+    print("  The matvec is cache-resident at these shapes (a 1.2 MB operand), "
+          "so its\n  rate tracks operand BYTES. Compute width is deliberately "
+          "pinned at\n  complex128 by `Organism.perceive`'s dtype guard -- this "
+          "prices what\n  narrowing it would buy, it does NOT propose narrowing "
+          "it silently.\n")
+    lev1 = {}
+    for K, N in ((S23["K_CAP"], S23["DIM"]), (S27["K_CAP"], S27["DIM"])):
+        rng = np.random.default_rng(1)
+        A = np.ascontiguousarray(rng.standard_normal((K, N))
+                                 + 1j * rng.standard_normal((K, N)))
+        z = np.ascontiguousarray(rng.standard_normal(N)
+                                 + 1j * rng.standard_normal(N))
+        row = {}
+        for dt, lab in ((np.complex128, "complex128"), (np.complex64, "complex64")):
+            Ad, zd = A.astype(dt), z.astype(dt)
+            out = np.empty(K, dtype=dt)
+            for _ in range(500):
+                np.dot(Ad, zd, out=out)
+            gc.collect()
+            t0 = time.perf_counter()
+            for _ in range(30_000):
+                np.dot(Ad, zd, out=out)
+            r = 30_000 / (time.perf_counter() - t0)
+            row[lab] = r
+            print(f"  K={K} N={N} {lab:>10}: {r / 1e3:>7.1f}K matvec/s  "
+                  f"({Ad.nbytes / 1024:.0f} KB operand)")
+        print(f"  -> narrowing would buy {row['complex64'] / row['complex128']:.2f}x "
+              f"on the matvec alone\n")
+        lev1[K] = row
+    res["matvec_width"] = {str(k): v for k, v in lev1.items()}
+
+    # ---- lever 2: stage-B MI null by precomputed word-pair counts
+    stats_path = os.environ.get("P42_SHAPES", "/tmp/phase42_p27_shapes.json")
+    if not os.path.exists(stats_path):
+        print("LEVER 2/3 skipped: no phase-27 shape file (run `shapes` first)")
+        OUT["levers"] = res
+        return
+    with open(stats_path) as f:
+        d = json.load(f)
+    n_pairs, V_COV = d["n_pairs"], d["v_cov"]
+
+    print("LEVER 2 -- stage-B MI null without touching the pair array.")
+    print("  Each null re-labels WORDS, then counts category bigrams by "
+          "gathering\n  through n_pairs indices -- O(n_pairs) per shuffle. But "
+          "the corpus word-pair\n  counts W[i,j] never change across shuffles: "
+          "with G the V x k one-hot of a\n  labelling, the category table is "
+          "exactly G^T W G, which is O(V^2 k).\n  Same table, not an "
+          "approximation of it.\n")
+    k = 2
+    rng = np.random.default_rng(7)
+    pred = rng.integers(0, V_COV, size=n_pairs)
+    succ = rng.integers(0, V_COV, size=n_pairs)
+    labels = rng.integers(0, k, size=V_COV)
+
+    def naive(lab):
+        return np.bincount(lab[pred] * k + lab[succ],
+                           minlength=k * k).reshape(k, k).astype(float)
+
+    t0 = time.perf_counter()
+    W = np.bincount(pred * V_COV + succ,
+                    minlength=V_COV * V_COV).reshape(V_COV, V_COV).astype(float)
+    t_pre = time.perf_counter() - t0
+
+    def fast(lab):
+        G = np.zeros((V_COV, k))
+        G[np.arange(V_COV), lab] = 1.0
+        return G.T @ W @ G
+
+    print(f"  exactness: max |naive - W-matrix| over the contingency table = "
+          f"{np.abs(naive(labels) - fast(labels)).max():.1f}")
+    print(f"  one-off precompute of W ({V_COV} x {V_COV}): {t_pre * 1e3:.0f} ms")
+    lev2 = {}
+    for fn, lab, reps in ((naive, "naive (gather over n_pairs)", 20),
+                          (fast, "W-matrix (V^2 k)", 2000)):
+        for _ in range(3):
+            fn(labels)
+        gc.collect()
+        t0 = time.perf_counter()
+        for _ in range(reps):
+            fn(rng.permutation(labels))
+        per = (time.perf_counter() - t0) / reps
+        lev2[lab] = per
+        print(f"  {lab:<30}: {per * 1e6:>9.1f} us/null -> 11 k x 500 = "
+              f"{per * 5500:>7.2f}s")
+    res["stage_b_lever"] = {k2: v for k2, v in lev2.items()}
+
+    # ---- lever 3: stage-C per-word null in closed form
+    print("\nLEVER 3 -- stage-C per-word null without shuffling the array.")
+    print("  Permuting `pred` against a fixed `succ` re-partitions the succ "
+          "multiset\n  into buckets whose SIZES are fixed by pred's marginal. "
+          "The resulting\n  contingency table is therefore multivariate "
+          "hypergeometric with those\n  margins -- so the null can be sampled "
+          "in O(k^2), independent of n.\n  Verified below against the real "
+          "shuffle at three phase-27 word sizes.\n")
+
+    def _entropy(c):
+        p = c[c > 0] / c.sum()
+        return float(-(p * np.log2(p)).sum())
+
+    def cond_gain(pr, su):
+        H_u = _entropy(np.bincount(su, minlength=k))
+        n = len(su)
+        H_c = 0.0
+        for pc in set(pr.tolist()):
+            sub = su[pr == pc]
+            H_c += len(sub) / n * _entropy(np.bincount(sub, minlength=k))
+        return max(H_u - H_c, 0.0)
+
+    def gain_from_table(T):
+        n = T.sum()
+        H_u = _entropy(T.sum(0))
+        H_c = 0.0
+        for r in range(T.shape[0]):
+            if T[r].sum():
+                H_c += T[r].sum() / n * _entropy(T[r])
+        return max(H_u - H_c, 0.0)
+
+    lev3 = {}
+    rng = np.random.default_rng(3)
+    for n in (3340, 37_495, 259_324):     # 'right', 'not', phase 27's largest
+        pr = (rng.random(n) < 0.42).astype(int)
+        su = (rng.random(n) < 0.61).astype(int)
+        a = np.bincount(pr, minlength=k)
+        b = np.bincount(su, minlength=k)
+        NP = 4000
+        t0 = time.perf_counter()
+        perm = np.array([cond_gain(rng.permutation(pr), su) for _ in range(NP)])
+        t_perm = (time.perf_counter() - t0) / NP
+        t0 = time.perf_counter()
+        hyp = np.empty(NP)
+        for i in range(NP):
+            rem = b.copy()
+            T = np.empty((k, k))
+            for r in range(k):
+                draw = rng.multivariate_hypergeometric(rem.astype(int), int(a[r]))
+                T[r] = draw
+                rem = rem - draw
+            hyp[i] = gain_from_table(T)
+        t_hyp = (time.perf_counter() - t0) / NP
+        print(f"  n={n:>6}: shuffle null p99={np.percentile(perm, 99):.6f} "
+              f"mean={perm.mean():.6f} | hypergeom p99="
+              f"{np.percentile(hyp, 99):.6f} mean={hyp.mean():.6f}")
+        print(f"          per draw {t_perm * 1e6:>8.1f} us vs {t_hyp * 1e6:>6.1f} us "
+              f"= {t_perm / t_hyp:>5.1f}x")
+        lev3[n] = dict(perm_p99=float(np.percentile(perm, 99)),
+                       hyp_p99=float(np.percentile(hyp, 99)),
+                       speedup=t_perm / t_hyp, t_hyp_us=t_hyp * 1e6)
+    res["stage_c_lever"] = {str(k2): v for k2, v in lev3.items()}
+    OUT["levers"] = res
+
+
+PARTS = dict(shapes=part_shapes, bench=part_bench, micro=part_micro,
+             csr=part_csr, harness=part_harness, nulls=part_nulls,
+             levers=part_levers)
 
 if __name__ == "__main__":
     want = [a for a in sys.argv[1:] if a in PARTS] or list(PARTS)
