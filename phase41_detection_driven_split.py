@@ -539,6 +539,77 @@ def predict_scores(org, routed, eval_seq, slot_word, slot_cat, word_cat):
                 nextword_ll=ll / tot, n=tot)
 
 
+def sense_structure(train_seq, train_roles, assigns, org, words):
+    """EVAL ONLY. For each split word: how many slots, what TRUE role each
+    slot ends up dominated by, and how pure it is. Phase 10's own metric --
+    'both roles covered' -- plus the fragmentation it left open ('a role
+    sometimes spreads over 2-3 same-role slots that centroid merging at safe
+    thresholds does not pool'). Never fed back into any mechanism."""
+    per = {}
+    for t, w in enumerate(train_seq):
+        k = int(assigns[t])
+        if k >= 0 and org.used[k]:
+            per.setdefault(w, {}).setdefault(k, Counter())[train_roles[t]] += 1
+    out = []
+    for w in sorted(words):
+        slots = per.get(w, {})
+        if len(slots) < 2:
+            continue
+        rows = []
+        for k, c in sorted(slots.items(), key=lambda kv: -sum(kv[1].values())):
+            n = sum(c.values())
+            dom, dn = c.most_common(1)[0]
+            rows.append(dict(slot=k, n=n, dom=dom, purity=dn / n))
+        doms = {r['dom'] for r in rows}
+        big = [r for r in rows if r['n'] >= 0.10 * sum(x['n'] for x in rows)]
+        out.append(dict(word=w, n_slots=len(rows), rows=rows,
+                        roles_covered={p10.ANIMAL, p10.ACTION} <= doms,
+                        n_major=len(big),
+                        purity=float(np.mean([r['purity'] for r in rows]))))
+    return out
+
+
+def oracle_ceiling(train_seq, train_roles, eval_seq, eval_roles, word_cat):
+    """EVAL-ONLY CEILING, so the deltas below are readable as a fraction of
+    real headroom rather than as bare numbers. Uses the generating grammar's
+    true per-occurrence roles, which no arm ever sees.
+
+    nextcat  -- predict the emergent category that the TRUE next role maps to
+    nextword -- the Bayes-optimal next word given the TRUE current role,
+                estimated on the training stream and applied held out
+    """
+    role_to_cat = {}
+    for r in (p10.ANIMAL, p10.ACTION, p10.OBJECT):
+        cnt = Counter()
+        for t, w in enumerate(train_seq):
+            if train_roles[t] == r and word_cat.get(w) is not None:
+                cnt[word_cat[w]] += 1
+        if cnt:
+            role_to_cat[r] = cnt.most_common(1)[0][0]
+
+    best_word = {}
+    for r in (p10.ANIMAL, p10.ACTION, p10.OBJECT):
+        cnt = Counter()
+        for t in range(len(train_seq) - 1):
+            if train_roles[t] == r:
+                cnt[train_seq[t + 1]] += 1
+        if cnt:
+            best_word[r] = cnt.most_common(1)[0][0]
+
+    ok_c = ok_w = tot = 0
+    for t in range(len(eval_seq) - 1):
+        r = eval_roles[t]
+        tgt_c = word_cat.get(eval_seq[t + 1])
+        if tgt_c is None or r not in role_to_cat:
+            continue
+        ok_c += int(role_to_cat.get(NEXT_CAT[r], -1) == tgt_c)
+        ok_w += int(best_word.get(r, -1) == eval_seq[t + 1])
+        tot += 1
+    if not tot:
+        return dict(nextcat_acc=1.0, nextword_acc=1.0)
+    return dict(nextcat_acc=ok_c / tot, nextword_acc=ok_w / tot)
+
+
 def generate(org, seed, steps=GEN_STEPS):
     """One shared generator, identical for every arm: habituated stochastic
     walk on the learned slot transition matrix. Habituation is not optional --
@@ -687,11 +758,26 @@ def run_seed(seed, verbose=True):
         print(f"\n--- seed {seed}: PREDICTION (a) successor distinctness "
               f"(same-word permutation null, p99) ---")
         for r in dist_rows:
+            tag = 'DUAL' if r['word'] in DUAL_IDX else 'false-pos'
             print(f"  {VOCAB[r['word']]:<10} slots={r['n_slots']}  "
                   f"meanTV={r['stat']:.3f}  null p99={r['null']:.3f}  "
-                  f"-> {'DISTINCT' if r['distinct'] else 'not distinct'}")
+                  f"-> {'DISTINCT' if r['distinct'] else 'not distinct':<14}{tag}")
         if not dist_rows:
             print("  (no word carried >=2 slots -- nothing to test)")
+
+    # --- sense structure of the split slots (EVAL ONLY) ----------------------
+    sense = sense_structure(train_seq, train_roles, a_s, org_s, detected)
+    if verbose:
+        print(f"\n--- seed {seed}: SENSE STRUCTURE of the split slots "
+              f"(true roles, EVAL ONLY, never fed back) ---")
+        for s in sense:
+            doms = ' '.join(f"{CAT_NAMES[r['dom']][:3]}:{r['n']}"
+                            f"({r['purity']:.2f})" for r in s['rows'][:6])
+            more = '' if len(s['rows']) <= 6 else f" +{len(s['rows']) - 6} more"
+            tag = 'DUAL' if s['word'] in DUAL_IDX else 'false-pos'
+            print(f"  {VOCAB[s['word']]:<10} {s['n_slots']:>2} slots  "
+                  f"both roles covered: {'YES' if s['roles_covered'] else 'no ':<4} "
+                  f"mean purity {s['purity']:.2f}  [{doms}{more}]  {tag}")
 
     # --- prediction (b): downstream utility ----------------------------------
     res = {}
@@ -702,6 +788,7 @@ def run_seed(seed, verbose=True):
         gen = generation_scores(generate(o, seed), sw, sr, eval_seq)
         res[name] = dict(live=live[name], **sc_pred, **gen)
 
+    ceil = oracle_ceiling(train_seq, train_roles, eval_seq, eval_roles, word_cat)
     if verbose:
         print(f"\n--- seed {seed}: DOWNSTREAM UTILITY (held-out stream, "
               f"n={EVAL_LEN}) ---")
@@ -714,10 +801,67 @@ def run_seed(seed, verbose=True):
                   f"{r['nextword_acc']:>9.3f}{r['nextword_ll']:>10.3f}"
                   f"{r['gen_bigram_hit']:>11.3f}{r['gen_gram_modal']:>9.3f}"
                   f"{r['gen_gram_slotrole']:>11.3f}")
+        print(f"  {'ORACLE':<9}{'--':>6}{ceil['nextcat_acc']:>9.3f}"
+              f"{ceil['nextword_acc']:>9.3f}        --         --       --"
+              f"         --   <- eval-only ceiling (true roles)")
         print(f"  ({time.time() - t0:.1f}s)")
 
     return dict(seed=seed, detected=detected, det=det, dist_rows=dist_rows,
-                res=res, live=live)
+                sense=sense, res=res, live=live, ceil=ceil)
+
+
+# ============================================================================
+# compact end-to-end probe, for the regression harness (section 12)
+# ============================================================================
+def harness_probe(seed=0, seq_len=2500, eval_len=1200, null_draws=60):
+    """A shrunk-down detect -> split -> score run returning the invariants the
+    harness pins. Same code path as the committed run, smaller stream: this is
+    the mechanism, not a re-implementation of it. Returns plain floats/ints so
+    the harness can tolerance-band them."""
+    train_seq, train_roles = p10.sample_stream(seq_len, seed=99 + seed, p_dual=P_DUAL)
+    eval_seq, _ = p10.sample_stream(eval_len, seed=900 + seed, p_dual=P_DUAL)
+
+    global NULL_DRAWS
+    saved = NULL_DRAWS
+    NULL_DRAWS = null_draws
+    try:
+        det = detect(train_seq, seed)
+        detected = det['detected']
+        word_cat = det['word_cat']
+
+        org_u, a_u = run_arm(train_seq, seed, allowed=frozenset())
+        org_s, a_s = run_arm(train_seq, seed, allowed=frozenset(detected))
+        occ = per_word_slot_occupancy(train_seq, a_s, org_s)
+        org_m, a_m = run_arm(train_seq, seed,
+                             forced=build_forced(train_seq, occ, seed),
+                             consolidate=False)
+
+        dist = successor_distinctness(train_seq, a_s, org_s, word_cat,
+                                      detected & set(occ) & DUAL_IDX, seed)
+        dist = [d for d in dist if d['n_slots'] >= 2]
+
+        occ_u = per_word_slot_occupancy(train_seq, a_u, org_u)
+        scores = {}
+        for name, o, a in (('unsplit', org_u, a_u), ('split', org_s, a_s),
+                           ('matched', org_m, a_m)):
+            sw, sc, _ = slot_maps(train_seq, a, o, word_cat, train_roles)
+            scores[name] = predict_scores(o, o.route(eval_seq, rng_seed=80_000 + seed),
+                                          eval_seq, sw, sc, word_cat)
+    finally:
+        NULL_DRAWS = saved
+
+    return dict(
+        n_dual_detected=len(detected & DUAL_IDX),
+        n_false_positive=len(detected - DUAL_IDX),
+        dual_split=sum(1 for w in DUAL_IDX if len(occ.get(w, [])) >= 2),
+        dual_distinct=sum(1 for d in dist if d['distinct']),
+        n_dual_tested=len(dist),
+        unsplit_max_slots_per_word=max((len(v) for v in occ_u.values()), default=0),
+        capacity_gap=abs(int(org_s.used.sum()) - int(org_m.used.sum())),
+        nextcat_split=scores['split']['nextcat_acc'],
+        nextcat_matched=scores['matched']['nextcat_acc'],
+        nextcat_delta=scores['split']['nextcat_acc'] - scores['matched']['nextcat_acc'],
+    )
 
 
 # ============================================================================
@@ -751,13 +895,38 @@ def main():
 
     print("\nPrediction (a) -- successor distinctness vs same-word null:")
     tot = ok = 0
+    dual_tot = dual_ok = fp_tot = fp_ok = 0
     for r in runs:
         for d in r['dist_rows']:
             tot += 1
             ok += int(d['distinct'])
-    print(f"  {ok}/{tot} split words show distinct successor distributions "
-          f"(p99, {NULL_DRAWS} draws)"
-          if tot else "  no split words formed -- prediction (a) untestable")
+            if d['word'] in DUAL_IDX:
+                dual_tot += 1
+                dual_ok += int(d['distinct'])
+            else:
+                fp_tot += 1
+                fp_ok += int(d['distinct'])
+    if tot:
+        print(f"  {ok}/{tot} split words show distinct successor distributions "
+              f"(p99, {NULL_DRAWS} draws)")
+        print(f"    of which genuinely dual words: {dual_ok}/{dual_tot} DISTINCT")
+        print(f"    detector false positives:      {fp_ok}/{fp_tot} DISTINCT "
+              f"(the test rejects what the detector should not have flagged)")
+    else:
+        print("  no split words formed -- prediction (a) untestable")
+
+    print("\nSense structure of the split slots (true roles, EVAL ONLY):")
+    cov = [s for r in runs for s in r['sense'] if s['word'] in DUAL_IDX]
+    if cov:
+        print(f"  dual words covering BOTH roles: "
+              f"{sum(s['roles_covered'] for s in cov)}/{len(cov)}")
+        print(f"  mean slots per split dual word: "
+              f"{np.mean([s['n_slots'] for s in cov]):.1f}   "
+              f"mean slot role-purity: {np.mean([s['purity'] for s in cov]):.2f}")
+        print("  (phase 10 left exact 2/1 slot structure OPEN -- 'a role "
+              "sometimes spreads over 2-3 same-role slots that centroid "
+              "merging at safe thresholds does not pool'. Gating the budget "
+              "onto a few words does not close it; see the ROADMAP row.)")
 
     print("\nCapacity (the confound T1.5 forced this phase to control):")
     for r in runs:
@@ -772,7 +941,10 @@ def main():
                ('gen_bigram_hit', 'generation bigram hit'),
                ('gen_gram_modal', 'generation grammaticality (modal)')]
 
-    print("\nPer-arm means across seeds:")
+    ceil_c = float(np.mean([r['ceil']['nextcat_acc'] for r in runs]))
+    ceil_w = float(np.mean([r['ceil']['nextword_acc'] for r in runs]))
+    print("\nPer-arm means across seeds "
+          f"(eval-only oracle ceiling: nextcat {ceil_c:.3f}, nextword {ceil_w:.3f}):")
     print(f"  {'metric':<34}{'unsplit':>10}{'split':>10}{'matched':>10}{'randword':>10}")
     for key, label in metrics:
         vals = {a: np.mean([r['res'][a][key] for r in runs])
@@ -780,18 +952,29 @@ def main():
         print(f"  {label:<34}{vals['unsplit']:>10.3f}{vals['split']:>10.3f}"
               f"{vals['matched']:>10.3f}{vals['randword']:>10.3f}")
 
+    headroom = {'nextcat_acc': ceil_c, 'nextword_acc': ceil_w}
     print("\nPrediction (b) -- SPLIT vs MATCHED CAPACITY "
           f"(survival: mean > +{SURVIVE_DELTA} AND no sign flip):")
     verdict_any = False
+    survivors = []
     for key, label in metrics:
         deltas = [r['res']['split'][key] - r['res']['matched'][key] for r in runs]
         m = float(np.mean(deltas))
         flip = (min(deltas) < 0) and (max(deltas) > 0)
         survives = (m > SURVIVE_DELTA) and not flip
         verdict_any = verdict_any or survives
+        if survives:
+            survivors.append(label)
+        extra = ''
+        if key in headroom:
+            base = float(np.mean([r['res']['matched'][key] for r in runs]))
+            gap = headroom[key] - base
+            if gap > 1e-9:
+                extra = f"  ({m / gap * 100:.0f}% of the {gap:.3f} headroom)"
         print(f"  {label:<34} mean {m:>+7.3f}  per-seed "
               f"[{', '.join(f'{d:+.3f}' for d in deltas)}]  "
-              f"{'SURVIVES' if survives else ('sign flip' if flip else 'below threshold')}")
+              f"{'SURVIVES' if survives else ('sign flip' if flip else 'below threshold')}"
+              f"{extra}")
 
     print("\nFor contrast only -- SPLIT vs UNSPLIT (capacity NOT matched; "
           "T1.5 showed extra slots alone buy accuracy, so this delta is "
@@ -804,9 +987,12 @@ def main():
     print("VERDICT")
     print("=" * 86)
     if verdict_any:
-        print("Prediction (b) SURVIVES on at least one downstream metric: "
-              "detection-driven sense splitting buys measurable downstream "
-              "utility that the same slot budget spent context-blind does not.")
+        print("Prediction (b) SURVIVES on: " + ", ".join(survivors) + ".")
+        print("Detection-driven sense splitting buys downstream utility that "
+              "the SAME slot budget spent context-blind does not -- so the "
+              "gain is attributable to the split's information, not to the "
+              "extra slots T1.5 already priced. Every metric that did NOT "
+              "clear the rule is listed above and is part of the result.")
     else:
         print("Prediction (c) -- THE HONEST NEGATIVE -- FIRES: at matched "
               "capacity, no downstream metric clears the pre-registered "

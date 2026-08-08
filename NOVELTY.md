@@ -19,7 +19,7 @@ ROADMAP row they cite. If a claim is weakened by a later run, it is
 
 | # | Novelty | Strength | Next step |
 |---|---|---|---|
-| N1 | Predictive (Myhill–Nerode) polysemy detection | **Strongest** | T6.4 — act on detection |
+| N1 | Predictive (Myhill–Nerode) polysemy detection | **Strongest** | sense *counts*, then real text (T6.4 done) |
 | N2 | Field-free logic layer that does real work | **Strong** | T6.3 — reasoning depth |
 | N3 | Attractor Crowding Collapse, named and fixed label-free | **Strong** | real-text impurity test |
 | N4 | Gradient-free continual learning | **Solid** | T6.1/T6.2 — boundary-free + retention |
@@ -48,8 +48,32 @@ reproduced against a ~3× tighter null, 0.115 vs p99 0.015) →
 `phase27_5m_word_scale_run.py` (**P2 confirmed at 5.22M words**: "right"
 clears its tighter null again, 205/354 candidates clear theirs) →
 `phase28_polysemy_vs_context_sensitivity.py` (decomposition: 18/119 words
-lexical polysemy, 101/119 grammatical context-sensitivity). Pinned in
-harness §5 (dual-role gain 0.806 vs monosemous 0.003).
+lexical polysemy, 101/119 grammatical context-sensitivity) →
+`phase41_detection_driven_split.py` (**T6.4: detection now drives the field
+and the result is measured, not assumed** — see the downstream paragraph
+below). Pinned in harness §5 (dual-role gain 0.806 vs monosemous 0.003) and
+§12 (the closed loop end to end, including the matched-capacity invariant).
+
+**Downstream utility — the open question, now answered, and narrower than
+the claim assumed (phase 41, 2026-08-08).** Detection driving phase-10
+context-primed splitting **does** buy downstream utility on one axis and
+**does not** on the others. Measured against an EXACTLY matched-capacity
+control (same per-word slot count for every word, occurrences routed at
+random — mandatory because T1.5 showed extra slots alone buy accuracy):
+held-out next-*category* accuracy **+0.063**, positive on all five paired
+seeds, 56% of the headroom between the control (0.672) and an eval-only
+oracle ceiling (0.786). Successor distinctness holds 15/15 against a
+same-word permutation null, and — an internal validation the phase did not
+have to pass — 0/3 of the detector's own false positives clear that test.
+**But generation does not improve at all** (corpus-bigram hit +0.001 and
+modal-role grammaticality −0.005, both failing the survival rule by sign
+flip), and word-level likelihood, while beating the matched control by
++0.145 nats/token, is **worse than the unsplit organism** (−0.081): the
+split fragments each word across ~11 slots, and that costs more than its
+information buys on the word axis. So the honest form of the claim is
+**"detection-driven splitting improves category-level prediction at matched
+capacity"** — not "improves generation", and not "improves prediction"
+without the qualifier.
 
 **Why it's novel.** The ingredients have ancestry — Myhill–Nerode state
 splitting, Brown clustering, distributional sense induction. What is not
@@ -66,20 +90,32 @@ the split (only ~15% is lexical at POS level) and its own test is a
 bigram-level proxy with thresholds chosen in-phase, no null of its own
 (bootstrap on chance cross-bucket conflicts is the open follow-up).
 Same-POS polysemes (bank/bank) are classed as context-sensitivity by
-construction. Detection has **not yet been shown to improve anything
-downstream** — that is exactly N1's biggest open question.
+construction. Detection is now shown to improve **category-level prediction**
+downstream (phase 41), and **not** generation or word-level likelihood — the
+downstream claim is real but single-axis, and it is measured on a SYNTHETIC
+corpus where polysemy is lexical by construction, so it is a mechanism
+result, not a real-text capability. Phase 41 also made phase 10's open
+"exact 2/1 slot structure" problem *worse*, not better: gating concentrates
+the free-slot budget on the detected words, so each splits into ~11 slots
+(mean role-purity 0.87) where ungated phase 10 produced 3–4.
 
 **Mini-roadmap.**
-1. *Implement* — **T6.4 / phase 41**: close the loop. Detection triggers
-   phase-10 context-primed field splitting; score sense-specific slots on
-   successor distinctness *and* downstream generation/prediction, with a
-   matched-capacity control arm (T1.5 proved extra slots alone buy
-   accuracy). A flat result at matched capacity is a publishable negative
-   about the whole line and must be reported as one.
-2. *Improve* — give phase 28's polysemy/context call its own measured null
-   (bootstrap the chance cross-bucket conflict rate); re-derive the
-   decomposition on the 5M corpus; move beyond binary splits to **n-way
-   sense counts** (how many senses, not just "more than one").
+1. ~~*Implement* — **T6.4 / phase 41**: close the loop.~~ **DONE
+   2026-08-08.** Detection triggers phase-10 context-primed splitting; the
+   matched-capacity control arm was built and its slot budget matched
+   EXACTLY at every seed. Outcome: prediction (a) confirmed 15/15;
+   downstream utility survives on next-category accuracy (+0.063) and fails
+   on both generation metrics by sign flip. The blanket honest-negative
+   ("flat at matched capacity ⇒ a representational nicety") did NOT fire,
+   but neither did the strong reading — see ROADMAP row 41 and harness §12.
+2. *Improve* — **the binding problem is now fragmentation, not the trigger**:
+   move beyond binary splits to **n-way sense counts** (how many senses, not
+   just "more than one"), which is what would let the ~11 slots per split
+   word collapse to the 2 the corpus actually contains — phase 41 measured
+   that concentrating the budget makes this worse, so it is the highest-value
+   next step for N1, ahead of any further work on the gate. Also: give phase
+   28's polysemy/context call its own measured null (bootstrap the chance
+   cross-bucket conflict rate); re-derive the decomposition on the 5M corpus.
 3. *Perfect* — transfer evidence: does the criterion port to a second
    language or a non-linguistic stream (code tokens, event logs)? A
    criterion that survives a domain change is a much stronger claim than

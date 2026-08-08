@@ -43,6 +43,14 @@ Sections (fast tier only; corpus-tier joins once E2/Numba makes it cheap):
      consolidation view is not an identity mutation, the registry
      round-trips bitwise through E3 schema v3 (v1 and v2 files still load),
      and registry-on is bitwise identical to registry-off.
+ 12. detection-driven sense splitting (T6.4, phase 41) -- the closed loop:
+     predictive gain clears its own per-word null on exactly the dual-role
+     words, those words (and only those) recruit sense-slots under phase
+     10's context-primed settling, the resulting slots have successor
+     distributions distinct from a same-word permutation null, and the
+     held-out next-category gain over the MATCHED-CAPACITY control clears
+     the pre-registered +0.02 bar. The capacity match itself is pinned
+     exact -- it is the structural invariant the whole comparison rests on.
 
 Run: `python regression_harness.py`. Exit code is nonzero if any check fails
 its tolerance. Each check prints its own measured value, tolerance band, and
@@ -743,6 +751,52 @@ def section_11_symbol_registry():
           note="identity tracking is observation only -- bitwise, not a band")
 
 
+# ================== 12. detection-driven sense splitting (T6.4, phase 41)
+def section_12_detection_driven_split():
+    print("\n(12) detection-driven sense splitting (T6.4, phase 41)")
+    import phase41_detection_driven_split as p41
+
+    rs = [p41.harness_probe(seed=s) for s in (0, 1)]
+
+    def mean(k):
+        return float(np.mean([r[k] for r in rs]))
+
+    def worst(k):
+        return float(np.max([r[k] for r in rs]))
+
+    # --- the detector fires on the dual-role words and (nearly) nothing else
+    check("dual words clearing their own p99 gain null (of 3)",
+          mean('n_dual_detected'), 3.0, 3.01,
+          note="phase 41 margins are ~0.35-0.42 bits against a ~0.006 null -- a "
+               "miss here is a real regression, not seed noise")
+    check("control words false-positive at p99", mean('n_false_positive'), 0.0, 2.01,
+          note="p99 on ~26 controls expects ~0.26; the committed 5-seed run "
+               "measured [3,0,0,0,0]")
+
+    # --- detection, and only detection, drives the split
+    check("dual words recruiting >=2 sense-slots (of 3)", mean('dual_split'),
+          3.0, 3.01)
+    check("unsplit arm max slots per word", worst('unsplit_max_slots_per_word'),
+          1.0, 1.0,
+          note="the gate is unreachable outside the detected set -- structural, "
+               "not a band")
+
+    # --- prediction (a): the split slots carry real successor structure
+    check("split dual words distinct vs same-word permutation null (of 3)",
+          mean('dual_distinct'), 3.0, 3.01)
+
+    # --- the matched-capacity control's defining invariant (T1.5's confound)
+    check("split-vs-matched live-slot gap", worst('capacity_gap'), 0.0, 0.0,
+          note="the control must hold the SAME slot budget, or the comparison "
+               "measures capacity instead of splitting -- exact, not a band")
+
+    # --- prediction (b): downstream utility over the matched control
+    check("held-out next-category gain over matched capacity",
+          mean('nextcat_delta'), 0.02, 0.15,
+          note="lower bound IS the pre-registered survival threshold; the "
+               "committed 5-seed run at full scale measured +0.063")
+
+
 if __name__ == "__main__":
     t0 = time.time()
     print("REGRESSION HARNESS -- fast tier (E1)")
@@ -760,6 +814,7 @@ if __name__ == "__main__":
     section_9_slot_budget()
     section_10_compression()
     section_11_symbol_registry()
+    section_12_detection_driven_split()
 
     dt = time.time() - t0
     print(f"\n{'='*70}")

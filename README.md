@@ -267,7 +267,20 @@ The language track then carried polysemy to real text with a different,
 prediction-based criterion (see its phases 12 and 21 above) — the two
 approaches are complementary: phase 10 splits *representations* online
 inside the field; the language track *detects* sense structure from
-corpus statistics and now needs the field mechanism to act on it.
+corpus statistics. **Phase 41 (`phase41_detection_driven_split.py`) joined
+them**: predictive gain, measured against each word's own permutation null
+over self-discovered categories, gates phase-10 splitting, and the result is
+scored against an *exactly* matched-capacity control (necessary because
+phase 33d showed extra slots alone buy accuracy). The loop closes
+asymmetrically — held-out next-**category** accuracy improves +0.063 over
+the matched control on every one of five seeds, and the split slots'
+successor distributions clear a same-word permutation null 15/15, but
+**generation does not improve at all** (both metrics sign-flip) and
+word-level likelihood loses to the unsplit organism, because each split word
+fragments across ~11 slots. Detection-driven splitting is therefore a
+measured functional gain for category-level prediction, not a general one —
+and on a synthetic corpus where polysemy is lexical by construction, so
+real text is a re-derivation rather than a port (phase 28).
 
 ## Capability envelope (measured)
 
@@ -366,7 +379,12 @@ open threads, roughly ordered by leverage:
    perplexity) monotonically over-split and cannot select k — k-selection is a
    parsimony problem, not a prediction one. Both selectors drop into stage B.
 4. **Exact polysemy slot structure** (core phase 10): same-role duplicates
-   persist at merge thresholds that keep the cross-role split safe.
+   persist at merge thresholds that keep the cross-role split safe. **Phase
+   41 made this worse, and thereby promoted it**: gating the split on
+   detection hands the whole free-slot budget to the few detected words, so
+   they fragment into ~11 slots each (vs 3–4 ungated). With the trigger now
+   validated, sense *counts* — how many senses, not just "more than one" —
+   are the binding constraint on the polysemy line.
 5. **Phase-binding protection** (core phase 16): superpositions are a real
    code but the recall pull collapses them in 9–56 steps; binding needs a
    protection mechanism before it can be used.

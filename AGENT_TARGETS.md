@@ -14,11 +14,13 @@ noise floors; pre-register predictions; run `regression_harness.py` under
 BOTH backends (`DEFAI_BACKEND=numpy|numba`) before trusting any change;
 `test_fastpath_equivalence.py` for kernel edits.
 
-Verification state as of 2026-08-07, on the merged tree carrying T1.9
-(phase 33h), T2.1 (phase 27's outcome) and T3.3 (the symbol registry):
-E1 ALL PASS both backends (65 checks: 31 + T1.8's section 10 + T3.3's
-section 11), `test_fastpath_equivalence.py` green incl. the narrowed-store
-section 7 and the symbol-registry section 8, `test_label_readout.py` green,
+Verification state as of 2026-08-08, on the merged tree carrying T1.9
+(phase 33h), T2.1 (phase 27's outcome), T3.3 (the symbol registry) and T6.4
+(phase 41's detection-driven splitting):
+E1 ALL PASS both backends (72 checks: 31 + T1.8's section 10 + T3.3's
+section 11 + T6.4's section 12), `test_fastpath_equivalence.py` green incl.
+the narrowed-store section 7 and the symbol-registry section 8,
+`test_label_readout.py` green,
 E3 round-trips green for schema v3 uncompressed/compressed and v1 + v2
 backward load. Torch is NOT installed on any of these hosts, so the ladder's
 torch arms rest on 33c's committed values. See ROADMAP "Verification log".
@@ -814,7 +816,7 @@ same split** — an unpaired fixed-seed baseline is a bug (T1.9).
 - **Done when** (plus protocol section C): `phase40_*.py` with each op measured against a null +
   a timing table; phase-30 anchors exact; harness green both backends.
 
-### T6.4 — Polysemy: act on detection (phase 41)  `[claimed: claude/phase-41-detection-phase-10-9u1bkc, 2026-08-08]`
+### T6.4 — Polysemy: act on detection (phase 41)  `[DONE 2026-08-08: claude/phase-41-detection-phase-10-9u1bkc — see ROADMAP row 41]`
 - **Why**: README names this thread explicitly — the language track
   *detects* sense structure from corpus statistics and "now needs the
   field mechanism to act on it." Phase 10 splits representations inside
@@ -845,12 +847,50 @@ same split** — an unpaired fixed-seed baseline is a bug (T1.9).
   plainly, it is a publishable negative about the whole polysemy line.
 - **Done when** (plus protocol section C): `phase41_*.py` end-to-end (detect → split → score);
   matched-capacity control arm present; reseeded; ROADMAP row.
+- **Outcome (2026-08-08)**: **the loop closes, asymmetrically.** Misses
+  first. Generation does NOT improve — both generation metrics fail the
+  survival rule by sign flip (corpus-bigram hit +0.001, modal-role
+  grammaticality −0.005 with a −0.053 seed), so that half of prediction (b)
+  is falsified. Word-level likelihood beats the matched control (+0.145
+  nats/token) but LOSES to the unsplit organism (−0.081): fragmentation
+  costs more than the split's information buys on that axis. Held-out
+  next-*word* accuracy is saturated (Bayes ceiling 0.144, matched control
+  already 0.132) and cannot discriminate — recorded as below-threshold, not
+  as a null. Fragmentation got WORSE under gating, not better: 11.3 slots
+  per split dual word vs ungated phase 10's 3–4, because gating hands the
+  whole free-slot budget to three words — phase 10's open "exact 2/1 slot
+  structure" problem is amplified here, not closed. Detector false-positived
+  on 3/26 controls at one seed of five (margins +0.001…+0.011).
+  What held: prediction (a) CONFIRMED 15/15 — every split dual word's
+  sense-slots are distinct from a same-word permutation null (mean pairwise
+  TV 0.304–0.420 vs p99 0.107–0.127) — and 0/3 of the detector's own false
+  positives clear that test, so distinctness rejects exactly what the
+  detector should not have flagged. Detection: 3/3 dual words at every seed,
+  0.34–0.42 bits against ~0.006 nulls, on self-discovered categories (k=3
+  every seed). **Prediction (b) survives on held-out next-CATEGORY accuracy:
+  +0.063 over an EXACTLY matched-capacity control (positive on all five
+  seeds; 56% of the 0.114 headroom to the eval-only ceiling 0.786).** The
+  capacity match is exact at every seed and pinned in harness §12. Note the
+  threshold caveat: +0.02 is T1.6's ACCURACY bar, so the ll/token survival
+  is corroboration, not a second independent win.
+- **What a follow-on should take from this**: (i) the fragmentation is now
+  the binding problem, not the trigger — a sense-COUNT criterion (how many
+  senses, per NOVELTY N1's mini-roadmap step 2) would do more than any
+  further work on the gate; (ii) do NOT quote the +0.073 split-vs-unsplit
+  delta — only +0.063 is capacity-controlled, and the control is what showed
+  the confound was small (matched beats unsplit by just +0.010) rather than
+  something that could be assumed; (iii) every number is on the SYNTHETIC
+  phase-8/10 corpus where polysemy is lexical by construction — phase 28
+  measured that real text conflates lexical polysemy with grammatical
+  context-sensitivity (~15% lexical at POS level), so a real-text arm is a
+  re-derivation, not a port.
 
 ### T6.5 — Performance re-baseline & profile (phase 42 / E5)  `[claimed: —]`
 - **Objective**: every performance number on record predates compression
   (33g), the symbol registry (T3.3), and the 5M-word corpus (phase 27).
   Re-measure and re-profile: `e2_benchmark.py` at current shapes and with
-  CSR P; harness wall-clock both backends (it has grown 27 → 65 checks);
+  CSR P; harness wall-clock both backends (it has grown 27 → 72 checks, and
+  T6.4's §12 is the most expensive single section — ~16s of the numpy run);
   phase-27 stage timings; and **where the time actually goes now** — the
   K×N overlap matvec was the bound at K≈1580 dense, but sparse P and
   narrowed dtypes move it. Output an honest optimization shortlist ranked
