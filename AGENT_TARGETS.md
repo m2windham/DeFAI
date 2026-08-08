@@ -4,7 +4,9 @@ Actionable work packages derived from `ROADMAP.md`, structured for parallel
 agent sessions. **Claim a target by its ID in your PR title / roadmap row
 before starting** (two sessions once built E2 twice — don't repeat that).
 Read order for any cold start: `FABLE_HANDOFF.md` → `ROADMAP.md` → this file
-→ the target's listed context files. `git log --oneline` is the lab notebook.
+→ the target's listed context files. `NOVELTY.md` is the claims register —
+what the project can defend, with scope caveats and per-item roadmaps; keep
+it current when a target changes what a claim can say. `git log --oneline` is the lab notebook.
 
 Standing rules bind every target (see FABLE_HANDOFF "Rules of engagement"):
 no labels inside mechanisms; negative results are deliverables; measure
@@ -21,6 +23,87 @@ section 7 and the symbol-registry section 8, `test_label_readout.py` green,
 E3 round-trips green for schema v3 uncompressed/compressed and v1 + v2
 backward load. Torch is NOT installed on any of these hosts, so the ladder's
 torch arms rest on 33c's committed values. See ROADMAP "Verification log".
+
+---
+
+## Standing operating protocol (every target, every session)
+
+This is the professional baseline. Individual targets add requirements;
+none of them relax these. Every line below exists because this project paid
+for it — E2 was built twice, a shared checkout corrupted its git index mid-
+merge, two agents both named a script `phase33e`, and three separate
+positive results evaporated under reseeding.
+
+### A. Before you touch anything
+1. **Sync and survey.** `git pull`; check open PRs and the `[claimed: …]`
+   slots here. Work already in flight is not yours to redo.
+2. **Claim the lock.** Edit your target's claim slot to
+   `[claimed: <branch>, <date>]`, commit that one-line change, and **push it
+   before starting work**. The push is the lock; an unpushed claim is not a
+   claim.
+3. **Work isolated.** Your own clone, your own branch (`claude/<topic>-<id>`).
+   Never run concurrently with another agent in the same working tree.
+4. **Reserve your phase number.** Grep `phase*.py` and the ROADMAP for the
+   next free number *and* announce it in the claim commit. Two agents took
+   `33e` on the same day; the collision cost a rename and a doc sweep.
+5. **Baseline the tree.** Run `regression_harness.py` under **both**
+   backends before you change anything. If it is not green on arrival, stop
+   and report — do not build on an unknown baseline.
+
+### B. While you work
+6. **Pre-register before any committed run.** Predictions — including the
+   named honest-negative branch and its decision rule — go into the script
+   docstring or ROADMAP row *and get committed* before the run that tests
+   them. A prediction written after the numbers is not a prediction.
+7. **Nulls, not eyeballs.** Simulate the null at the actual sample size.
+8. **Reseed everything, and hold out.** Any arm that was chosen from a grid
+   is a *selected* result: confirm it on fresh held-out seeds (s=5–9) before
+   banking it. Reseed the **baseline on the same split** — an unpaired
+   fixed-seed baseline is a bug, not a shortcut.
+9. **Stay in your lane.** Touch only the files your target owns. If you need
+   a change in a shared file (`organism.py`, `fastpath.py`,
+   `regression_harness.py`), check the claim slots first and keep the edit
+   minimal, additive, and behind a default-off flag where possible.
+10. **Do not re-open closed negatives.** Phase 9 re-attribution, low-rank
+    compression (33g), the count-normalized victim rule (33f), gradient-era
+    machinery (ROADMAP's dropped list). If you believe one deserves
+    reopening, argue it in the PR *before* spending the compute.
+
+### C. Definition of done — no target is complete without all of it
+11. **Green tree**: `regression_harness.py` both backends;
+    `test_fastpath_equivalence.py` if any kernel path was touched;
+    `test_label_readout.py` if the readout was touched; E3 round-trip if
+    state or schema changed (and backward load for every prior schema).
+12. **New behavior is pinned.** A new mechanism gets a harness section with
+    tolerance bands. Unpinned behavior is not landed behavior.
+13. **Anchors reproduce.** Every committed anchor your work could disturb is
+    re-run and reported exact (or the drift is explained in the PR).
+14. **Documentation sweep — all four surfaces:**
+    - `ROADMAP.md` — the phase row: question, method, measured result,
+      **including partials, misses, and confounds**;
+    - `AGENT_TARGETS.md` — your claim slot to `DONE` plus an outcome block
+      a stranger could act on;
+    - `NOVELTY.md` — the N-item your result touches, **edited down as
+      readily as up**; a weakened claim is edited, never deleted;
+    - `FABLE_HANDOFF.md` — only if architecture, invariants, or the open-
+      thread ordering changed.
+15. **Verification log.** Add the ROADMAP "Verification log" entry: host,
+    versions, what was re-run, what passed.
+16. **PR hygiene.** Title carries the target ID. Description states what was
+    verified and how, names any prediction that missed, and lists follow-ups
+    you deliberately deferred. Rebase/merge origin/main and re-run the
+    harness on the **merged** tree before requesting merge — green on your
+    branch is not green on main.
+
+### D. Reporting standard
+17. **Report the miss first.** Lead with what failed, what was falsified,
+    and what you could not verify; then the wins. A verdict with no caveats
+    is a verdict that was not examined.
+18. **Never quote a number without its scope sentence.** 33h's
+    unconstrained KB/ACC-pt is the standing example: cheap-looking numbers
+    that answer a different question than the one asked.
+19. **Hand off cleanly.** If you stop mid-target, push your branch, write
+    what is done vs open into the claim slot, and leave the tree green.
 
 ---
 
@@ -681,7 +764,7 @@ same split** — an unpaired fixed-seed baseline is a bug (T1.9).
   localize true transitions above a measured permutation null;
   (c) honest negative: if the organism also degrades sharply, task-free
   operation is not a free differentiator and the claim must be dropped.
-- **Done when**: `phase38_*.py` with the boundary-free protocol, all arms
+- **Done when** (plus the Standing Operating Protocol, section C): `phase38_*.py` with the boundary-free protocol, all arms
   reseeded and the baseline reseeded on the same split; ROADMAP row;
   harness green both backends.
 
@@ -702,7 +785,7 @@ same split** — an unpaired fixed-seed baseline is a bug (T1.9).
   affirmatively did not indicate it, so this is a falsification test, not
   a fix; (c) random eviction underperforms argmin-count at every window,
   or the victim rule is doing nothing and should be simplified.
-- **Done when**: factor table with effect sizes, reseeded; the tunable
+- **Done when** (plus protocol section C): factor table with effect sizes, reseeded; the tunable
   retention story written into the ROADMAP row.
 
 ### T6.3 — Logic-layer depth & optimization (phase 40)  `[DONE 2026-08-08: claude/phase-40-logic-depth-o2w1p5 — see ROADMAP row 40]`
@@ -754,7 +837,7 @@ total, both backends).
   level) applies, and "level 2 adds nothing" is a legitimate outcome.
 - **Constraint**: reasoning ops are graph-only — the field must stay
   absent, per phase 30's isolation discipline.
-- **Done when**: `phase40_*.py` with each op measured against a null +
+- **Done when** (plus protocol section C): `phase40_*.py` with each op measured against a null +
   a timing table; phase-30 anchors exact; harness green both backends.
 
 ### T6.4 — Polysemy: act on detection (phase 41)  `[claimed: —]`
@@ -786,7 +869,7 @@ total, both backends).
   (c) honest negative: if utility is flat at matched capacity, sense
   splitting is a representational nicety, not a functional gain — say so
   plainly, it is a publishable negative about the whole polysemy line.
-- **Done when**: `phase41_*.py` end-to-end (detect → split → score);
+- **Done when** (plus protocol section C): `phase41_*.py` end-to-end (detect → split → score);
   matched-capacity control arm present; reseeded; ROADMAP row.
 
 ### T6.5 — Performance re-baseline & profile (phase 42 / E5)  `[claimed: —]`
@@ -807,7 +890,7 @@ total, both backends).
   wall-clock, making E4 justified — or they do not, and E4 should be
   deferred, which is an equally useful answer; (c) harness runtime growth
   is sublinear in check count (shared setup) — if not, tier the harness.
-- **Done when**: benchmark table + profile + ranked shortlist + an E4
+- **Done when** (plus protocol section C): benchmark table + profile + ranked shortlist + an E4
   recommendation with numbers behind it; ROADMAP E-row updated.
 
 ### T4.1 (re-scoped) — Phase 31 perception ablation
