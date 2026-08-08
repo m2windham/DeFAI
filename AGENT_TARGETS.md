@@ -1044,6 +1044,155 @@ sharpest control — the same organism, provably, before and after damage.
 
 ---
 
+## Category 7 — Architecture economics (owner work order, 2026-08-08)
+
+**Provenance, and it is load-bearing.** T7.1–T7.5 originate from an
+exploratory sandbox session (2026-08-08) that cloned `main`, ran on the
+phase 20/21 Gutenberg corpus and the phase 19 recipe, and produced **no
+branch and no repo changes**. Nothing it reported is a result. Every
+sandbox number quoted in these targets is an **indicative anchor to be
+re-derived under the SOP** — hypothesis, not finding. Where a measurement
+here disagrees with a sandbox anchor, **the measurement wins and the
+disagreement is reported as a finding**, not reconciled away.
+
+Standing additions for every target in this category, on top of the SOP:
+pre-register a **named mundane account** (the most boring reason the
+prediction fails) alongside every prediction; check baseline/competitor
+behavior against the literature *before* predicting it; tag any NOVELTY
+claim as measured vs premise-derived; band negatives so a reversal must be
+earned.
+
+Phase numbers reserved by this claim: **43, 44, 45, 46, 47** (48 held for
+T7.6 and NOT to be used until the fork is resolved).
+
+### T7.1 — Phase-channel audit and the storage fork (phase 43)  `[claimed: claude/repo-agent-arch-economics-4adfij, 2026-08-08]`
+- **Why first**: every other cost lever is small next to this one, and
+  T7.6's design depends on which branch the owner picks.
+- **Objective**: T1.9 recorded "nothing left to engineer" for the cost
+  floor. That is established for **lossless width narrowing** (33g,
+  complex128→complex64). It is NOT established for a **representation
+  change**. Audit whether the stored `xi` actually uses the imaginary
+  channel; if it does not, price the `(real N-vector, phase scalar)` layout
+  against the floor's 2.03× complex-vs-real term.
+- **Sandbox anchor (hypothesis)**: after optimal global de-rotation the
+  residual imaginary energy had median 1e-4, 416/418 slots below 1e-3;
+  substituting the de-rotated real part left word→slot assignment agreement
+  1.0000 and overlap-profile correlation 0.9996 — on the phase 19 fables
+  recipe.
+- **Mechanistic account to test alongside it**: `perceive`'s only phase
+  source is `dz = 1j*omega*z + g_in*(x - z)`. If that is a content-blind
+  global rotation, the reachable set is exactly {e^{iθ}·real} for real
+  inputs and the emptiness is structural, not incidental.
+- **Do**: (1) reproduce the audit at the **33h configuration** (K=112, the
+  arm the floor was measured on), reporting the residual DISTRIBUTION not
+  just its mean; (2) test the mechanistic account — residual under (a) a
+  different corpus, (b) `omega` swept including 0, (c) complex-valued
+  inputs if any pipeline produces them; (3) cost the layout (256 B + 4 B vs
+  512 B) and **derive the floor from the layout before measuring it**;
+  (4) verify losslessness against every pinned anchor on both backends.
+- **Mundane account**: the residual is at floor only because the inputs are
+  real; a pipeline with genuinely complex inputs would use the width and
+  the saving is an artifact of one embedding choice. Step (2) must be able
+  to distinguish this.
+- **Deliverable**: an **owner decision artifact**, not a recommendation.
+  The fork is mutually exclusive — (A) spend it: halve the store, meet the
+  ≤2× fallback, permanently forfeit phase-16 binding including the
+  path-encoding T7.5/T7.6 would need; (B) cash it in: keep the width and
+  make it load-bearing (T7.6), leaving 2.24× standing and forcing the
+  option-(a) gate re-scope. **Price both, choose neither.**
+
+### T7.2 — Sparse P as the default path (phase 44)  `[claimed: claude/repo-agent-arch-economics-4adfij, 2026-08-08]`
+- **Objective**: the graph contributes 0.36× to the cost floor; 33g
+  measured P at ~6% density at K=160. T6.3 already built
+  `SparseTransitions` and moved `next_hops` onto a shared Dijkstra with the
+  dense body pinned bitwise (harness §12).
+- **Do**: make CSR the default storage/compute path **where T6.3 measured
+  it to win**, keeping dense where T6.3 measured a negative (full `kstep` —
+  a dense K² output is BLAS's home ground; the win was `kstep_row`).
+  Extend the bitwise pinning to every op whose default path changes.
+  Re-derive the graph term in the cost floor.
+- **Mundane account**: density is 6% at K=160 but P may densify with corpus
+  size; if density rises with observation count the saving evaporates at
+  scale. Measure density **as a function of observation count**, not at one
+  point.
+
+### T7.3 — Settling-depth sweep (phase 45)  `[claimed: claude/repo-agent-arch-economics-4adfij, 2026-08-08]`
+- **Objective**: sandbox measurement (hypothesis) — at the phase 19
+  exposure setting (`hold=8`) the end-of-sequence field state has a
+  same-sequence ceiling of exactly 1.0000 and a suffix-sharing similarity
+  of 0.980: a pure last-token attractor that has also forgotten its own
+  initial condition. A window at hold≈3 held reproducibility 0.945 with
+  suffix-sharers at 0.703.
+- **Do**: sweep `hold` (equivalently `g_in·dt`) against slot coverage,
+  category validity (phase 24 MI-vs-null), and a path-sensitivity index
+  `(ceiling − suffix)/(ceiling − floor)`. Report the trade on the axes the
+  project already measures.
+- **Flag for consolidation**: the default `merge_thresh=0.8` sits between
+  ceiling and suffix at hold=3 and *below* suffix from hold=4 up, where
+  distinct suffix-sharing states would be merged. If sequence states are
+  ever consolidated this threshold is load-bearing and is currently
+  untested for that use.
+- **Mundane account**: the time constant `1/(g_in·dt)` ≈ 4 frames fully
+  explains both numbers; there is no window, only an EMA, and hold=3
+  "works" solely because settling is incomplete — i.e. the state is noisy
+  rather than path-aware. Distinguish by testing whether the retained
+  information is prefix IDENTITY or just un-converged noise.
+
+### T7.4 — Single-pass audit (phase 46)  `[claimed: claude/repo-agent-arch-economics-4adfij, 2026-08-08]`
+- **Objective**: phase 19's recipe runs 15 epochs. "Single-pass online" is
+  one of the capability axes any gate re-scope would stand on; a re-scoped
+  gate must not rest on an axis the production recipe violates.
+- **Do**: re-measure the headline results (coverage, category validity,
+  polysemy detection) at **1 epoch** against the multi-epoch numbers, paired
+  seeds. Report which survive. **This is an audit, not an improvement
+  target** — a large drop is a legitimate and important finding.
+- **Mundane account**: multi-epoch is doing ordinary optimization work any
+  online learner would need; the honest claim is "single-pass capable,
+  multi-pass tuned", and the fix is a wording change in NOVELTY rather than
+  an experiment.
+
+### T7.5 — Macro-Recruit pre-gates (phase 47)  `[claimed: claude/repo-agent-arch-economics-4adfij, 2026-08-08]`
+- **Objective**: replicate three sandbox pre-gates **under the SOP** before
+  any chunk mechanism is built. Sandbox anchors, all indicative:
+  expected-total-gain chunk selection beat frequency-only and
+  divergence-only over 5 seeds (+2908 / +1740 / +880 nats at 64 slots), all
+  arms negative under a predecessor-permutation null; **the top chunks were
+  UNK-heavy** (UNK 25.3% of the stream under OOV→UNK mapping) and excluding
+  UNK contexts cut the word-level gain +2908 → +748, i.e. ~74% of the
+  headline was a vocabulary artifact; inventory saturates near M≈128 and
+  REVERSES (−472 nats at M=256, −1481 at M=512); a category-stream census
+  gave +1458 nats vs +65 null (+556 vs +33 UNK-dropped), 0/5 sign flips.
+- **Do**: pre-register, then replicate with **stream construction fixed and
+  stated** (OOV mapped vs deleted give different answers), the project's own
+  `discover_categories_v2` (slot-level, not the word-level PPMI k-means
+  proxy the sandbox used), and harness banding for the negative.
+- **Mundane account**: the category-stream gain is a k-means artifact — any
+  clustering of a Zipfian stream produces apparent second-order structure
+  through frequency effects alone. The permutation null is the control;
+  verify it is constructed to kill exactly that.
+
+### T7.6 — Deep-architecture arms (phase 48)  `[BLOCKED: contingent on T7.1's fork, owner decision]`
+Do not start until the owner has resolved T7.1. Under branch (A) most of
+this is moot; under branch (B) it is the work that earns the width.
+Ordered by cost-to-information: (a) content-dependent phase — a per-item or
+per-position phase increment makes the accumulated state a phasor sum
+`Σ e^{iφ_j} x_j`, order-sensitive, at zero additional stored bytes;
+pre-register against phase 16's measured constraint that superpositions
+collapse in 9–56 steps under attractor pull, so LIFETIME is the binding
+risk, not accuracy. (b) readout must change too — `overlaps` returns
+`(M.conj() @ z)/N` and every consumer takes `np.abs`, so a phase-carrying
+dynamics would silently score as a null against a phase-blind readout; any
+binding arm is TWO changes. (c) dual time constant — a companion field
+state with a slower `g_in` is O(N), ~0.001× of the K×N store, the cheapest
+route to sequence memory and independent of the phase fork. (d) graph
+order — phase 40 established the boundary is ORDER not size; a dense
+third-order tensor at K=112 is ~1.4M entries and dead on arrival, so the
+affordable form is low-rank (R·3K) or T7.5's sparse chunk-node inventory,
+whose saturation curve caps the rank worth buying. Price both against
+T7.5's measured gain before building either.
+
+---
+
 ## Dependency sketch
 
 ```
@@ -1060,4 +1209,9 @@ T6.2 retention     ├─► inform any future gate re-test / product claims
 T6.3 logic depth   │
 T6.4 polysemy→act ─┘   T6.5 re-baseline ─► E4 (T3.1) go/no-go
 T4.1 ablation (re-scoped, now unblocked)
+
+Category 7 (architecture economics, owner work order 2026-08-08) — ORDERED:
+T7.1 phase-channel audit + storage fork ─► owner decision ─► T7.6 (blocked)
+T7.2 sparse-P default   T7.3 settling depth   T7.4 single-pass audit
+T7.5 macro-recruit pre-gates ─► T2.4 (phase 29) if the category arm survives
 ```
