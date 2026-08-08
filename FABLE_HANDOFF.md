@@ -87,10 +87,10 @@ memory) and the roadmap records exactly why each was rejected.
   predictive-gain-gated, residual-gated sense splitting (see below).
 
 Engineering spine (all landed, all pinned):
-- **E1** `regression_harness.py`: 31 tolerance-based checks pinning every
+- **E1** `regression_harness.py`: 65 tolerance-based checks pinning every
   headline behavior (§1-5 core/noise/pool/categories/gain, §6 phase-30
   reasoning, §7 phase-26 calibration, §8 E3 serialization, §9 T1.2 slot
-  budget/eviction). Every backend, port, and calibration change must pass
+  budget/eviction, §10 T1.8 store compression, §11 T3.3 symbol registry). Every backend, port, and calibration change must pass
   it before being believed.
 - **E2** `fastpath.py`: Numba JIT backend for perceive/recall/recall2 +
   vectorized consolidate. Selected via `Organism(backend="auto"|"numba"|
@@ -107,7 +107,11 @@ Engineering spine (all landed, all pinned):
   algorithmic or E4 (GPU statistics tier), not more JIT.
 - **E3** `organism_state.py`: schema-versioned .npz save/load, rng state
   included. Pinned: mid-stream save→load→continue is bitwise identical to
-  never stopping; deterministic replay; cross-backend restore.
+  never stopping; deterministic replay; cross-backend restore. Schema is
+  now **v3** (T3.3 symbol registry); v1 and v2 files still load.
+- **E5** `organism.py::SymbolRegistry` (T3.3): stable symbol IDs decoupled
+  from slot indices, at the EventBoundary seam. Opt-in and observational.
+  See open thread 6 below.
 
 ## The core intellectual results (read this even if you read nothing else)
 
@@ -187,19 +191,36 @@ module — persistence is its defining feature, hence E3).
 1. **Phase 27 — 5M-word scale run** (50-100 books): unblocked by E2; wire
    phase 24's MI-vs-null k-selection into stage B. Pre-registered questions
    in its roadmap row.
-2. **Phase 26 real-text arm (V ≫ N)**: the landed spectral estimator needs
-   vocabulary rank < N. Two recorded starting points: closed PR #19's
-   pairwise-quantile `qcal` estimator (rank-free; its unfinished Part B was
-   exactly this run), and phase 32 (PR #23, partial) — a fixed-point
-   self-calibration that engages at V ≥ N but misses its σ=0.2 bands.
+2. ~~**Phase 26 real-text arm (V ≫ N)**~~ — **CLOSED 2026-08-06 (T2.2,
+   phase 37).** Ported closed PR #19's pairwise-quantile `qcal` estimator
+   (rank-free; minus its `bar_guard` recruit floor, which needed an
+   organism.py hook main lacks); real corpus (395 words, N=50) coverage
+   85 → 275/395 at alpha=0.5, well above phase 25's 216/395 decorrelation
+   plateau, and 289/395 composed with decorrelation. Synthetic V=250≫N=50
+   gate passed at all sigmas — σ=0 by genuine estimation; σ≥0.2 via the
+   known-sigma fallback (non-separated modes decline to estimate rather
+   than oscillate the way phase 32's fixed point did; qcal is one-shot). See ROADMAP row 37.
 3. **Phase 28 — polysemy vs grammatical context-sensitivity** (the
    disentangling test, gold-POS for eval only).
 4. **Phase 29 — recursive hierarchy** (the recruit/consolidate primitive one
    level up; the answer to "no structure above the category FSM").
 5. **Corpus-tier harness checks**: cheap now (E2), blocked on making the
    Gutenberg fetch reproducible inside the harness.
-6. **Stable symbol registry** decoupled from slot indices (designed at the
-   EventBoundary seam; downstream scripts still index P by slot).
+6. ~~**Stable symbol registry** decoupled from slot indices~~ — **CLOSED
+   2026-08-07 (T3.3).** `SymbolRegistry` in `organism.py`, driven only from
+   the EventBoundary's existing commit/remap/invalidate notifications, so
+   there are no new call sites in the perceive loop. Opt-in
+   (`Organism(symbols=True)`) and observational — registry-on state is
+   bitwise identical to registry-off on both backends. IDs survive fusion
+   (moved or aliased), recycling (tombstoned, never reissued),
+   consolidation (a view, `mem_row`), and save/load (E3 schema v3; v1 and
+   v2 files still load). Downstream scripts may still index `org.P` by
+   slot; `registry.slot_of(sid)` is the index that stays correct.
+   Migration proof: `phase33f_eviction_ledger.py`'s script-side birth-era
+   replay reproduced on 40/40 slots, both backends, phase numbers
+   unchanged. Honest scope: identity is lineage, not content -- pool-mode
+   plasticity re-centers mature traces at the same rate by ID as by slot.
+   See ROADMAP row E5 and harness §11.
 7. **E4 — GPU statistics tier** (permutation nulls, all-pairs similarity;
    Rust/wgpu shape for Windows+AMD reality). Timed for phases 27/28.
 8. **In-flight PR #23**: demo/outreach track (D1-D4, phase 31 self-lesion

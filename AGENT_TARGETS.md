@@ -12,9 +12,14 @@ noise floors; pre-register predictions; run `regression_harness.py` under
 BOTH backends (`DEFAI_BACKEND=numpy|numba`) before trusting any change;
 `test_fastpath_equivalence.py` for kernel edits.
 
-Verification state as of 2026-08-04: E1 27/27 both backends, equivalence
-green, e2_benchmark meets pinned numba throughput. See ROADMAP
-"Verification log".
+Verification state as of 2026-08-07, on the merged tree carrying T1.9
+(phase 33h), T2.1 (phase 27's outcome) and T3.3 (the symbol registry):
+E1 ALL PASS both backends (65 checks: 31 + T1.8's section 10 + T3.3's
+section 11), `test_fastpath_equivalence.py` green incl. the narrowed-store
+section 7 and the symbol-registry section 8, `test_label_readout.py` green,
+E3 round-trips green for schema v3 uncompressed/compressed and v1 + v2
+backward load. Torch is NOT installed on any of these hosts, so the ladder's
+torch arms rest on 33c's committed values. See ROADMAP "Verification log".
 
 ---
 
@@ -259,7 +264,7 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
   two measured recovery targets (routing margin 0.061 for a soft top-m
   vote; preserved-but-outvoted label mass). Full row: ROADMAP 33e.
 
-### T1.8 — Representation-width byte reduction (phase 33g)  `[claimed: —]`
+### T1.8 — Representation-width byte reduction (phase 33g)  `[DONE 2026-08-06: claude/phase-33g-representation-width-wf4nsv]`
 - **Objective**: T1.5 measured the cost-branch failure as representation
   width, not memory count (K=120 vs 120 protos: ACC -0.018 at 7.8× bytes;
   complex128 `xi` + dense K×K P). Cut bytes without touching behavior:
@@ -287,12 +292,151 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
 - **Constraint**: inference/storage engineering only — no mechanism or
   learning-rule changes; the 33c/33d anchors must stay reproducible in
   uncompressed mode.
+- **RESULT (2026-08-06)**: `organism_compress.py` (the three levers, split
+  by whether they can lose anything) + E3 **schema v2** (compressed saves,
+  v1 files still load, uncompressed round-trip still bitwise) +
+  `phase33g_representation_width.py`. **3.85× fewer bytes at ZERO accuracy
+  cost**: K=160 goes 371.2KB → 96.4KB with max |Δ task-accuracy| = 0.0000
+  at every swept K, store-mode (quantize each task boundary and carry it
+  forward) identical to eval-only, and paired reseeds s=0–4 drifting
+  exactly 0.000. Every 33d anchor EXACT uncompressed
+  (0.712/0.735/0.837/0.854/0.900). Prediction (a) HELD more strongly than
+  written (predicted "within tolerance", measured identically zero);
+  (b) HELD at 15.5× and turned out LOSSLESS (P is 6.1% dense at K=160, so
+  CSR at floor 0 reconstructs bit-for-bit — no count floor needed);
+  (c) did not fire (0.900 still above the 0.872 bar). **(d) NOT MET — the
+  phase's honest negative**: only low-rank reaches inside ~2× the bar's
+  bytes and it fails reseeding (seed 0 says rank-20 = 0.887 at 1.61×,
+  which would have met (d); paired seeds 0–4 swing it −0.052…+0.033, and
+  rank-16 −0.071…+0.019, while c64+CSR is 0.000 everywhere) — best-of-grid
+  on one seed, exactly T1.6's measured selection bias. Levers (i)+(ii)
+  carry the whole 3.85×; lever (iii) is a negative at this scale. Cost
+  branch still NOT met but repriced: 33d's cost-matched K=24/0.644 becomes
+  K=48/0.728 in the same 30.7KB; 412.4 → 107.1 KB/ACC-pt at K=160; 0.900
+  now sits at 3.14× the bar (was 12.1×) and 1.08× replay's footprint.
+  Dtype work: `Organism.perceive` gained a guard pinning compute width at
+  complex128 — the numba kernel already promoted its inputs, so a narrowed
+  store would otherwise have made the numpy path compute at a different
+  width (a latent cross-backend divergence, now closed and pinned by
+  `test_fastpath_equivalence.py` §7). Harness §10 (14 checks) green both
+  backends. Phase 9's negative untouched: compression re-encodes a
+  finished state, nothing re-attributes occurrences. Full row: ROADMAP 33g.
+
+### T1.9 — Cost-branch follow-up: KB-per-accuracy-point parity (phase 33h)  `[DONE 2026-08-07: claude/phase-33h-cost-branch-w62bcj]`
+- **Objective**: T1.8 repriced the gate's cost branch but did not meet it:
+  the bar-crossing organism arm (K=160, ACC 0.900) now costs 96.4KB =
+  107.1 KB/ACC-pt vs the prototype bar's 35.2 (0.872 @ 30.7KB), a ~3×
+  per-point gap. Close that gap, or measure its floor as the owner's
+  decision input for re-scoping the RELEASE HOLD. Either outcome is the
+  deliverable — a measured "this mechanism cannot reach parity because X"
+  is as valuable as parity itself.
+- **Context**: `phase33g_representation_width.py` +
+  `organism_compress.py` (the compressed cost curve; `store_bytes` is the
+  agreed formula), `phase33d_capacity_sweep.py` (protocol + the K sweep),
+  `phase33e_readout_geometry.py` (T1.6's null AND its two measured
+  recovery targets: routing margin 0.061 for a soft top-m vote;
+  preserved-but-outvoted label mass), `phase33f_eviction_ledger.py`
+  (task-1 regression is NOT eviction — don't spend bytes there).
+- **Levers, in priority order** (width is exhausted — 33g's c64+CSR is
+  already zero-cost; low-rank is a measured NEGATIVE, do not retry it
+  without a reseeding-robust selection protocol):
+  (i) the knee of the COMPRESSED cost curve — 33d chose K on the
+  uncompressed curve; re-find the accuracy-per-byte-optimal K now that
+  33g moved cost-matched from K=24/0.644 to K=48/0.728 in the same
+  30.7KB; (ii) readout richness at fixed K (T1.6's two recovery targets,
+  eval-side, no mechanism change); (iii) slot-count reduction via
+  consolidation at task boundaries (merge near-duplicate slots with the
+  existing `consolidate()` machinery — fold, don't re-attribute; phase
+  9's negative stays closed).
+- **Pre-registered predictions**: (a) the compressed cost curve has a
+  knee below K=160 where KB/ACC-pt improves but likely stays above the
+  bar's 35.2 — measure where; (b) honest negative: if no lever reaches
+  ≤2× the bar's KB/ACC-pt at ACC ≥ 0.872, record the measured floor and
+  the reason, as the decision input for an owner re-scope of the gate to
+  the capability axes. All arms reseed-verified (s=0–4 paired), per
+  T1.6/T1.8's measured selection-bias lesson.
+- **Constraint**: no task/label information inside mechanisms (readout
+  levers stay eval-side); 33c/33d/33g anchors must stay reproducible;
+  harness green both backends; `test_fastpath_equivalence.py` if any
+  kernel path is touched.
+- **Done when**: `phase33h_*.py` prints the measured cost frontier
+  (KB/ACC-pt per arm, reseeded); ROADMAP row records parity, progress, or
+  the floor; AGENT_TARGETS + the RELEASE-HOLD block updated with the
+  verdict.
+- **RESULT (2026-08-07)**: prediction (b)'s honest negative is the
+  verdict — **parity NOT met, the ≤2× fallback NOT met, and the floor is
+  measured at 76.1 KB/ACC-pt = 2.24× the bar** (ACC 0.903 vs the bar's
+  0.865, K=112 + `calib-b8`), on HELD-OUT seeds. Per-point cost fell
+  3.15× → 2.24× (−29%). `phase33h_cost_frontier.py`; no library file
+  touched; all anchors exact (bar 0.872/30.7KB/120, 33d's ladder, 33g's
+  96.4KB); harness 45/45 both backends before and after.
+  - Two protocol points that generalize past this target. (1) Every arm
+    reseeds the **prototype bar on the same split** — a fixed seed-0 bar
+    against reseeded organism arms is unpaired, and T1.6/T1.8's lesson
+    applies to the baseline as much as to the mechanism. (2) Rule (d)
+    (min paired delta > 0 on all seeds) is a filter over a grid, so it
+    is still selection; the phase pre-registered a **held-out
+    confirmation** on fresh seeds 5–9 and it earned its keep — the
+    cheapest arm (K=96, 1.96×) sign-flipped out of sample (min −0.004)
+    and was recorded, not banked, exactly as 33g's rank-20 should have
+    been.
+  - Lever (i) knee: prediction (a) held in its first clause and FAILED
+    in its second, usefully. The knee is at K=24 (23.9 KB/ACC-pt =
+    **0.70×** the bar) and the organism beats the bar per point at every
+    K ≤ 40 — but only because the metric is minimized where accuracy is
+    worst (K=24 scores 0.583). The gate says "cost-effective AT EQUAL
+    ACCURACY"; only the constrained number answers it, and unconstrained
+    KB/ACC-pt must not be quoted from this phase without that caveat.
+    Constrained, lever (i) alone is 3.25× — the 17-point grid bought
+    resolution, not cost.
+  - Lever (ii) readout: **T1.6's null is BOUNDED, not overturned.** It
+    reproduces at low capacity (K=24: nothing survives) but at K=120
+    five decoders clear the survival rule on all five seeds (dist-m2/m3/
+    m5, calib-b8/b32; calib-b8 +0.053 [+0.012, +0.081]) — via the exact
+    mechanism T1.6 named and could not exercise at K=40: per-slot label
+    DISTRIBUTIONS instead of majority collapse, which only have mass to
+    recover once slots are plentiful enough to split it. Zero bytes, so
+    it moves the whole curve down. **Anyone citing T1.6's null should
+    now cite it as "at K=40".**
+  - Lever (iii) folding: a measured NEGATIVE, called by the census
+    before a fold ran (prediction (c) held). At `consolidate()`'s own
+    0.8 threshold the bank is near-orthogonal — 8 duplicate pairs out of
+    12 720 at K=160, 13/160 slots with any partner, median pairwise
+    overlap 0.169. Every byte folding saves is bought with accuracy: th
+    ≤ 0.60 costs −0.147 ACC, th = 0.85 frees 0.2 slots (noise). No fold
+    arm is both at/above the bar and cheaper per point. **Do not retry
+    this lever at this scale without new evidence of redundancy.**
+  - **The floor's reason, and it is arithmetic**: a prototype is a REAL
+    float32 N-vector (256 B), a field memory is a COMPLEX one (512 B) +
+    8 B meta = 2.03× per stored memory before the graph, at parity slot
+    count (112 slots clear what 115 prototypes clear). Decomposition:
+    68.7KB/29.4KB = 2.34× bytes × (0.865/0.903) = 2.24×, of which 1.98×
+    is complex-vs-real and 0.36× is the CSR graph. Parity needs the bar
+    cleared on ≤ 57 slots (K=56 measures 0.800); the ≤2× fallback needs
+    ≤ 114 slots with a FREE graph — **missed by 9.9KB against a graph
+    costing 10.5KB**. 33g already took the lossless width, so the
+    residue is the premise, not an implementation.
+  - Scope variation on record, NOT banked: this benchmark's readout
+    never queries the transition graph, so a graph-free store is 58.2KB
+    at 0.903 = 64.5 KB/ACC-pt = **1.90×, which would meet the
+    fallback** — honest only for a product that never reasons, since the
+    graph is the logic layer (phase 30, phases 35/36) and underpins
+    every capability a re-scoped gate would point at. Quoting it
+    unqualified is the artifact 33g refused to bank on P pruning.
+  - Direction with its caveat: K=112 (0.903 at 76.1) is now cheaper per
+    accuracy point than 33c's replay (0.913 at ~89.6KB = 98.1), having
+    been 3.4× dearer at 33d — but replay is a single-seed torch number,
+    not reseeded and not re-measured (no torch on this host).
+  - **Owner decision input**: the cost branch is not closable by storage
+    engineering and its floor is ~2.2×. Re-scoping the gate to the
+    capability axes is the decision the data supports. Full row:
+    ROADMAP 33h.
 
 ---
 
 ## Category 2 — Scale & real text
 
-### T2.1 — Phase 27: 5M-word scale run  `[claimed: —]`
+### T2.1 — Phase 27: 5M-word scale run  `[DONE 2026-08-07, session claude/t2-1-phase-27-scale-run-ycro8b — see ROADMAP row 27]`
 - **Objective**: 50–100 Gutenberg books through the unified loop with
   phase 24's MI-vs-null + distinctness wired into stage B. Pre-registered:
   does category structure sharpen (MI z up, selected k stable/graceful),
@@ -303,8 +447,34 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
   perceive at 547K → plan for ~10× that), E4 status (nulls are the cost).
 - **Done when**: phase script + ROADMAP row with pre-registered outcomes
   recorded, including partials.
+- **Status (2026-08-06, PR #34)**: instrument landed —
+  `phase27_5m_word_scale_run.py` (42 books / ~5.22M raw words,
+  MIN_COUNT 1500, phase-24 criteria in stage B, stage-A E3 checkpoint at
+  `/tmp/phase27_stageA_checkpoint.npz`, coverage_map OOM fixed by
+  chunking). Stage A measured once (~14.3 min, 598 slots, 3 577 289
+  in-vocab tokens); **the committed run's stage B–D outcomes are NOT yet
+  recorded — that is the open piece.** ROADMAP row 27 stays "in
+  progress" and this target flips to DONE only when P1/P2 verdicts land
+  (partials included). Fold these merge-review follow-ups into the
+  completion commit: (1) use the already-built `train_arr` in
+  `coverage_map`'s member loop instead of re-allocating per slot; (2) add
+  a corpus/vocab fingerprint to the stage-A checkpoint and refuse a stale
+  load; (3) commit the fetch-time title-verification the docstring leans
+  on (the printed curl block has no title check); (4) reconcile
+  `sharpens_k`'s 4–10 window with the docstring's falsification clause
+  (k=11 currently fails without being the sweep ceiling of 12) — argue
+  the fix from the frozen pre-registration text BEFORE looking at the
+  measured k.
+- **Result (2026-08-07, committed run, all four follow-ups applied
+  pre-run)**: **P1 NOT CONFIRMED** — distinctness-argmax collapsed to
+  k=2 (the frozen clause's own falsification mode) and z=61 at the
+  selected k < phase 24's 65 (z down at every comparable k; VALIDITY
+  itself still 17–61 sigma at all k). **P2 CONFIRMED** — 'right' clears
+  its tighter per-word null (n=3340, gain 0.008 vs p99 0.001);
+  205/354 candidates clear theirs. Caveats + the vocabulary-composition
+  confound recorded in ROADMAP row 27.
 
-### T2.2 — Phase 26 real-text arm: calibration at V ≫ N  `[claimed: —]`
+### T2.2 — Phase 26 real-text arm: calibration at V ≫ N  `[DONE 2026-08-06, session claude/v-n-acceptance-bar-calibration-jrlk86 — see ROADMAP row 37]`
 - **Objective**: acceptance-bar calibration without the rank<N spectral
   assumption — the blocker for the core perception stack on real
   embeddings (85/395 collapse, confirmed at scale).
@@ -318,7 +488,7 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
   pre-registered bands at V ≫ N on synthetic, then lift real-text core-arm
   coverage measurably above the 216/395 decorrelation plateau.
 
-### T2.3 — Phase 28: polysemy vs grammatical context-sensitivity  `[claimed: —]`
+### T2.3 — Phase 28: polysemy vs grammatical context-sensitivity  `[claimed: claude/polysemy-context-sensitivity-phase28-h0shnt, 2026-08-05 — DONE]`
 - **Objective**: the disentangling test — cluster detected words'
   occurrences by context signature; different induced categories = lexical
   polysemy, same category with shifted successors = context-sensitivity.
@@ -329,6 +499,19 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
   classed as context-sensitivity; claim narrows to POS-level multi-role).
 - **Done when**: per-word classification with a measured null; precision/
   recall vs gold-POS entropy reported; caveats recorded.
+- **Result (2026-08-05/06)**: 119-word gain-detected list (phase 23's
+  stage A + stage-C gain code verbatim, but conditioned on
+  `discover_categories_v2` slot categories rather than phase 23's
+  word-level k-means — same population, not a bit-exact reproduction)
+  split 18 polysemy (15%) / 101 context-sensitivity (85%) by
+  predecessor-category-bucket successor-conflict (a proxy with no
+  measured null of its own — see ROADMAP row 28). Gold-POS
+  (nltk, eval-only): polysemy mean entropy 0.533 vs context-sensitivity
+  0.309 bits (right direction, soft not clean); whole-detector vs gold
+  minority-POS precision 0.336 / recall 0.284. 'right' itself lands in
+  context-sensitivity (gold-entropy 1.667) — a measured instance of the
+  pre-registered scope caveat, not an assumption. Full numbers: ROADMAP
+  row 28.
 
 ### T2.4 — Phase 29: recursive hierarchy  `[claimed: —]`
 - **Objective**: recruit/consolidate one level up — tokens are category
@@ -363,7 +546,7 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
 - **Done when**: `regression_harness.py --corpus` (or equivalent tier flag)
   runs the pinned checks from a cold cache and skips gracefully offline.
 
-### T3.3 — Stable symbol registry  `[claimed: —]`
+### T3.3 — Stable symbol registry  `[DONE 2026-08-07: claude/symbol-registry-eventboundary-avk5l0]`
 - **Objective**: symbol IDs decoupled from slot indices, designed at the
   `EventBoundary` seam (downstream scripts still index `org.P` by slot;
   fusion/recycling already emit remap/invalidate notifications to build on).
@@ -371,6 +554,36 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
   `organism_state.py` (registry must serialize).
 - **Done when**: registry survives consolidate/recycle/save-load with
   stable IDs; at least one phase script migrated as proof; harness green.
+- **RESULT (2026-08-07)**: `SymbolRegistry` in `organism.py`, driven only
+  from `EventBoundary` — `commit` mints an ID the first time a slot crosses
+  the boundary, `remap` moves it to the surviving slot or aliases it, and
+  `invalidate` tombstones it permanently. Those are the three notifications
+  the boundary already emitted, so there are **no new call sites in the
+  perceive loop**. Consolidation is a VIEW (`mem_row` → row of `org.mem`),
+  never an identity mutation, because callers snapshot/restore raw counts
+  around it. Opt-in (`Organism(symbols=True)`) and observational: on both
+  backends, registry-on state is **bitwise identical** to registry-off. The
+  JIT kernel maintains the slot→symbol array in place and journals
+  alias/tombstone events for replay, so both backends emit the same
+  identity events in the same order (`test_fastpath_equivalence.py` §8).
+  E3 **schema v3** serializes it (v1 and v2 files still load, into an
+  organism with no registry — additive migration; `save_state_v2` added so
+  the backward load is tested against a real file). Harness §11 measures
+  the hazard before pinning the fix: in the oversubscribed regime 6 of 9
+  epoch-A slots come to hold a different word and 0 IDs are ever reissued;
+  in the fusion regime every aliased ID still resolves while its recorded
+  slot has been re-let. **Honest scope**: identity is LINEAGE, not content
+  — pool-mode refinement re-centers a mature trace on an ~1/eta-visit
+  window, so a long-lived memory can drift onto a different word; measured,
+  that happens at the same rate by ID (17/25) as by slot (16/25), so the
+  registry is banded there as a tripwire, not sold as a content guarantee.
+  **Migration proof**: `phase33f_eviction_ledger.py` — its script-side
+  birth-era replay (which rested on a prose ordering argument) is
+  reproduced by the registry on 40/40 slots on both backends, with 171
+  tombstones = 171 ledger rows and 211 mints = K=40 + 171 rebirths; every
+  committed number of that phase is unchanged (output byte-identical apart
+  from the four new gate lines). Harness 65/65 both backends. See ROADMAP
+  row E5.
 
 ---
 
@@ -414,7 +627,12 @@ staged. Order decided in triage (ROADMAP): D1 first.
 - **Status**: **BLOCKED by RELEASE HOLD** until T1.4 passes the owner's
   bar. Engineering gate (E1+E2+E3+Phase 26 synthetic) already OPEN.
   (T1.4 ran 2026-08-05: bar NOT met — 0.712 vs 0.872, ROADMAP row 33c;
-  the hold stands pending the owner's decision.)
+  the hold stands pending the owner's decision.) **The gap-closing
+  sequence T1.5–T1.9 is now exhausted and the decision is fully
+  specified: raw-accuracy is buyable as a protocol variation (K=160,
+  0.900), and the cost branch has a measured ~2.2× floor with an
+  arithmetic reason (33h). What remains is an owner call on re-scoping
+  the gate to the capability axes — not another agent target.**
 - **When unblocked**: cut release tag on main → create separate product
   repo (hard fork, never a branch) → discoveries flow only via the
   versioned engine (phase script + pinned harness numbers + release tag).

@@ -68,9 +68,25 @@ def _nrm(v, target):
 
 
 @njit(cache=True, fastmath=True)
+def _reg_kill(slot_sym, journal, journal_n, jcap, k):
+    """T3.3 registry.kill: slot k was recycled, tombstone its symbol.
+    Mirrors SymbolRegistry.kill, journalled as DEAD for the Python side."""
+    sd = slot_sym[k]
+    if sd >= 0:
+        if journal_n[0] < jcap:
+            journal[journal_n[0], 0] = 2
+            journal[journal_n[0], 1] = sd
+            journal[journal_n[0], 2] = -1
+            journal_n[0] += 1
+        else:
+            journal_n[1] = 1                    # overflow: the driver raises
+        slot_sym[k] = -1
+
+
+@njit(cache=True, fastmath=True)
 def _perceive_chunk(frames, n_valid, z_io, xi, xic, used, count, P,
                     prov, hits, age, nvis, evicts, prev_x, state_i,
-                    ledger, ledger_n,
+                    ledger, ledger_n, slot_sym, next_id, journal, journal_n,
                     g_in, dt, eta, recruit, p_decay, confirm, probation,
                     pool, active_bar, s_hat, amb, fuse_bar, evict, omega, norm):
     """One chunk of the perceive loop. All state mutates in place.
@@ -84,9 +100,22 @@ def _perceive_chunk(frames, n_valid, z_io, xi, xic, used, count, P,
     flag off the caller passes a (0, 4) ledger and the recording branches
     are dead; with it on, each pressure eviction writes one row (chunk-local
     frame t, victim slot, count, age) BEFORE the eviction mutates state --
-    observe-only, no mechanism decision reads it."""
+    observe-only, no mechanism decision reads it.
+
+    slot_sym/next_id/journal/journal_n (T3.3 symbol registry, observe-only):
+    with the registry off the caller passes a size-0 slot_sym and every
+    branch below is dead. With it on, `slot_sym` (slot -> live symbol ID) and
+    the `next_id` counter are maintained in place -- exactly the same three
+    identity events organism.py's EventBoundary handles -- and the two events
+    that need the Python-side alias/tombstone tables (ALIAS=1 fused-away id
+    -> surviving id, DEAD=2 tombstoned id) are appended to `journal` in
+    order, drained after the chunk. journal_n = [rows_written, overflowed].
+    Nothing here feeds a mechanism decision, so registry-on and registry-off
+    runs are bitwise identical."""
     N = xi.shape[1]
     K = xi.shape[0]
+    reg = slot_sym.shape[0] > 0
+    jcap = journal.shape[0]
     z = z_io.copy()
     last_k = state_i[0]
     bprev = state_i[1]
@@ -194,6 +223,20 @@ def _perceive_chunk(frames, n_valid, z_io, xi, xic, used, count, P,
                         used[drop] = False
                         prov[drop] = False
                         count[drop] = 0.0
+                        if reg:                    # registry.fuse
+                            sd = slot_sym[drop]
+                            if sd >= 0:
+                                if slot_sym[keep] >= 0:      # both named: alias
+                                    if journal_n[0] < jcap:
+                                        journal[journal_n[0], 0] = 1
+                                        journal[journal_n[0], 1] = sd
+                                        journal[journal_n[0], 2] = slot_sym[keep]
+                                        journal_n[0] += 1
+                                    else:
+                                        journal_n[1] = 1
+                                else:
+                                    slot_sym[keep] = sd      # identity moves slots
+                                slot_sym[drop] = -1
                         if bprev == drop:          # boundary.remap
                             bprev = keep
                 else:
@@ -239,6 +282,9 @@ def _perceive_chunk(frames, n_valid, z_io, xi, xic, used, count, P,
                                     P[je, c] = 0.0
                                 for r in range(K):
                                     P[r, je] = 0.0
+                                if reg:                # registry.kill
+                                    _reg_kill(slot_sym, journal, journal_n,
+                                              jcap, je)
                                 if bprev == je:        # boundary.invalidate
                                     bprev = -1
                                 all_used = False
@@ -313,6 +359,8 @@ def _perceive_chunk(frames, n_valid, z_io, xi, xic, used, count, P,
                         P[je, c] = 0.0
                     for r in range(K):
                         P[r, je] = 0.0
+                    if reg:                        # registry.kill
+                        _reg_kill(slot_sym, journal, journal_n, jcap, je)
                     if bprev == je:                # boundary.invalidate
                         bprev = -1
                     all_used = False
@@ -372,6 +420,9 @@ def _perceive_chunk(frames, n_valid, z_io, xi, xic, used, count, P,
                                 P[k2, c] = 0.0
                             for r in range(K):
                                 P[r, k2] = 0.0
+                            if reg:                # registry.kill
+                                _reg_kill(slot_sym, journal, journal_n,
+                                          jcap, k2)
                             if bprev == k2:        # boundary.invalidate
                                 bprev = -1
         elif evict > 0.0:                          # plain mode: budget clock only
@@ -383,6 +434,9 @@ def _perceive_chunk(frames, n_valid, z_io, xi, xic, used, count, P,
             if not prov[k]:                        # gate: only confirmed, confident
                 if evict > 0.0 and not pool:       # confident use resets the budget
                     age[k] = 0.0                   # clock (pool: acceptance owns it)
+                if reg and slot_sym[k] < 0:        # registry.mint: first crossing
+                    slot_sym[k] = next_id[0]       # of the boundary names it
+                    next_id[0] += 1
                 if k != bprev and bprev >= 0:      # boundary.commit -> graph.observe
                     if p_decay > 0.0:
                         for r in range(K):
@@ -434,6 +488,31 @@ def perceive_fast(org, stream, g_in=4.0, dt=0.05, eta=0.02, recruit=0.55,
                       np.float64)
     ledger_n = np.zeros(1, np.int64)
     frames_done = 0
+    # T3.3 registry: size-0 slot_sym = off (every kernel branch dead).
+    # Journal capacity bound: an ALIAS needs a fusion (<= 1 per frame) and a
+    # DEAD needs a symbol, which needs a mint, which needs a recruit (<= 1
+    # per frame) -- plus at most K symbols carried into the chunk. 3*chunk +
+    # 2K is slack over that bound; overflow is still checked, not assumed.
+    reg = getattr(org, 'registry', None)
+    if reg is None:
+        slot_sym = np.empty(0, np.int64)
+        next_id = np.zeros(1, np.int64)
+        journal = np.empty((0, 3), np.int64)
+    else:
+        slot_sym = reg.slot_sym
+        next_id = reg.next_id
+        journal = np.empty((3 * PERCEIVE_CHUNK + 2 * K, 3), np.int64)
+    journal_n = np.zeros(2, np.int64)              # [rows, overflowed]
+
+    def drain_journal():
+        if reg is None:
+            return
+        if journal_n[1]:                           # provably unreachable; if the
+            raise RuntimeError(                    # bound above ever breaks, fail
+                "symbol-registry journal overflowed -- identity events were "
+                "lost; raise the per-chunk capacity in perceive_fast")
+        reg.apply_journal(journal[:journal_n[0]])
+        journal_n[0] = 0
 
     buf = np.empty((PERCEIVE_CHUNK, N), np.complex128)
     fill = 0
@@ -443,7 +522,8 @@ def perceive_fast(org, stream, g_in=4.0, dt=0.05, eta=0.02, recruit=0.55,
         if fill == PERCEIVE_CHUNK:
             _perceive_chunk(buf, fill, z_io, xi, xic, org.used, org.count, P,
                             prov, hits, age, nvis, org.evictions, prev_x, state_i,
-                            ledger, ledger_n,
+                            ledger, ledger_n, slot_sym, next_id,
+                            journal, journal_n,
                             float(g_in), float(dt), float(eta), float(recruit),
                             float(p_decay), int(confirm), float(probation),
                             bool(pool), float(active_bar), float(s_hat),
@@ -451,12 +531,14 @@ def perceive_fast(org, stream, g_in=4.0, dt=0.05, eta=0.02, recruit=0.55,
                             float(org.omega), float(org.norm))
             if evict_debug is not None:
                 _drain_ledger(evict_debug, ledger, ledger_n, frames_done)
+            drain_journal()
             frames_done += fill
             fill = 0
     if fill > 0:
         _perceive_chunk(buf, fill, z_io, xi, xic, org.used, org.count, P,
                         prov, hits, age, nvis, org.evictions, prev_x, state_i,
-                        ledger, ledger_n,
+                        ledger, ledger_n, slot_sym, next_id,
+                        journal, journal_n,
                         float(g_in), float(dt), float(eta), float(recruit),
                         float(p_decay), int(confirm), float(probation),
                         bool(pool), float(active_bar), float(s_hat),
@@ -464,8 +546,15 @@ def perceive_fast(org, stream, g_in=4.0, dt=0.05, eta=0.02, recruit=0.55,
                         float(org.omega), float(org.norm))
         if evict_debug is not None:
             _drain_ledger(evict_debug, ledger, ledger_n, frames_done)
+        drain_journal()
 
     if confirm > 0:                                # purge still-unconfirmed slots
+        if reg is not None:
+            # pool-mode fusion can move a confirmed slot's identity onto a
+            # still-provisional host; purging that host kills the symbol
+            # (organism.py does the same via boundary.invalidate(prov))
+            for k2 in np.nonzero(prov)[0]:
+                reg.kill(int(k2))
         org.used[prov] = False
         org.count[prov] = 0
     org.xi = xi

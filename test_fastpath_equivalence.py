@@ -17,6 +17,26 @@ Checks, one per perceive mode + recall + consolidate:
   6. slot-budget eviction    -- T1.2 evict>0 in plain (two-world flooding)
                                 and pool+amb modes; the persistent budget
                                 clock and eviction tallies must agree too
+  7. narrowed store (T1.8)   -- perceiving with a COMPRESSED store
+                                (complex64 xi). The numba kernel promotes
+                                its inputs to complex128; the numpy loops
+                                use self.xi directly, so without the dtype
+                                guard in Organism.perceive the two backends
+                                would compute the same stream at different
+                                widths. This check is the guard's pin:
+                                identical results, store dtype preserved,
+                                and a c64 store must track a c128 one to
+                                float32 precision (a tolerance, not zero --
+                                the store really is quantized)
+  8. symbol registry (T3.3)  -- the identity events (mint/fuse/kill) the two
+                                backends emit must be the same events in the
+                                same order: the NumPy path drives them from
+                                EventBoundary, the JIT path maintains the
+                                slot->symbol array in the kernel and journals
+                                the alias/tombstone events for replay. Also
+                                pins OBSERVATIONAL PURITY -- registry on vs
+                                off is bitwise identical state, so identity
+                                tracking can never feed a mechanism decision
 
 Run: python test_fastpath_equivalence.py  (nonzero exit on failure)
 """
@@ -183,6 +203,93 @@ b.perceive(fr6, **kw6)
 check("pool+amb+evict perceive state diff", state_diff(a, b), 1e-5)
 check("pool+amb+evict eviction-count mismatch",
       float(abs(a.evictions.sum() - b.evictions.sum())), 0.0)
+
+# (7) T1.8: narrowed store -- compute width must stay complex128 on BOTH
+# backends, and the store dtype must survive the round trip
+print("(7) narrowed store (T1.8 complex64 xi): cross-backend + vs full width")
+a, b = pair(N=Nw, K=6, seed=0)
+a.xi = a.xi.astype(np.complex64)
+b.xi = b.xi.astype(np.complex64)
+a.perceive(sA); a.perceive(sB, evict=800)
+b.perceive(sA); b.perceive(sB, evict=800)
+check("c64-store perceive state diff (numpy vs numba)", state_diff(a, b), 1e-5)
+check("c64 store dtype preserved (numpy)",
+      float(a.xi.dtype != np.complex64), 0.0)
+check("c64 store dtype preserved (numba)",
+      float(b.xi.dtype != np.complex64), 0.0)
+
+# same stream at full width: the quantized store must not move the routing,
+# only the stored digits (float32 eps ~1.2e-7 against |xi| ~ 1)
+w, _ = pair(N=Nw, K=6, seed=0)
+w.perceive(sA); w.perceive(sB, evict=800)
+check("c64 vs c128 store, xi drift", float(np.abs(a.xi - w.xi).max()), 1e-4)
+check("c64 vs c128 store, transition-graph mismatch",
+      float(np.abs(a.P - w.P).max()), 0.0)
+check("c64 vs c128 store, slot-occupancy mismatch",
+      float((a.used != w.used).sum()), 0.0)
+
+# consolidation products are computed at compute width regardless of store
+a.consolidate(); w.consolidate()
+check("c64 store consolidate kept-list mismatch",
+      float(a.kept_idx != w.kept_idx), 0.0)
+check("c64 store mem at compute width",
+      float(a.mem.dtype != np.complex128), 0.0)
+
+# (8) T3.3: symbol registry -- the identity events the two backends emit
+# must be the SAME events in the SAME order, and turning the registry on
+# must not perturb the mechanism by a single bit
+print("(8) symbol registry (T3.3): cross-backend identity + observational purity")
+
+
+def reg_tuple(o):
+    """Everything the registry knows, in a comparable form."""
+    r = o.registry
+    return (r.slot_sym.tolist(), int(r.next_id[0]),
+            sorted(r.alias.items()), sorted(r.dead), sorted(r.mem_index.items()))
+
+
+def reg_pair(seed=0, **kw):
+    return (Organism(backend="numpy", seed=seed, symbols=True, **kw),
+            Organism(backend="numba", seed=seed, symbols=True, **kw))
+
+
+# 8a. the pinned phase-17/18 pool world: fusion-heavy (mature duplicates
+# converge, so the ALIAS event -- both slots already named -- is exercised)
+a, b = reg_pair(N=N14, K=60, omega=0.15, beta=10.0, seed=0)
+seq8 = sample_stream(4000, seed=99)
+fr8 = list(frames(seq8, 0.2))
+kw8 = dict(g_in=5.0, dt=0.05, eta=0.05, confirm=3, pool=True,
+           active_bar=0.35, s_hat=0.2**2 * N14, probation=12000, amb=0.0)
+a.perceive(fr8, **kw8)
+b.perceive(fr8, **kw8)
+a.consolidate(); b.consolidate()
+check("registry cross-backend mismatch (pool world)",
+      float(reg_tuple(a) != reg_tuple(b)), 0.0)
+check("registry saw no fusion (test would be vacuous)",
+      float(len(a.registry.alias) == 0), 0.0)
+
+# 8b. the eviction world: recycling under budget pressure, so the DEAD
+# event and slot reuse (a recycled slot must NOT inherit its predecessor's
+# identity) are exercised
+c, d = reg_pair(N=N14, K=12, omega=0.15, beta=10.0, seed=0)
+c.perceive(fr6, **kw6)
+d.perceive(fr6, **kw6)
+check("registry cross-backend mismatch (eviction world)",
+      float(reg_tuple(c) != reg_tuple(d)), 0.0)
+check("registry saw no recycling (test would be vacuous)",
+      float(len(c.registry.dead) == 0), 0.0)
+check("registry reused a symbol ID after recycling",
+      float(len(set(c.registry.live()) & c.registry.dead) > 0), 0.0)
+
+# 8c. OBSERVATIONAL PURITY: registry on vs off, same backend, must be
+# bitwise identical -- the registry may never touch a mechanism decision
+for be, on in (("numpy", a), ("numba", b)):
+    off = Organism(backend=be, N=N14, K=60, omega=0.15, beta=10.0, seed=0)
+    off.perceive(fr8, **kw8)
+    off.consolidate()
+    check(f"registry on-vs-off state drift ({be})", state_diff(on, off), 0.0)
+    check(f"registry on-vs-off consolidate mismatch ({be})",
+          float(on.kept_idx != off.kept_idx), 0.0)
 
 print()
 if FAILURES:

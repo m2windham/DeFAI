@@ -29,6 +29,7 @@ class NumbaOrganism(Organism):
     fails if numba is not installed -- this class is the explicit request
     for the JIT backend, so silent numpy fallback would be a lie."""
 
-    def __init__(self, N=128, K=8, omega=0.25, beta=12.0, seed=0, backend=None):
+    def __init__(self, N=128, K=8, omega=0.25, beta=12.0, seed=0, backend=None,
+                 symbols=False):
         super().__init__(N=N, K=K, omega=omega, beta=beta, seed=seed,
-                         backend="numba")
+                         backend="numba", symbols=symbols)

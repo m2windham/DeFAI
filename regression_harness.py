@@ -32,6 +32,17 @@ Sections (fast tier only; corpus-tier joins once E2/Numba makes it cheap):
   9. slot budget / eviction under recruitment pressure (T1.2, phase 33b) --
      a flooded bank learns a second world only with evict > 0, and the
      budget's persistent clock round-trips bitwise through E3.
+ 10. store compression (T1.8, phase 33g) -- the lossless levers (CSR
+     transition matrix, float32 counts) decompress bit-for-bit, a
+     complex64 store drifts only at float32 epsilon and leaves routing and
+     the transition graph untouched, and E3 schema v2 keeps the
+     uncompressed round-trip bitwise while still loading v1 files.
+ 11. stable symbol registry (T3.3) -- symbol IDs decoupled from slot
+     indices at the EventBoundary seam: slot indices measurably rot under
+     fusion/recycling while IDs still name the same memory content, the
+     consolidation view is not an identity mutation, the registry
+     round-trips bitwise through E3 schema v3 (v1 and v2 files still load),
+     and registry-on is bitwise identical to registry-off.
 
 Run: `python regression_harness.py`. Exit code is nonzero if any check fails
 its tolerance. Each check prints its own measured value, tolerance band, and
@@ -456,6 +467,282 @@ def section_9_slot_budget():
           note="budget clock + tallies round-trip bitwise")
 
 
+# ============== 10. store compression + E3 schema v2 (T1.8, phase 33g)
+def section_10_compression():
+    print("\n(10) store compression (T1.8, phase 33g): lossless levers, "
+          "narrowed store, E3 v2")
+    import os as _os, tempfile
+    from organism_compress import CompressionSpec, compress, store_bytes
+    from organism_state import load_state, save_state, save_state_v1
+
+    N, H, K = 64, 3, 8
+    NORM = np.sqrt(N)
+    rng = np.random.default_rng(3)
+    Gr, _ = np.linalg.qr(rng.standard_normal((N, H)) + 1j * rng.standard_normal((N, H)))
+    G = Gr.T * NORM
+    Tt = np.array([[0.0, 0.8, 0.2], [0.2, 0.0, 0.8], [0.8, 0.2, 0.0]])
+
+    def stream(n, seed):
+        r = np.random.default_rng(seed)
+        h = 0; out = []
+        for i in range(n):
+            if i % 40 == 0 and i > 0:
+                h = r.choice(H, p=Tt[h])
+            out.append(G[h] + 0.4 * (r.standard_normal(N) + 1j * r.standard_normal(N)))
+        return out
+
+    s1, s2 = stream(8000, 1), stream(8000, 2)
+    org = Organism(N=N, K=K, seed=0)
+    org.perceive(s1); org.perceive(s2)
+
+    # the lossless levers must reproduce the store EXACTLY (this is the
+    # guarantee the phase-33g byte numbers rest on)
+    st = compress(org, spec=CompressionSpec(xi_dtype=np.complex128,
+                                            meta_dtype=np.float32))
+    check("lossless spec: max |dxi|", float(np.abs(st.xi_full() - org.xi).max()),
+          0.0, 0.0, note="CSR P + float32 counts decompress bit-for-bit")
+    check("lossless spec: max |dP|", float(np.abs(st.P_full() - org.P).max()), 0.0, 0.0)
+    check("sparse-P byte reduction (dense K^2 -> CSR)",
+          float(org.P.nbytes / st.p_bytes), 1.2, 1e6,
+          note="phase 33g: 15.5x at K=160 on the 33c protocol")
+
+    # complex64 store: halves the xi term, drift at float32 epsilon
+    stc = compress(org, spec=CompressionSpec())
+    check("c64 store: xi relative drift",
+          float(np.abs(stc.xi_full() - org.xi).max() / np.abs(org.xi).max()),
+          0.0, 1e-6, note="float32 eps -- the lossy lever's whole cost")
+    check("c64 store: total byte ratio vs uncompressed",
+          float(store_bytes(org) / stc.nbytes), 1.5, 1e6)
+
+    # a narrowed store must still perceive, on either backend, at compute
+    # width -- the dtype guard in Organism.perceive (equivalence test sec. 7)
+    narrow = Organism(N=N, K=K, seed=0)
+    narrow.perceive(s1)
+    narrow.xi = narrow.xi.astype(np.complex64)
+    narrow.perceive(s2)
+    full = Organism(N=N, K=K, seed=0)
+    full.perceive(s1); full.perceive(s2)
+    check("narrowed store: xi drift vs full-width run",
+          float(np.abs(narrow.xi.astype(complex) - full.xi).max()), 0.0, 1e-4,
+          note="quantized digits only -- routing must be unchanged")
+    check("narrowed store: transition graph identical",
+          float(np.abs(narrow.P - full.P).max()), 0.0, 0.0)
+    check("narrowed store: dtype preserved across perceive",
+          float(narrow.xi.dtype != np.complex64), 0.0, 0.0)
+
+    # E3 v2: uncompressed round-trip still bitwise, v1 files still load,
+    # compressed round-trip lossy only where its spec says
+    path = _os.path.join(tempfile.gettempdir(), "e3_v2_harness.npz")
+    save_state(org, path)
+    r2 = load_state(path, cls=Organism)
+    check("E3 v2 uncompressed round-trip max |dxi|",
+          float(np.abs(r2.xi - org.xi).max()), 0.0, 0.0,
+          note="the schema bump must not weaken the bitwise guarantee")
+    v1p = _os.path.join(tempfile.gettempdir(), "e3_v1_harness.npz")
+    save_state_v1(org, v1p)
+    r1 = load_state(v1p, cls=Organism)
+    d1 = max(np.abs(r1.xi - org.xi).max(), np.abs(r1.P - org.P).max(),
+             np.abs(r1.age - org.age).max())
+    check("E3 v1 file loads under v2, max state delta", float(d1), 0.0, 0.0,
+          note="backward load: pre-T1.8 saves are not orphaned")
+    cpath = _os.path.join(tempfile.gettempdir(), "e3_c_harness.npz")
+    save_state(org, cpath, compress_spec=CompressionSpec())
+    rc = load_state(cpath, cls=Organism)
+    check("E3 compressed round-trip max |dP|",
+          float(np.abs(rc.P - org.P).max()), 0.0, 0.0,
+          note="P is lossless even in a compressed file")
+    check("E3 compressed round-trip xi drift",
+          float(np.abs(rc.xi - org.xi).max() / np.abs(org.xi).max()), 0.0, 1e-6)
+    check("E3 compressed file restores at compute width",
+          float(rc.xi.dtype != np.complex128), 0.0, 0.0,
+          note="a loaded organism is immediately perceivable on both backends")
+    check("E3 compressed file is smaller on disk",
+          float(_os.path.getsize(path) / _os.path.getsize(cpath)), 1.05, 1e6)
+
+
+# ================================================= 11. stable symbol registry
+def section_11_symbol_registry():
+    """T3.3: symbol IDs decoupled from slot indices, at the EventBoundary seam.
+
+    The hazard is concrete: a slot index is storage, not identity. Fusion
+    moves a memory off the slot it was born on and leaves that slot unused;
+    recycling hands the slot to an unrelated pattern. Either way, anything a
+    caller recorded as "slot 7" quietly starts naming something else. These
+    checks measure that the rot is real in each regime (otherwise the
+    section pins nothing), then pin the registry's actual contract:
+
+      - an ID is minted once and never reissued (tombstones are permanent);
+      - every minted ID is in exactly one state -- live, fused onto a live
+        ID, or dead -- and no two slots claim the same ID;
+      - an ID orphaned by fusion still resolves to the memory that absorbed
+        it, where the raw slot index resolves to nothing;
+      - the registry round-trips bitwise through E3 (schema v3), so an ID
+        handed out before a save still names the same memory after a load;
+      - registry-on is bitwise identical to registry-off.
+
+    Content stability is deliberately NOT claimed, and the measured drift
+    below says why: pool-mode refinement keeps adapting a mature trace on an
+    ~1/eta-visit window (organism.py), so a long-lived memory can come to
+    sit on a different word entirely. That happens at the same rate whether
+    it is reached by ID or by slot -- it is the mechanism moving, not
+    identity breaking. The word-retention check is banded only as a
+    regression tripwire, with the raw-slot baseline printed beside it; the
+    registry's job is to track the trace, not to freeze it.
+    """
+    print("\n(11) stable symbol registry (T3.3)")
+    import tempfile
+    import os as _os
+    from organism_state import save_state, save_state_v2, load_state
+    from phase14_noise_robust_perception import (
+        N as N14, V, emb, sample_stream, frames)
+
+    NORM14 = np.sqrt(N14)
+    words = np.array([normalize(emb[w].astype(complex), NORM14)
+                      for w in range(V)])
+
+    def word_of(vec):
+        """Eval-side label: which vocabulary word this memory sits on.
+        Ground truth for MEASUREMENT only -- never inside the mechanism."""
+        return int(np.argmax(np.abs(words.conj() @ vec) / N14))
+
+    sigma = 0.2
+    base = dict(g_in=5.0, dt=0.05, eta=0.05, confirm=3, pool=True,
+                active_bar=0.35, s_hat=sigma**2 * N14)
+
+    def two_epoch(K, evict, amb, probation, n):
+        """Perceive two epochs; return the organism, its registry, and what
+        each epoch-A symbol named then (its slot and its word)."""
+        kw = dict(base, probation=probation, amb=amb, evict=evict)
+        org = Organism(N=N14, K=K, omega=0.15, beta=10.0, seed=0, symbols=True)
+        reg = org.registry
+        fa = list(frames(sample_stream(n, seed=99), sigma))
+        fb = list(frames(sample_stream(n, seed=7), sigma))
+        org.perceive(fa, **kw)
+        was = {s: (reg.slot_of(s), word_of(org.xi[reg.slot_of(s)]))
+               for s in reg.live()}
+        org.perceive(fb, **kw)
+        return org, reg, was, kw, fa, fb
+
+    def invariants(reg):
+        """Every minted ID in exactly one state; no ID claimed twice."""
+        bad = 0
+        for sid in range(reg.minted()):
+            st = reg.status(sid)
+            live = reg.slot_of(sid) >= 0
+            if st == 'live' and not (live and reg.resolve(sid) == sid):
+                bad += 1
+            elif st == 'fused' and not (live and reg.resolve(sid) != sid):
+                bad += 1
+            elif st == 'dead' and live:
+                bad += 1
+        held = [int(x) for x in reg.slot_sym if x >= 0]
+        return float(bad + (len(held) - len(set(held))))
+
+    # --- regime A: fusion-dominated (roomy bank, no budget pressure) -----
+    org, reg, was, kwA, fa, fb = two_epoch(K=60, evict=0, amb=0.0,
+                                           probation=12000, n=4000)
+    check("regime A: fusions recorded", float(len(reg.alias)), 1.0, 1e6,
+          note="mature duplicates converging -- without them this is vacuous")
+    check("regime A: registry invariants violated", invariants(reg), 0.0, 0.0,
+          note="each ID live | fused | dead, exactly once; no ID held twice")
+    # the exact win: IDs whose memory was fused into another slot. The
+    # recorded index no longer holds them (it was recycled onto an unrelated
+    # pattern); the ID still resolves, to the memory that absorbed it.
+    orphans = [s for s in was if reg.status(s) == 'fused']
+    check("regime A: fusion-orphaned IDs", float(len(orphans)), 1.0, 1e6,
+          note="epoch-A IDs whose memory moved to another slot")
+    check("regime A: fusion-orphaned IDs that fail to resolve",
+          float(sum(1 for s in orphans if reg.slot_of(s) < 0)), 0.0, 0.0,
+          note="an aliased ID must still reach the memory that absorbed it")
+    check("regime A: fusion-orphaned IDs whose recorded slot still holds them",
+          float(sum(1 for s in orphans if reg.symbol_at(was[s][0]) == s)),
+          0.0, 0.0, note="the recorded index is stale by construction here -- "
+                         "reading org.P at it would hit the wrong memory")
+    alive = [s for s in was if reg.slot_of(s) >= 0]
+    kept = sum(1 for s in alive if word_of(org.xi[reg.slot_of(s)]) == was[s][1])
+    by_slot = sum(1 for s in was if org.used[was[s][0]]
+                  and word_of(org.xi[was[s][0]]) == was[s][1])
+    id_ret, slot_ret = kept / max(len(alive), 1), by_slot / max(len(was), 1)
+    check("regime A: word retention by symbol ID", id_ret, 0.45, 1.01,
+          note=f"{kept}/{len(alive)} by ID vs {by_slot}/{len(was)} by raw "
+               f"slot; the ceiling here is pool-mode plasticity re-centering "
+               f"mature traces, not identity -- tripwire band, not a claim")
+    check("regime A: ID retention below the raw-slot baseline",
+          float(id_ret < slot_ret - 1e-12), 0.0, 0.0,
+          note="the registry may never be worse than the index it replaces")
+
+    # --- regime B: recycling-dominated (bank oversubscribed 2:1 + budget) -
+    orgB, regB, wasB, kwB, faB, fbB = two_epoch(K=12, evict=600, amb=0.3,
+                                                probation=4000, n=600)
+    check("regime B: recyclings recorded", float(len(regB.dead)), 1.0, 1e6,
+          note="use-it-or-lose-it + pressure eviction")
+    check("regime B: registry invariants violated", invariants(regB), 0.0, 0.0)
+    check("regime B: epoch-A slot indices now naming something else",
+          float(sum(1 for s in wasB if regB.symbol_at(wasB[s][0]) != s)),
+          1.0, 1e6, note="the hazard, measured")
+    check("regime B: reused slots holding a different word",
+          float(sum(1 for s in wasB if regB.symbol_at(wasB[s][0]) >= 0
+                    and word_of(orgB.xi[wasB[s][0]]) != wasB[s][1])),
+          1.0, 1e6, note="indexing by slot here reads the wrong memory")
+    check("regime B: recycled symbol IDs reissued to a live slot",
+          float(len(set(regB.live()) & regB.dead)), 0.0, 0.0,
+          note="a tombstoned ID is never handed out again")
+
+    # --- consolidate: a VIEW, and IDs come out unchanged -----------------
+    before = (reg.slot_sym.copy(), int(reg.next_id[0]), dict(reg.alias))
+    org.consolidate()
+    org.consolidate()                       # twice: still not a mutation
+    check("consolidate perturbed symbol identity",
+          float(not np.array_equal(before[0], reg.slot_sym)
+                or before[1] != int(reg.next_id[0]) or before[2] != reg.alias),
+          0.0, 0.0, note="callers snapshot/restore raw counts around it")
+    check("resolved symbols with a row in the compact bank",
+          float(sum(1 for s in alive if reg.mem_row(s) >= 0)), 1.0, 1e6,
+          note="mem_row is the migration primitive for org.mem / org.Pn")
+    check("mem_row rows pointing at the wrong memory",
+          float(sum(1 for s in alive if reg.mem_row(s) >= 0
+                    and abs(np.vdot(org.mem[reg.mem_row(s)],
+                                    org.xi[reg.slot_of(s)])) / N14 < 0.99)),
+          0.0, 0.0)
+
+    # --- E3 (schema v3): the registry round-trips bitwise ----------------
+    path = _os.path.join(tempfile.gettempdir(), "t33_registry.npz")
+    save_state(org, path)
+    back = load_state(path, cls=Organism)
+    q = back.registry
+    same = (q is not None and np.array_equal(q.slot_sym, reg.slot_sym)
+            and int(q.next_id[0]) == int(reg.next_id[0])
+            and q.alias == reg.alias and q.dead == reg.dead
+            and q.mem_index == reg.mem_index)
+    check("E3 v3 registry round-trip mismatch", float(not same), 0.0, 0.0,
+          note="an ID handed out before a save must survive the load")
+    back.perceive(fb, **kwA)
+    check("restored organism reissued a live symbol ID",
+          float(len(set(back.registry.live()) & reg.dead)), 0.0, 0.0,
+          note="minting continues from the restored counter, never restarts")
+
+    # v2 files (pre-T3.3) still load -- into an organism with no registry,
+    # which is exactly the state a pre-T3.3 organism had
+    v2p = _os.path.join(tempfile.gettempdir(), "t33_v2.npz")
+    save_state_v2(org, v2p)
+    r2 = load_state(v2p, cls=Organism)
+    d2 = max(np.abs(r2.xi - org.xi).max(), np.abs(r2.P - org.P).max(),
+             np.abs(r2.age - org.age).max())
+    check("E3 v2 file loads under v3, max state delta", float(d2), 0.0, 0.0,
+          note="backward load: pre-T3.3 saves are not orphaned")
+    check("v2 file wrongly resurrected a registry",
+          float(r2.registry is not None), 0.0, 0.0)
+
+    # --- observational purity: the registry may not touch the mechanism --
+    off = Organism(N=N14, K=12, omega=0.15, beta=10.0, seed=0)
+    off.perceive(faB, **kwB); off.perceive(fbB, **kwB); off.consolidate()
+    d = max(np.abs(orgB.xi - off.xi).max(), np.abs(orgB.P - off.P).max(),
+            np.abs(orgB.z - off.z).max(), np.abs(orgB.age - off.age).max(),
+            float((orgB.used != off.used).sum()))
+    check("registry on-vs-off state drift", float(d), 0.0, 0.0,
+          note="identity tracking is observation only -- bitwise, not a band")
+
+
 if __name__ == "__main__":
     t0 = time.time()
     print("REGRESSION HARNESS -- fast tier (E1)")
@@ -471,6 +758,8 @@ if __name__ == "__main__":
     section_7_percentile_bars()
     section_8_serialization()
     section_9_slot_budget()
+    section_10_compression()
+    section_11_symbol_registry()
 
     dt = time.time() - t0
     print(f"\n{'='*70}")
