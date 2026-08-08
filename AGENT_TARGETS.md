@@ -731,7 +731,7 @@ same split** — an unpaired fixed-seed baseline is a bug (T1.9).
 - **Done when**: `phase40_*.py` with each op measured against a null +
   a timing table; phase-30 anchors exact; harness green both backends.
 
-### T6.4 — Polysemy: act on detection (phase 41)  `[claimed: —]`
+### T6.4 — Polysemy: act on detection (phase 41)  `[claimed: claude/phase-41-detection-phase-10-9u1bkc, 2026-08-08]`
 - **Why**: README names this thread explicitly — the language track
   *detects* sense structure from corpus statistics and "now needs the
   field mechanism to act on it." Phase 10 splits representations inside
