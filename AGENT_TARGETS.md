@@ -1132,7 +1132,36 @@ T7.6 and NOT to be used until the fork is resolved).
   make it load-bearing (T7.6), leaving 2.24× standing and forcing the
   option-(a) gate re-scope. **Price both, choose neither.**
 
-### T7.2 — Sparse P as the default path (phase 44)  `[claimed: claude/repo-agent-arch-economics-4adfij, 2026-08-08]`
+### T7.2 — Sparse P as the default path (phase 44)  `[DONE 2026-08-09: claude/repo-agent-arch-economics-4adfij — see ROADMAP row 44]`
+- **RESULT (2026-08-09), misses first.** (1) **A premise of the target was
+  already spent**: 33h's 0.36× graph term IS the CSR number, not a dense
+  number awaiting sparsification (dense float64 100 352 B vs the measured
+  10 116 B), so **CSR-as-default-storage moves the floor by exactly
+  0.000×**. (2) **The mundane account FIRED — density is not scale-free.**
+  Over 16× observations at fixed K: digits 0.099 → **0.374 (3.79×)**,
+  gutenberg8 0.0077 → **0.0466 (6.08×)**. P3 MISSED as written; growth is
+  sublinear but unsaturated. **Standing consequence: every CSR byte number
+  in this project needs an observation count attached**, phase 42's 3.64%
+  at K=1580 included. (3) The compute crossover HELD inside its band but
+  the honest reading is that sparse **loses at every shape this project
+  reasons at**: `next_hops` dense/sparse 0.72× at K=112, 0.95× at 400,
+  **1.15× at 500** (crossover), 2.84× at 1580; `rollout` negative at every
+  K; full `kstep` 0.08–0.23×; `kstep_row` wins from K≈200.
+  **Held**: the narrow-CSR derivation landed to the byte (derived
+  `4·nnz + 2·(K+1) = 5058 B`, measured 5058 B, P reconstructed identically),
+  and the floor moves 2.236× → **2.066×** (c64) and 1.318× → **1.147×**
+  (real+phase). **The pre-registered rule fired: the ≤2× fallback is still
+  MISSED by graph engineering alone**, which settles that the fallback is
+  decided by the complex-vs-real term and never by the graph. It also
+  reconciles T7.1's contradiction — **1.147× is the sandbox's unreproduced
+  ~1.13×**, so the sandbox was pricing a narrowed graph too and said so
+  only for the store. **Default changed, deliberately inert**:
+  `next_hops(sparse=None)` dispatches on `SPARSE_MIN_K = 800` **and on
+  integer counts** (T6.3's bitwise condition), set at the ≥2× point rather
+  than the measured 500 break-even because phase 42 measured ±20% host
+  variance; phases 30/40 reason at K ≤ 60, so the dispatch cannot move an
+  anchor. Harness §16 (10 checks) green both backends.
+- **Original target text below.**
 - **Objective**: the graph contributes 0.36× to the cost floor; 33g
   measured P at ~6% density at K=160. T6.3 already built
   `SparseTransitions` and moved `next_hops` onto a shared Dijkstra with the

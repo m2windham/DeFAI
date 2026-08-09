@@ -158,7 +158,7 @@ class TransitionGraph:
     # integer counts (T6.3), so this constant can only change wall-clock,
     # never a result, and a conservative value keeps the dispatch inert on
     # every committed benchmark (phases 30/40 run at K <= 60).
-    SPARSE_MIN_K = 400
+    SPARSE_MIN_K = 800
 
     def _sparse_worth(self, idx):
         """Should `next_hops` take the CSR path for this sub-graph?

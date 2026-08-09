@@ -1119,6 +1119,116 @@ def section_15_phase_channel():
           float(np.mean(o_rot.argmax(0) == o_base.argmax(0))), 1.0, 1.0)
 
 
+# ============================== 16. sparse-P default path (T7.2, phase 44)
+def section_16_sparse_default():
+    print("\n(16) sparse-P default path and narrow CSR (T7.2, phase 44)")
+    from organism import SparseTransitions, TransitionGraph
+    from organism_compress import CompressionSpec, compress
+
+    def synth(K, out_degree=10, seed=0):
+        r = np.random.default_rng(seed)
+        g = TransitionGraph(K)
+        P = np.zeros((K, K))
+        for i in range(K):
+            cols = r.choice(K, size=min(out_degree, K), replace=False)
+            P[i, cols] = r.integers(1, 200, size=cols.size)
+        g.P = P
+        return g
+
+    # -- the default change must be a wall-clock choice, never a numerical
+    #    one: both paths bitwise identical on integer counts (T6.3's proof,
+    #    now the auto-dispatch's precondition)
+    K = TransitionGraph.SPARSE_MIN_K
+    g = synth(K)
+    idx = np.arange(K)
+    nd, dd = g.next_hops(idx, 0, sparse=False)
+    ns, ds = g.next_hops(idx, 0, sparse=True)
+    na, da = g.next_hops(idx, 0)                    # the new default
+    check("next_hops dense-vs-sparse: first-hop mismatches",
+          float(np.count_nonzero(nd != ns)), 0.0, 0.0,
+          note="phase 44: the auto-dispatch is bitwise, so SPARSE_MIN_K can "
+               "only move wall-clock")
+    check("next_hops dense-vs-sparse: max |d dist|",
+          float(np.abs(dd - ds).max()), 0.0, 0.0)
+    check("next_hops auto-dispatch matches the sparse path it chose",
+          float(np.count_nonzero(na != ns) + np.abs(da - ds).max()), 0.0, 0.0)
+    check("plan() unchanged under the auto-dispatch",
+          float(g.plan(idx, K - 1, 0) == list(_trace_ref(ns, K - 1, 0))), 1.0, 1.0,
+          note="planning reaches next_hops through one seam only")
+
+    # -- the two dispatch conditions, each pinned on its own
+    K_small = max(8, K // 8)
+    small = synth(K_small)
+    check("auto-dispatch stays dense below SPARSE_MIN_K",
+          float(small._sparse_worth(np.arange(K_small))), 0.0, 0.0,
+          note=f"phase 44 measured the crossover; SPARSE_MIN_K={K}")
+    frac = synth(K)
+    frac.P = frac.P * 0.5                          # p_decay's regime
+    check("auto-dispatch stays dense on non-integer counts",
+          float(frac._sparse_worth(idx)), 0.0, 0.0,
+          note="bitwise identity is only available on integer counts, so the "
+               "default may not fire where it would stop being exact")
+
+    # -- narrow CSR: lossless, guarded, and roughly half the graph term
+    class _Store:                    # the seven fields `compress` reads
+        def __init__(self, graph, K, N=8):
+            self.K, self.N = K, N
+            self.xi = np.zeros((K, N), complex)
+            self.P = np.asarray(graph.P)
+            self.count = np.zeros(K)
+            self.age = np.zeros(K)
+            self.used = np.ones(K, bool)
+
+    wide = CompressionSpec(xi_dtype=np.complex128, meta_dtype=np.float64)
+    narrow = CompressionSpec(xi_dtype=np.complex128, meta_dtype=np.float64,
+                             p_narrow=True)
+    st = compress(_Store(g, K), spec=wide)
+    stn = compress(_Store(g, K), spec=narrow)
+    check("narrow CSR: max |dP| after reconstruction",
+          float(np.abs(stn.P_full() - np.asarray(g.P)).max()), 0.0, 0.0,
+          note="phase 44: int16 indices + unsigned-integer counts, both "
+               "guarded -- lossless by construction, not by luck")
+    check("narrow CSR: graph byte ratio vs int32/float32 CSR",
+          st.p_bytes / stn.p_bytes, 1.80, 2.05,
+          note="phase 44: graph term 0.355 -> 0.178 of the prototype bar, "
+               "which still leaves the <=2x fallback MISSED at 2.07x")
+    stf = compress(_Store(frac, K), spec=narrow)
+    check("narrow CSR declines integer counts when they are not integers",
+          float(np.issubdtype(stf.p_data.dtype, np.floating)), 1.0, 1.0,
+          note="the guard fires rather than rounding")
+
+    # -- the FALSIFIED scale-free assumption, banded so it must be re-earned
+    Nv = 32
+    NORMv = np.sqrt(Nv)
+    r = np.random.default_rng(4)
+    anchors = np.linalg.qr(r.standard_normal((Nv, 6)))[0].T * NORMv
+
+    def density(epochs):
+        o = Organism(N=Nv, K=24, omega=0.15, beta=10.0, seed=0)
+        seq = []
+        for _ in range(epochs):
+            for _ in range(300):
+                seq.extend([anchors[int(r.integers(6))].astype(complex)] * 4)
+        o.perceive(seq, g_in=4.0, eta=0.02, recruit=0.6)
+        i = np.where(o.used)[0]
+        Pm = np.asarray(o.P)[np.ix_(i, i)]
+        return float((Pm > 0).sum() / max(len(i) ** 2, 1))
+
+    d1, d4 = density(1), density(4)
+    check("P density growth from 1x to 4x observations", d4 / max(d1, 1e-12),
+          1.0, 6.0,
+          note="phase 44 FALSIFIED the scale-free reading: density RISES with "
+               "observation count (3.8x digits / 6.1x text over 16x obs), so "
+               "every CSR byte number needs an observation count attached. "
+               "Banded so 'CSR saving is scale-free' must be re-earned")
+
+
+def _trace_ref(nxt, a, b):
+    """`organism._trace`, inlined so the check does not import a private."""
+    from organism import _trace
+    return _trace(nxt, a, b)
+
+
 if __name__ == "__main__":
     t0 = time.time()
     print("REGRESSION HARNESS -- fast tier (E1)")
@@ -1140,6 +1250,7 @@ if __name__ == "__main__":
     section_13_detection_driven_split()
     section_14_task_free_continual()
     section_15_phase_channel()
+    section_16_sparse_default()
 
     dt = time.time() - t0
     print(f"\n{'='*70}")

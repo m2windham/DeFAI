@@ -251,7 +251,7 @@ if __name__ == "__main__":
     print(f"  {'K':>6} | {'next_hops d/s':>22} | {'rollout d/s':>20} | "
           f"{'kstep_row d/s':>20} | {'kstep(2) d/s':>20}")
     cross = None
-    for K in (112, 200, 400, 800, 1580):
+    for K in (112, 200, 400, 500, 600, 700, 800, 1580):
         g = synth_graph(K)
         idx = np.arange(K)
         reps = max(1, int(2e7 / (K * K)))
