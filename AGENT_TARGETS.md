@@ -610,7 +610,22 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
   pre-registered scope caveat, not an assumption. Full numbers: ROADMAP
   row 28.
 
-### T2.4 — Phase 29: recursive hierarchy  `[claimed: —]`
+### T2.4 — Phase 29: recursive hierarchy  `[BLOCKED 2026-08-09 by its own pre-gate — T7.5, phase 47]`
+- **BLOCKER (2026-08-09, measured not argued)**: phase 47's category-level
+  chunk census clears a stream-permutation null (810.3 vs 350.4 nats) and
+  **FAILS a label-permutation null outright — 810.3 against 1279.8 on 5/5
+  folds**, i.e. a RANDOM partition at fixed category sizes compresses the
+  stream better than `discover_categories_v2`'s. That is exactly the
+  clustering artifact any Zipfian stream manufactures, and only the
+  label-permutation control removes it. This target's own pre-registered
+  "level 2 learns nothing" therefore FIRES on the gutenberg8 corpus.
+  Category-level allocation measures 12.66 nats/slot against word-level
+  24.84 — the reverse of the sandbox anchor that motivated re-opening it.
+  **Do not open this without either (a) a corpus where the
+  label-permutation null is cleared, or (b) a level-2 unit that is not a
+  category bigram** (phase 40's finding that the boundary is ORDER, not
+  graph size, points at the second). Harness §17 pins the artifact so a
+  reversal has to be earned.
 - **Objective**: recruit/consolidate one level up — tokens are category
   n-gram signatures; discover phrase-level states. Certify with phase 24's
   level-agnostic MI-vs-null.

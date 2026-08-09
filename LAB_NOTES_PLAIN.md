@@ -613,6 +613,24 @@ sharper question we can actually answer, which is the better trade. What
 remains untouched: a proper study of what protects old memories, and the
 damage-and-recovery experiment.
 
+**Added 2026-08-09.** A second block (Chapters 12–16) went after the
+*economics* of the design rather than its capabilities, and it followed the
+same pattern — most of what we were handed did not survive contact with a
+measurement. Half of every memory turned out to be unused, which is worth a
+lot of storage but only if we agree to give the capability up permanently
+(Chapter 12); a saving we were told to go find had already been taken
+(Chapter 13); a "window" we were told to open turned out to be a question
+about our own thresholds rather than about the system (Chapter 14); a
+chunking result we were asked to replicate came apart on a control it had
+never been run against (Chapter 15). The one that went the other way is
+Chapter 16, where our own headline claim turned out to be too modest.
+
+**The open question, and it is not ours to settle.** The storage decision in
+Chapter 12 is a one-way door: take it and the system gets much cheaper and
+permanently loses a capability we have demonstrated but never yet used. We
+priced both sides carefully and deliberately did not choose. Everything that
+would be built on top of that decision is parked until it is made.
+
 ---
 
 ## What people push back on, and the honest answer
