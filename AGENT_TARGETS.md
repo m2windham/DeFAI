@@ -1226,7 +1226,28 @@ T7.6 and NOT to be used until the fork is resolved).
   rather than path-aware. Distinguish by testing whether the retained
   information is prefix IDENTITY or just un-converged noise.
 
-### T7.4 — Single-pass audit (phase 46)  `[claimed: claude/repo-agent-arch-economics-4adfij, 2026-08-08]`
+### T7.4 — Single-pass audit (phase 46)  `[DONE 2026-08-09: claude/repo-agent-arch-economics-4adfij — see ROADMAP row 46]`
+- **RESULT (2026-08-09), miss first.** **P1 MISSED, in the direction that
+  strengthens the claim.** Predicted: one epoch loses ≥10 points of
+  coverage. Measured on fables, 1 vs 15 epochs: **327/376 → 320/376** — the
+  extra fourteen passes *cost* seven words, with consolidated memories
+  falling 405 → 356, i.e. the epochs fuse memories one pass had already
+  separated. On gutenberg8, 1 vs 3: **387.3 → 388.3 of 395**. **Held**: P2
+  on both corpora (a single pass clears the permutation null at **z = 9.1**
+  fables / **z = 32.0** gutenberg8, strengthening to 12.7 / 38.3), and P3
+  (words above phase 21's noise floor **50.0 → 51.3**, +3%, inside the
+  ±20% rule — so re-reading a fixed corpus does NOT manufacture detection
+  signal, the failure mode the rule was written to catch). **Two scope
+  sentences that must travel**: the 1-vs-15 comparison exists only on the
+  2 431-token fables corpus (the large corpus was audited 1-vs-3 at 3.3M
+  frames/epoch), and the detection axis has a wide three-seed spread
+  (39/39/71 at one pass), so it is "not epoch-sensitive at the resolution
+  three seeds resolve". On fables the detection axis is not measurable at
+  all — one candidate clears the n≥100 bar in 2 431 tokens — which is
+  phase 19's own n=200–500 finding reappearing. **NOVELTY's one-sentence
+  claim now carries the audit and both scope sentences**, per the
+  pre-registered rule.
+- **Original target text below.**
 - **Objective**: phase 19's recipe runs 15 epochs. "Single-pass online" is
   one of the capability axes any gate re-scope would stand on; a re-scoped
   gate must not rest on an axis the production recipe violates.

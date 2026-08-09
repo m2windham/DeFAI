@@ -561,7 +561,38 @@ beyond that — and that reversal survives even when we stop charging for the
 chunk list itself. So it is a fact about language, not about our accounting,
 and it gives a stopping rule an earlier chapter's work was missing.
 
-### Chapter 16 — Where we are now
+### Chapter 16 — We checked our own headline, and it was too modest *(phase 46)*
+
+One of the things we say about this system is that it learns from a single
+pass — read the text once, the way a person does, rather than grinding over
+it repeatedly the way most machine learning does. It is one of the few
+claims that would survive a decision to stop competing on raw accuracy, so
+it had better be true.
+
+It sat on an awkward fact. The recipe that produced our language results
+reads the same text **fifteen times**. If the results only appear on the
+fifteenth pass, the claim is not one we get to make.
+
+So we re-ran everything at one pass and compared. On the three things we
+measure — how many words get their own memory, whether the categories the
+system invents pass their statistical test, and whether it spots words doing
+two jobs — **all three survive a single pass**. We had predicted that word
+coverage would be the casualty, and gave a specific reason why. We were
+wrong: coverage after one pass is 327 words out of 376, and after fifteen it
+is **320**. The extra passes don't add words; they quietly merge memories
+that one pass had kept apart.
+
+The one thing extra passes do buy is confidence in the categories — the
+statistical test goes from comfortably passed to very comfortably passed.
+That is worth having and it is now the only thing we claim for them.
+
+**Two limits we are not glossing over.** The one-versus-fifteen comparison
+was only affordable on the small text; on the large one we compared one pass
+against three. And the word-sense-detection count bounces around a lot
+between random starts (39, 39, 71 on one pass), so the right statement is
+"three runs cannot see a difference", not "there is none".
+
+### Chapter 17 — Where we are now
 
 Deliberately not chasing new frontiers. The current block set out to deepen
 the four things we believed the system was differentiated on: continual

@@ -667,3 +667,23 @@ structure, reasons with its perception switched off, and persists exactly —
 online, single-pass, label-free, gradient-free.** Every clause has a phase
 script and pinned harness numbers behind it; the clause that is *not* there
 is "and wins benchmarks."
+
+> **"Single-pass" audited 2026-08-09 (T7.4, phase 46), because the language
+> recipe that produced the headline numbers runs fifteen epochs and a claim
+> must not rest on an axis the production recipe violates.** All three
+> measured axes survive ONE pass, and the audit's own prediction — that
+> coverage would be the axis that pays — was wrong in the useful direction.
+> Word coverage at 1 epoch vs 15 (fables): **327/376 → 320/376**, i.e. the
+> extra epochs do not buy coverage, they consolidate it away. At scale
+> (gutenberg8, 1 vs 3 epochs): **387.3 → 388.3 of 395**. Category validity
+> clears its permutation null on a single pass at **z = 9.1** (fables) and
+> **z = 32.0** (gutenberg8), strengthening to 12.7 / 38.3 with more passes.
+> Polysemy detection at 1 epoch already fires on **50 words** above phase
+> 21's measured noise floor (gutenberg8), 3% from the 3-epoch count.
+> **Scope, load-bearing**: the 1-vs-15 comparison is measured on the small
+> corpus only (the large one was run to 3 epochs — 3.3M frames/epoch), and
+> the detection axis has a wide 3-seed spread (39–71 at one pass), so it is
+> "not epoch-sensitive at the resolution three seeds resolve", not
+> "epoch-invariant". The honest wording is therefore **single-pass on every
+> axis we can measure, with multi-pass strengthening the category
+> certificate and nothing else**.
