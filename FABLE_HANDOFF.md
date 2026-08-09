@@ -226,6 +226,18 @@ module — persistence is its defining feature, hence E3).
    disentangling test, gold-POS for eval only).
 4. **Phase 29 — recursive hierarchy** (the recruit/consolidate primitive one
    level up; the answer to "no structure above the category FSM").
+   **BLOCKED 2026-08-09 on its own pre-gate (T7.5, phase 47), and the
+   blocker is a measurement, not an opinion.** A chunk-inventory census at
+   the category level clears a stream-permutation null (810.3 vs 350.4
+   nats) and **fails a LABEL-permutation null outright — 810.3 against
+   1279.8 on 5/5 folds**: a RANDOM partition at fixed category sizes
+   compresses the stream better than the discovered one. That is the
+   clustering artifact any Zipfian stream manufactures, and only the
+   label-permutation control removes it. Phase 29's own pre-registered
+   "level 2 learns nothing" therefore FIRES on this corpus. Do not open
+   this thread without either a corpus where the label-permutation null is
+   cleared, or a level-2 unit that is not a category bigram. Harness §17
+   pins the artifact so a reversal has to be earned.
 5. **Corpus-tier harness checks**: cheap now (E2), blocked on making the
    Gutenberg fetch reproducible inside the harness.
 6. ~~**Stable symbol registry** decoupled from slot indices~~ — **CLOSED
@@ -258,6 +270,31 @@ module — persistence is its defining feature, hence E3).
    re-measure first. See ROADMAP rows 42 and E4.
 8. **In-flight PR #23**: demo/outreach track (D1-D4, phase 31 self-lesion
    protocol) + phases 32/33. Reconcile with it before touching those areas.
+9. **THE STORAGE FORK IS OPEN AND IT IS THE OWNER'S** (T7.1, phase 43;
+   priced further by T7.2, phase 44). The cost floor's dominant term is
+   that a field memory is a COMPLEX N-vector where the prototype bar's is
+   REAL. Phase 43 measured the imaginary half **empty** — median residual
+   2.6e-04 on the 33h arm, 1.2–1.7e-04 on both text corpora, and the
+   per-slot phase is **gauge** for every `np.abs` consumer. Two mutually
+   exclusive options, both priced and neither chosen:
+   **(A) spend it** — store `(real N-vector, phase scalar)` and the floor
+   goes 2.24× → **1.32×** (**1.15×** with phase 44's narrow CSR), meeting
+   the ≤2× fallback at a measured behavior cost of ≤0.005 held-out; this
+   **permanently forfeits** N8's binding channel and any complex-input
+   pipeline. **(B) cash it in** — keep the width, the floor stands at
+   2.24× (2.07× narrowed), the option-(a) gate re-scope is forced, and the
+   width becomes usable **by parameter change rather than new mechanism**,
+   because phase 43 falsified the structural account: `perceive` already
+   computes a phasor sum and the channel is empty only because
+   `omega/g_in = 0.0375` with deep settling.
+   **Nothing below the fork should be built until it is resolved** —
+   phase 48 is reserved for T7.6 and deliberately unused. If (B) is
+   chosen, the cheapest arm is the **dual time constant** (a second O(N)
+   field state at a slower `g_in`, ~0.001× of the K×N store), because
+   phase 45 measured that moving the ONE existing state costs 62 words of
+   coverage and the category certificate outright — and any phase-carrying
+   arm must also change the readout, which phase 43 measured to be blind
+   below a residual of **R ≈ 0.06**.
 
 ## Practical notes
 
