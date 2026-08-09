@@ -515,7 +515,53 @@ long. What this points at instead is keeping the fast reader and adding a
 second, slower one alongside it: the slow one remembers the earlier words
 without anything having to give up its threshold.
 
-### Chapter 15 — Where we are now
+### Chapter 15 — Chunking: a measure that paid out for nothing *(phase 47)*
+
+Before building anything that groups common word-pairs into single units —
+the obvious next step for a system that reads — we ran three checks. This
+chapter is mostly about the check that saved us from all three.
+
+To decide whether chunking helps you need a score: how many fewer bits does
+the text take once the chunks exist. We built that score, and then we ran it
+on **shuffled text**, where by construction there are no real word-pairs to
+find. It should have scored zero. Instead the simplest chunk-picking rule —
+just take the most common pairs — scored **+2286**, a large positive number
+on text with no structure in it whatsoever. The score was rewarding
+something else entirely: merging pairs makes the text shorter, and shorter
+text is cheaper to describe no matter what is in it.
+
+We had written down in advance that if this happened, nothing else in the
+experiment counts. So it didn't. Everything we had measured up to that point
+went into the file as a diagnosis of a broken ruler rather than as an answer.
+
+**The repair, and why we don't just get to keep it.** Subtracting the
+shuffled-text score from the real-text score cancels the length effect and
+leaves only what real structure buys. That is a fix invented *after* seeing
+the failure, which is exactly the kind of fix that fools people. So we split
+the text in half, developed the fix on one half, and confirmed it on a half
+it had never seen. It holds there, and on the corrected score the
+"principled" chunk-picking rule beats the naive one on every single fold —
+which is what the original claim said, and which the broken ruler had been
+reporting backwards.
+
+**The result that changes a plan.** The most exciting claim we were handed
+was that chunking works even better one level up, on *categories* of words
+rather than words. It has a control that has to be run: compare against
+categories assigned **at random**, keeping the group sizes the same. Any
+grouping of ordinary text produces apparent structure through frequency
+alone, and only this control removes it. The discovered categories scored
+810. The random ones scored **1280** — better. Not a small margin, and not
+on one fold out of five: on all five.
+
+So there is nothing there, and we have said so. A planned piece of work that
+was waiting on this stays parked, on its own honest negative rather than on
+a guess. One check we did keep: chunk inventories **saturate and then go
+backwards** — more chunks help up to about sixty-four and actively hurt
+beyond that — and that reversal survives even when we stop charging for the
+chunk list itself. So it is a fact about language, not about our accounting,
+and it gives a stopping rule an earlier chapter's work was missing.
+
+### Chapter 16 — Where we are now
 
 Deliberately not chasing new frontiers. The current block set out to deepen
 the four things we believed the system was differentiated on: continual

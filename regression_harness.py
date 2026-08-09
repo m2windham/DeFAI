@@ -81,6 +81,29 @@ Sections (fast tier only; corpus-tier joins once E2/Numba makes it cheap):
      falsified the claim that the phase channel is structurally empty (it
      is empty by parameter regime), and a future claim to the contrary must
      be re-earned against that row.
+ 16. sparse-P default path and narrow CSR (T7.2, phase 44) -- the default
+     `next_hops` dispatch. Pinned exact: dense and sparse agree bitwise,
+     the auto-dispatch matches the path it chose, `plan()` is unchanged,
+     and BOTH dispatch conditions (size below SPARSE_MIN_K, and non-integer
+     counts) keep the dense path -- the second is what makes the default a
+     wall-clock choice and never a numerical one. Narrow CSR is pinned
+     lossless with its guard declining non-integer counts. Pinned as a
+     band, deliberately: P density RISES with observation count, because
+     phase 44 falsified the scale-free reading every CSR byte number in
+     this project had been quoted under.
+ 17. settling depth and chunk statistics (T7.3/T7.5, phases 45/47) -- the
+     two measurement instruments those phases rest on, pinned so neither
+     can drift. Phase 45's vectorized field recursion is checked against
+     `Organism.perceive`'s own `z`; the last-token attractor at the
+     committed exposure is banded, including the fact that suffix
+     similarity sits ABOVE `consolidate()`'s 0.8 merge threshold; and the
+     prefix signal's magnitude is banded so "the state is path-blind" has
+     to be re-earned. Phase 47's raw chunk-gain statistic is pinned
+     POSITIVE on an i.i.d. stream -- it FAILED its own null and the pin
+     stops the broken form coming back quietly -- with the null-corrected
+     form pinned near zero on the same stream, and the clustering artifact
+     (a RANDOM partition of a Zipfian stream scoring positive) pinned
+     positive because it is what the category-level arm died on.
 
 Run: `python regression_harness.py`. Exit code is nonzero if any check fails
 its tolerance. Each check prints its own measured value, tolerance band, and
@@ -1223,6 +1246,101 @@ def section_16_sparse_default():
                "Banded so 'CSR saving is scale-free' must be re-earned")
 
 
+# ============ 17. settling depth + chunk statistics (T7.3/T7.5, phases 45/47)
+def section_17_settling_and_chunks():
+    print("\n(17) settling depth and chunk statistics (T7.3/T7.5, phases 45/47)")
+    import phase45_settling_depth as p45
+    import phase47_macro_recruit_pregates as p47
+
+    # -- phase 45's vectorized field recursion is a REIMPLEMENTATION of the
+    #    perceive z update, so it is checked against the real one, not trusted
+    Nv, V = 24, 40
+    NORMv = np.sqrt(Nv)
+    rng = np.random.default_rng(6)
+    emb = rng.standard_normal((V, Nv))
+    emb /= np.linalg.norm(emb, axis=1, keepdims=True)
+    probe = rng.integers(0, V, (1, 10))
+    org = Organism(N=Nv, K=32, omega=0.15, beta=10.0, seed=0)
+    z0 = np.asarray(org.z, complex)[None, :]
+    org.perceive([normalize(emb[w].astype(complex), NORMv)
+                  for w in probe[0] for _ in range(8)],
+                 g_in=5.0, dt=0.05, eta=0.02, recruit=0.75)
+    mine = p45.settle(probe, emb.astype(complex), 8, z0=z0, norm=NORMv)[0]
+    check("phase-45 `settle` vs Organism.perceive's own z: max |dz|",
+          float(np.abs(mine - np.asarray(org.z, complex)).max()), 0.0, 1e-6,
+          note="the sweep's vectorized recursion is checked, not assumed -- "
+               "a tolerance, not a bit, because the two paths accumulate the "
+               "same normalizations in a different order")
+
+    # -- the last-token attractor at the committed exposure, and the prefix
+    #    signal's magnitude, which is what every threshold consumer sees
+    B, T = 120, 8
+    rg = np.random.default_rng(2)
+    base = rg.integers(0, V, (B, T))
+    same_suffix = base.copy()
+    same_suffix[:, :-1] = rg.integers(0, V, (B, T - 1))
+    E = emb.astype(complex)
+    za = p45.settle(base, E, 8, z0=p45.rand_z(np.random.default_rng(1), B, Nv, NORMv),
+                    norm=NORMv)
+    zb = p45.settle(base, E, 8, z0=p45.rand_z(np.random.default_rng(2), B, Nv, NORMv),
+                    norm=NORMv)
+    zs = p45.settle(same_suffix, E, 8,
+                    z0=p45.rand_z(np.random.default_rng(3), B, Nv, NORMv), norm=NORMv)
+    ceiling = float(np.mean(p45.sim(za, zb, Nv)))
+    suffix = float(np.mean(p45.sim(za, zs, Nv)))
+    check("hold=8 ceiling (same sequence, different initial state)", ceiling,
+          0.995, 1.0,
+          note="phase 45: the committed exposure forgets its initial condition")
+    check("hold=8 suffix similarity (shared last token, different prefix)",
+          suffix, 0.85, 1.0,
+          note="phase 45: a near-pure last-token attractor -- and ABOVE "
+               "consolidate()'s 0.8 merge_thresh, which is the flag for "
+               "whoever first consolidates sequence states")
+    check("hold=8 prefix signal (ceiling - suffix)", ceiling - suffix,
+          0.0, 0.15,
+          note="phase 45: prefix identity is perfectly decodable at every "
+               "hold, but its MAGNITUDE in similarity units is small -- path "
+               "sensitivity is a property of the threshold consumer, not the "
+               "state. Banded so a 'the state is path-blind' claim must be "
+               "re-earned")
+
+    # -- phase 47: the raw chunk-gain statistic fails its own null, which is
+    #    why the null-corrected one exists. Pinned on a stream with NO
+    #    sequential structure at all.
+    rz = np.random.default_rng(8)
+    zipf = np.minimum(rz.zipf(1.4, 60000), 200) - 1          # i.i.d. Zipfian
+    Vz = int(zipf.max()) + 1
+    half = len(zipf) // 2
+    rows = p47.bigram_stats(zipf[:half], Vz)
+    ch = p47.select(rows, 64, "frequency")
+    raw = p47.gain(zipf[half:], ch, Vz)
+    check("raw chunk gain on an i.i.d. stream (frequency rule)", raw, 1.0, 1e9,
+          note="phase 47 P2 FAILED: merging shortens the stream and enlarges "
+               "the table, so the raw statistic pays out with NO sequential "
+               "structure present. Pinned POSITIVE so the broken statistic "
+               "cannot quietly come back")
+    perm = np.random.default_rng(9).permutation(zipf)
+    rows_p = p47.bigram_stats(perm[:half], Vz)
+    corrected = raw - p47.gain(perm[half:], p47.select(rows_p, 64, "frequency"), Vz)
+    check("null-corrected chunk gain on an i.i.d. stream", abs(corrected),
+          0.0, max(abs(raw) * 0.05, 1.0),
+          note="phase 47 P7: the correction cancels the length/estimation "
+               "term, so a structureless stream scores near zero")
+
+    # -- and the clustering artifact the category arm died on
+    lab = rz.integers(0, 8, Vz)                     # a RANDOM partition
+    cat = lab[zipf]
+    cg = p47.gain(cat[half:], p47.select(p47.bigram_stats(cat[:half], 8), 32,
+                                         "total"), 8)
+    check("chunk gain from a RANDOM partition of a Zipfian stream", cg,
+          1.0, 1e9,
+          note="phase 47 P5/M5: a random partition manufactures apparent "
+               "second-order structure, which is why the label-permutation "
+               "null is the load-bearing control -- the discovered categories "
+               "FAILED it (810.3 vs 1279.8). Pinned positive so 'level 2 "
+               "learns something' has to be re-earned against this row")
+
+
 def _trace_ref(nxt, a, b):
     """`organism._trace`, inlined so the check does not import a private."""
     from organism import _trace
@@ -1251,6 +1369,7 @@ if __name__ == "__main__":
     section_14_task_free_continual()
     section_15_phase_channel()
     section_16_sparse_default()
+    section_17_settling_and_chunks()
 
     dt = time.time() - t0
     print(f"\n{'='*70}")

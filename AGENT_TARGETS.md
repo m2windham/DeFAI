@@ -1239,7 +1239,40 @@ T7.6 and NOT to be used until the fork is resolved).
   multi-pass tuned", and the fix is a wording change in NOVELTY rather than
   an experiment.
 
-### T7.5 — Macro-Recruit pre-gates (phase 47)  `[claimed: claude/repo-agent-arch-economics-4adfij, 2026-08-08]`
+### T7.5 — Macro-Recruit pre-gates (phase 47)  `[DONE 2026-08-09: claude/repo-agent-arch-economics-4adfij — T2.4 STAYS BLOCKED; see ROADMAP row 47]`
+- **RESULT (2026-08-09), misses first — four of them.** (1) **P2 FAILED and
+  its pre-registered consequence was honored**: the frequency arm gained
+  **+2286 nats under the predecessor-permutation null**, so the raw measure
+  is broken and sections 1–5's numbers are diagnostics, not answers.
+  Diagnosis: merging shortens the stream and enlarges the table, and an
+  add-α model refitted on the longer table fits its own data better — a
+  length/estimation effect present with no sequential structure at all.
+  (2) **P1 MISSED on the pre-registered statistic** — held out, plain
+  frequency beats expected-total-gain at every M (M=64: 2519.8 vs 1589.9),
+  reversing the sandbox's in-sample ordering; the M1 check clears
+  total-gain of being frequency in disguise (overlap 0.55–0.62). (3) **P3
+  MISSED — the sandbox's own UNK confound does not reproduce**: the UNK
+  share is exactly 0.253 as reported, but the gain ratio is **1.15×**, not
+  ≥2×, and the payoff is **0.93% of total cross-entropy** either way.
+  (4) **P5 MISSED / P6 FIRED, and this is the consequential one.** The
+  category arm clears the stream-permutation null (810.3 vs 350.4) and
+  **FAILS the label-permutation null outright — 810.3 against 1279.8 on
+  5/5 folds**, i.e. a random partition at fixed sizes compresses better
+  than the discovered one. That is exactly the clustering artifact M5
+  named. **Phase 29's "level 2 learns nothing" FIRES on this corpus:
+  T2.4 stays blocked on its own honest negative and no chunk mechanism
+  should be built at the category level.** Category-level allocation is
+  12.66 nats/slot vs word-level 24.84 — the reverse of the sandbox's
+  ~+91 vs +11.7. **Held**: P4 (peak at **M=64**, marginal block negative
+  from M=128 **even with the table cost removed**, so the reversal is
+  language and not accounting — the stopping rule phase 41 lacked); and
+  P7, the null-corrected statistic, **committed before the run that tested
+  it and confirmed on a corpus half no selection had touched** —
+  expected-total-gain beats frequency on every confirmation fold at
+  M=32/64/128 (M=64: 1984.2 vs 51.1). **Net: the chunk-selection rule
+  survives on a repaired measure, at the WORD level only, worth ~1% of
+  cross-entropy.**
+- **Original target text below.**
 - **Objective**: replicate three sandbox pre-gates **under the SOP** before
   any chunk mechanism is built. Sandbox anchors, all indicative:
   expected-total-gain chunk selection beat frequency-only and
