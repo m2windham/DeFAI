@@ -152,11 +152,47 @@ class TransitionGraph:
             dist[relax] = dist[u] + W[relax, u]
         return nxt, dist
 
-    def next_hops(self, idx, goal, eps=1e-12):
+    # T7.2 (phase 44): the size above which planning dispatches to the CSR
+    # port by default. Chosen from phase 44's measured crossover curve and
+    # set deliberately ABOVE it -- the two paths are bitwise identical on
+    # integer counts (T6.3), so this constant can only change wall-clock,
+    # never a result, and a conservative value keeps the dispatch inert on
+    # every committed benchmark (phases 30/40 run at K <= 60).
+    SPARSE_MIN_K = 400
+
+    def _sparse_worth(self, idx):
+        """Should `next_hops` take the CSR path for this sub-graph?
+
+        Two conditions, both necessary. SIZE: below `SPARSE_MIN_K` the
+        O(K^2) CSR build costs more than the dense Dijkstra it replaces
+        (phase 44 measured the crossover; T6.3 measured the >= 2x point at
+        K=800). EXACTNESS: the sparse and dense paths are BITWISE identical
+        only while P holds integer counts -- row sums of exact integers are
+        order-independent, so summing only the nonzeros lands on the same
+        float. Under p_decay > 0 the counts stop being integers and the
+        equality becomes a tolerance, so the default stays dense there and
+        the caller has to ask for sparse explicitly.
+        """
+        n = len(idx)
+        if n < self.SPARSE_MIN_K:
+            return False
+        Pm = self.P[np.ix_(idx, idx)]
+        return bool(np.all(Pm >= 0) and np.array_equal(np.floor(Pm), Pm))
+
+    def next_hops(self, idx, goal, eps=1e-12, sparse=None):
         """Planning: for every symbol, the first hop on the most-probable
         path to `goal` (Dijkstra on -log transition probability, run backward
         from the goal). Returns (nxt, dist): nxt[i] = -1 if goal unreachable
-        from i, dist[i] = -log P(best path i -> goal)."""
+        from i, dist[i] = -log P(best path i -> goal).
+
+        `sparse`: None (default) dispatches on `_sparse_worth`; True/False
+        force a path. The two paths agree bitwise on integer counts, which
+        is the condition the auto-dispatch checks -- so the default is a
+        wall-clock choice and never a numerical one (pinned, harness 16)."""
+        if sparse is None:
+            sparse = self._sparse_worth(idx)
+        if sparse:
+            return SparseTransitions.from_graph(self, idx).next_hops(goal, eps)
         return self.dijkstra(self.normalized(idx), goal, eps)
 
     def plan(self, idx, a, b):

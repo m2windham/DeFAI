@@ -111,6 +111,46 @@ def _f32_safe(a):
                 and np.array_equal(a.astype(np.float32).astype(np.float64), a))
 
 
+def _narrow_index(indices, indptr, K):
+    """int16 CSR index arrays when the shapes provably fit (T7.2).
+
+    Both arrays are non-negative and bounded -- `indices` by K, `indptr` by
+    nnz -- so the only question is whether those bounds fit the narrower
+    type. They do at every shape this project runs (K <= 1580, nnz <= 10^5
+    needs int32 for indptr only above 32767 nonzeros). Nothing is guessed:
+    the bound is checked, and a shape that does not fit keeps int32.
+    """
+    nnz = int(indices.size)
+    if K <= np.iinfo(np.int16).max:
+        indices = indices.astype(np.int16)
+    if nnz <= np.iinfo(np.int16).max:
+        indptr = indptr.astype(np.int16)
+    return indices, indptr
+
+
+def _narrow_counts(raw, fallback):
+    """Unsigned-integer CSR data when the counts round-trip exactly (T7.2).
+
+    P is a COUNT matrix: in every mode except p_decay > 0 its entries are
+    non-negative integers, and an integer stored as uint16 is exact where
+    float32 merely happens to be. Guarded like `_f32_safe`: a value that is
+    not a non-negative integer, or does not fit, keeps `fallback` (the
+    current float32/float64 behavior) with no announcement.
+    """
+    raw = np.asarray(raw, dtype=np.float64)
+    if raw.size == 0:
+        return fallback
+    if not (np.all(raw >= 0) and np.array_equal(np.floor(raw), raw)):
+        return fallback                      # p_decay's regime: not counts
+    hi = float(raw.max())
+    for dt in (np.uint16, np.uint32):
+        if hi <= np.iinfo(dt).max:
+            out = raw.astype(dt)
+            if np.array_equal(out.astype(np.float64), raw):
+                return out
+    return fallback
+
+
 class CompressionSpec:
     """What to compress and how hard.
 
@@ -125,10 +165,16 @@ class CompressionSpec:
                at `xi_dtype`'s component width (complex64 -> float32). Halves
                the xi term again and is exact iff `real_phase_residual` is 0.
                Default OFF -- taking it forfeits the imaginary channel.
+    p_narrow   T7.2: narrow the CSR triple's own dtypes -- int16 indices and
+               indptr when the shapes fit, unsigned-integer counts when they
+               round-trip exactly. LOSSLESS BY CONSTRUCTION and guarded the
+               way `meta_dtype` is: a value that would not round-trip keeps
+               the wider dtype silently. Default OFF so every committed byte
+               anchor (33g's 96.4KB, 33h's 68.7KB/76.1) stays exact.
     """
 
     def __init__(self, xi_dtype=np.complex64, p_floor=0.0, rank=None,
-                 meta_dtype=np.float32, real_phase=False):
+                 meta_dtype=np.float32, real_phase=False, p_narrow=False):
         xi_dtype, meta_dtype = np.dtype(xi_dtype), np.dtype(meta_dtype)
         if xi_dtype not in [np.dtype(d) for d in XI_DTYPES]:
             raise ValueError(f"xi_dtype {xi_dtype} not in {XI_DTYPES}")
@@ -143,6 +189,7 @@ class CompressionSpec:
         self.xi_dtype, self.p_floor = xi_dtype, float(p_floor)
         self.rank, self.meta_dtype = rank, meta_dtype
         self.real_phase = bool(real_phase)
+        self.p_narrow = bool(p_narrow)
 
     @property
     def component_dtype(self):
@@ -162,6 +209,8 @@ class CompressionSpec:
                 "Psparse" if self.p_floor == 0 else f"Pfloor>{self.p_floor:g}"]
         if self.real_phase:
             bits.append("realphase")
+        if self.p_narrow:
+            bits.append("Pnarrow")
         if self.rank is not None:
             bits.append(f"rank{self.rank}")
         if self.meta_dtype == np.dtype(np.float32):
@@ -293,6 +342,9 @@ def compress(org, spec=None, **kw):
     p_indices = cols.astype(np.int32)
     p_dtype = np.float32 if _f32_safe(P[keep]) else np.float64
     p_data = P[rows, cols].astype(p_dtype)
+    if spec.p_narrow:                     # T7.2: lossless, guarded, opt-in
+        p_indices, p_indptr = _narrow_index(p_indices, p_indptr, K)
+        p_data = _narrow_counts(P[rows, cols], p_data)
 
     # -- count / age: float32 only where it is exact ---------------------
     meta_dtype = spec.meta_dtype
