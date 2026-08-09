@@ -541,6 +541,15 @@ statistics is untested.
 > dozen steps. So the capability is real but we can't yet hold it open.
 > It's written down here specifically so we neither forget it nor oversell
 > it.
+>
+> **Added 2026-08-09.** There is a second catch, and we found it by
+> looking rather than by arguing: in every setup we actually run, the
+> system never hums more than one note in the first place. We measured the
+> stored memories and the timing channel is essentially empty — and the
+> part of it that is there is not read by anything downstream. That is not
+> a flaw in the design; it is a consequence of two dials being set the way
+> they are, and we now know which dials and roughly what turning them
+> would cost.
 
 
 **Claim, scoped down.** Relative phase is a real binding code — perfect
@@ -550,8 +559,26 @@ recall pull collapses superpositions in 9–56 steps.
 **Evidence.** `phase16_phase_binding.py`, including the collapse
 measurement, which is the constraint rather than a caveat.
 
-**Status.** A capability with an unsolved protection problem. It is listed
-here so it is not quietly forgotten or quietly oversold.
+**Scope, tightened 2026-08-09 (T7.1, phase 43) — measured, not
+premise-derived.** Every superposition phase 16 binds is **hand-built**;
+nothing in the perception path has ever produced one. Phase 43 audited the
+stored memories directly and found the imaginary channel empty to a median
+residual of **2.6e-04** (99.8% of live slots below 1e-2) on the 33h digits
+arm, and to 1.2e-04–1.7e-04 on both text corpora — and the per-slot phase
+is **gauge**: rotating every slot by an independent random phase moves the
+scored readout by exactly zero. So the binding code is real (phase 16) but
+**the organism as configured never writes to it**. The reason is measured
+and it is a parameter regime rather than a structure: `perceive` computes a
+phasor sum `Σ_j b a^j x_{t−j}`, and its phase content scales as omega² and
+peaks at shallow settling, so the committed settings (omega/g_in = 0.0375,
+hold=8) suppress it. Two consequences this claim must carry: making the
+channel carry content needs **no new dynamics**, and any arm that does so
+must also change the readout, which phase 43 measured to be blind below a
+residual of **R ≈ 0.06**.
+
+**Status.** A capability with an unsolved protection problem **and an
+unused channel**. It is listed here so it is not quietly forgotten or
+quietly oversold.
 
 **Mini-roadmap.**
 1. *Implement* — a protection mechanism (gating the recall pull during

@@ -70,6 +70,17 @@ Sections (fast tier only; corpus-tier joins once E2/Numba makes it cheap):
      FALSIFIED localization claim (recruitment does not spike at unannounced
      novelty), so that a future reversal has to be earned rather than
      silently celebrated.
+ 15. phase channel and the real+phase layout (T7.1, phase 43) -- what is
+     actually stored in the imaginary half of the memory bank. Pinned
+     exact: the residual metric's two analytic fixed points, omega=0
+     exactness (a real recursion on real inputs stores a real bank), the
+     identity `layout loss = sqrt(residual)` that makes the metric a PRICE
+     rather than a diagnostic, and GAUGE invariance -- a random per-slot
+     phase rotation moves no `np.abs` consumer at all. Pinned as a
+     deliberately POSITIVE band: the residual at omega=2, because phase 43
+     falsified the claim that the phase channel is structurally empty (it
+     is empty by parameter regime), and a future claim to the contrary must
+     be re-earned against that row.
 
 Run: `python regression_harness.py`. Exit code is nonzero if any check fails
 its tolerance. Each check prints its own measured value, tolerance band, and
@@ -1011,6 +1022,103 @@ def section_14_task_free_continual():
                "Banded negative on purpose: a future positive must be earned")
 
 
+# =============================== 15. phase channel + real+phase layout (T7.1)
+def section_15_phase_channel():
+    print("\n(15) phase channel and the real+phase layout (T7.1, phase 43)")
+    from organism_compress import (CompressionSpec, compress,
+                                   real_phase_residual, store_bytes)
+
+    # -- the residual metric's two analytic fixed points ------------------
+    rng = np.random.default_rng(11)
+    Nv = 64
+    v_real = rng.standard_normal(Nv).astype(complex) * np.exp(1j * 0.7)
+    v_cplx = rng.standard_normal(Nv) + 1j * rng.standard_normal(Nv)
+    check("residual of a rotated-real vector",
+          float(real_phase_residual(v_real[None, :])[0]), 0.0, 1e-15,
+          note="R = 0 exactly iff the real+phase layout is exact")
+    check("residual of an isotropic complex vector",
+          float(real_phase_residual(v_cplx[None, :])[0]), 0.35, 0.5,
+          note="R -> 0.5: the layout would throw half the energy away")
+
+    # -- a REAL-input stream, the class every committed pipeline feeds ----
+    NORM = np.sqrt(Nv)
+    K = 12
+    Gr = np.linalg.qr(rng.standard_normal((Nv, 4)))[0].T * NORM      # real anchors
+
+    def stream(n, seed, hold=4):
+        # hold=4 on purpose: phase 43 measured the residual to PEAK at
+        # shallow settling, so this is the regime where the omega effect is
+        # visible at all. Deep settling (hold >> 1/(g_in*dt)) drives it to
+        # floor for every omega, which is exactly the 33h arm's situation.
+        r = np.random.default_rng(seed)
+        h, out = 0, []
+        for i in range(n):
+            if i % hold == 0 and i > 0:
+                h = int(r.integers(4))
+            out.append((Gr[h] + 0.3 * r.standard_normal(Nv)).astype(complex))
+        return out
+
+    def med_R(omega):
+        o = Organism(N=Nv, K=K, omega=omega, beta=10.0, seed=0)
+        o.perceive(stream(3000, 5), g_in=4.0, eta=0.02, recruit=0.6)
+        r = real_phase_residual(o.xi, o.used)
+        return o, (float(np.median(r)) if r.size else 0.0)
+
+    org0, r_om0 = med_R(0.0)
+    org_d, r_def = med_R(0.25)
+    _, r_hi = med_R(2.0)
+    check("omega=0: median imaginary residual", r_om0, 0.0, 1e-12,
+          note="phase 43: with omega=0 the perceive recursion is REAL, so a "
+               "real-input store is a real store up to the decaying complex "
+               "initial condition -- pinned at machine floor")
+    check("default omega: median imaginary residual", r_def, 1e-6, 5e-2,
+          note="phase 43: at omega/g_in << 1 with deep settling the channel "
+               "sits at floor (33h arm measured 2.6e-04 over 1120 slots)")
+    check("omega=2: median imaginary residual", r_hi, 5e-3, 0.5,
+          note="phase 43 FALSIFIED the structural account -- the channel is "
+               "empty by PARAMETER REGIME, not construction. Banded positive "
+               "on purpose: a claim that phase cannot carry content must be "
+               "re-earned against this row")
+
+    # -- the layout: cost, exactness, and what it forfeits ----------------
+    lossless_rp = CompressionSpec(xi_dtype=np.complex128, meta_dtype=np.float64,
+                                  real_phase=True)
+    # The layout's loss IS the residual, exactly: dropping the best-aligned
+    # imaginary part costs a per-slot relative L2 error of sqrt(R). Pinning
+    # that identity is what makes `real_phase_residual` a PRICE rather than a
+    # diagnostic -- a store can be audited without ever building the layout.
+    u = np.asarray(org_d.used, bool)
+    xi_u = np.asarray(org_d.xi, dtype=complex)[u]
+    rt = compress(org_d, spec=lossless_rp).xi_full()[u]
+    rel = np.linalg.norm(rt - xi_u, axis=1) / np.linalg.norm(xi_u, axis=1)
+    pred = np.sqrt(real_phase_residual(org_d.xi, org_d.used))
+    check("real+phase loss equals sqrt(residual), max |d| over slots",
+          float(np.abs(rel - pred).max()), 0.0, 1e-12,
+          note="phase 43: the audit metric prices the layout exactly")
+    st_c64 = compress(org_d, spec=CompressionSpec())
+    st_rp = compress(org_d, spec=CompressionSpec(real_phase=True))
+    check("real+phase xi byte ratio vs complex64", st_c64.xi_bytes / st_rp.xi_bytes,
+          1.70, 2.05,
+          note="phase 43: halves the dominant term again (2.03x -> 1.047x per "
+               "stored memory at N=64); this is the storage fork's whole prize")
+    check("real+phase total store ratio vs uncompressed",
+          store_bytes(org_d) / st_rp.nbytes, 2.0, 1e6)
+
+    # -- gauge: the per-slot phase is not read by any modulus consumer ----
+    g = np.asarray(org_d.xi, dtype=complex) * np.exp(
+        1j * np.random.default_rng(3).uniform(0, 2 * np.pi, org_d.K))[:, None]
+    probe = np.asarray(stream(64, 9))
+    o_base = np.abs(np.asarray(org_d.xi, dtype=complex).conj() @ probe.T) / Nv
+    o_rot = np.abs(g.conj() @ probe.T) / Nv
+    check("gauge: max |d|overlaps|| under a random per-slot rotation",
+          float(np.abs(o_rot - o_base).max()), 0.0, 1e-15,
+          note="phase 43 P4: the per-slot phase is GAUGE for every |.| "
+               "consumer, so the layout's 4-byte scalar buys E3 round-trip, "
+               "not behavior")
+    check("gauge: slot-argmax agreement under rotation",
+          float(np.mean(o_rot.argmax(0) == o_base.argmax(0))), 1.0, 1.0)
+
+
 if __name__ == "__main__":
     t0 = time.time()
     print("REGRESSION HARNESS -- fast tier (E1)")
@@ -1031,6 +1139,7 @@ if __name__ == "__main__":
     section_12_logic_depth()
     section_13_detection_driven_split()
     section_14_task_free_continual()
+    section_15_phase_channel()
 
     dt = time.time() - t0
     print(f"\n{'='*70}")

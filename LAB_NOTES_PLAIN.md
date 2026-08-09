@@ -393,7 +393,58 @@ We have taken the claim out of the pitch. What replaces it is a better
 question we now know how to ask: *how blocked does a stream have to be
 before the announcement is worth anything to anyone?*
 
-### Chapter 12 — Where we are now
+### Chapter 12 — Half of every memory was never being used *(phase 43)*
+
+Every memory this system stores has two halves — think of each one as a
+note with both a *shape* and a *timing offset*. The shape is what the
+memory looks like; the timing offset was meant to let several memories be
+held at once without smearing together, the way several people humming
+different notes can still be told apart. Storing both halves is the single
+biggest reason our memories cost more than the simple baseline we measure
+against: roughly twice the bytes per memory, and that factor is most of the
+gap the release decision has been stuck on.
+
+**So we went and looked at what is actually in there.** Not argued about
+it — measured it, with a number that is zero exactly when a memory has no
+timing content at all and one-half when it is completely full of it. The
+answer, across three different bodies of data: **about 0.00026**. Better
+than 99.8% of memories are essentially all shape and no timing. Then we
+checked the obvious follow-up: does anything downstream even read the
+timing? We scrambled it — gave every memory a random offset — and the
+system's score did not move by a single digit. Nothing reads it.
+
+**Why is it empty?** The work order we were handed said the answer was
+structural: the machinery simply cannot put content there. We checked by
+deriving what the update rule actually does instead of describing it, and
+**that answer is wrong**. It can put content there. Turn one dial (the
+system's internal rotation speed) up, or let each input settle for less
+time, and the timing channel fills right up — we measured it going from
+0.00026 to 0.33. It is empty because of where two dials happen to be set,
+not because of how the thing is built. This matters: it means the
+"add timing information" upgrade someone might propose next is a settings
+change, not an invention.
+
+**And one honest catch about our own test.** The obvious check — throw the
+timing away and see if accuracy drops — showed no drop at all. That is a
+weaker result than it sounds. We built a version where the timing channel
+*is* full and threw it away too: still no drop, until the channel was
+almost entirely full. Our scoring method is simply blind to this until the
+effect gets large. So the reason we believe the channel is empty is that we
+measured the channel, not that the score didn't move.
+
+**What it is worth.** If we store only the shape and one small number for
+the offset, the memory cost falls from about 2.24× the baseline to about
+**1.32×** — comfortably inside the fallback target the release decision
+named — and, in the setup we measure on, nothing gets worse. The catch is
+that this is a one-way door: throw the timing channel away and the
+"several notes at once" capability from Chapter 3's neighborhood goes with
+it, permanently, along with anything we might later build on it.
+
+We deliberately did not choose. Both options are priced and the decision is
+the owner's, because it is not really a storage question — it is a question
+about what this system is for.
+
+### Chapter 13 — Where we are now
 
 Deliberately not chasing new frontiers. The current block set out to deepen
 the four things we believed the system was differentiated on: continual

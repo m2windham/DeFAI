@@ -1065,7 +1065,38 @@ earned.
 Phase numbers reserved by this claim: **43, 44, 45, 46, 47** (48 held for
 T7.6 and NOT to be used until the fork is resolved).
 
-### T7.1 — Phase-channel audit and the storage fork (phase 43)  `[claimed: claude/repo-agent-arch-economics-4adfij, 2026-08-08]`
+### T7.1 — Phase-channel audit and the storage fork (phase 43)  `[DONE 2026-08-09: claude/repo-agent-arch-economics-4adfij — the fork is priced and WITH THE OWNER; see ROADMAP row 43]`
+- **RESULT (2026-08-09), misses first.** (1) **The work order's own
+  mechanistic account is FALSIFIED** — deriving the perceive recursion
+  rather than describing it gives `z_t ~ Σ_j b a^j x_{t−j}` with
+  `a = 1 − g_in·dt + i·omega·dt`, a phasor sum, so the reachable set is NOT
+  {rotation of a real vector}. Measured: R(omega=0) = exactly 0 at every
+  hold, R ∝ omega², 0.33 by omega ≥ 4, and R PEAKS at shallow settling
+  (hold 2–4). The channel is empty by **parameter regime**, not
+  construction. **T7.6(a) is therefore a parameter setting, not a new
+  mechanism.** (2) **The behavior null is weaker than it looks**: the
+  pre-registered positive control measured the readout's resolution floor
+  at **R ≈ 0.06** (substitution costs exactly 0.0000 there and −0.1256 only
+  at R = 0.462), and the store sits ~230× inside it — so `dACC = 0` is not
+  the evidence; the residual measurement is. **T7.6(b) inherits this as a
+  bar**: a phase-carrying arm must move the readout past R ≈ 0.06 or score
+  as a null whatever the dynamics do. (3) **The sandbox's ~1.13× is
+  contradicted**: derived 1.32× from the layout before measuring, measured
+  **1.318×** held-out; 1.02× is the memory term alone and the sandbox total
+  drops 33h's graph term. (4) Parity remains unreachable by this lever.
+  **Held**: median R **2.55e-04** held-out over 560 live slots (92% < 1e-3,
+  99.8% < 1e-2); cross-corpus at the phase 19/20 recipe (fables 410/413 <
+  1e-3 — the sandbox's 416/418 reproduces; gutenberg8 1199/1200);
+  store-mode `dACC` held-out −0.0005 [−0.0050, +0.0025]; the per-slot phase
+  is **GAUGE** (exactly 0 ACC delta under random per-slot rotation); 33h's
+  76.10 KB/ACC-pt = 2.236× reproduced exactly. **M1 measured and left
+  standing**: no committed pipeline builds a complex-valued stream (census
+  of 54 files), and a constructed one reaches R = 0.462 — the width is
+  usable, just unused. **THE FORK: (A) 44.83 KB/ACC-pt = 1.32×, ≤2×
+  fallback MET, imaginary channel forfeited permanently; (B) 76.10 = 2.24×,
+  floor stands and the option-(a) re-scope is forced.** Priced, not chosen.
+  Harness §15 (10 checks) green both backends.
+- **Original target text below.**
 - **Why first**: every other cost lever is small next to this one, and
   T7.6's design depends on which branch the owner picks.
 - **Objective**: T1.9 recorded "nothing left to engineer" for the cost
