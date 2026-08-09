@@ -444,7 +444,78 @@ We deliberately did not choose. Both options are priced and the decision is
 the owner's, because it is not really a storage question — it is a question
 about what this system is for.
 
-### Chapter 13 — Where we are now
+### Chapter 13 — A rule we had backwards about the connection table *(phase 44)*
+
+Alongside its memories, the system keeps a table of which memory tends to
+follow which. That table is mostly empty — most memories never follow most
+others — so we store only the entries that exist. The work order we were
+given assumed there was still money on the table here: sparsify the
+connections and the storage bill comes down. **We checked before spending
+anything, and there was nothing to spend: the bill we have been quoting for
+months already assumed the sparse form.** Making it "the default" moves the
+number by exactly zero. Saying so first, before doing the interesting part,
+is the whole discipline in one paragraph.
+
+There *was* money somewhere else, and it was in the boring details: the
+table stores each entry's address and count in wider number formats than
+they need. Narrowing both — with a check each time that nothing is lost, so
+it is not a rounding trick — halves that part of the bill. We worked out
+what it should come to on paper first (5058 bytes) and then measured it
+(5058 bytes). Combined with Chapter 12's change, the storage bill goes from
+2.24× the simple baseline to about **1.15×**. Which, we now think, is where
+the sandbox's unexplained "1.13×" came from — it was quietly counting this
+too.
+
+**But the pre-registered test still failed, and it matters.** Even with the
+connection table squeezed as hard as it goes, the bill only falls from 2.24×
+to **2.07×** — still outside the 2× target. So the target was never going to
+be won or lost on the connection table. It is decided entirely by the choice
+in Chapter 12. That is a cleaner answer than a saving would have been.
+
+**And one assumption of ours turned out to be wrong.** We had been treating
+"the table is 6% full" as a fact about the system. It is a fact about *how
+much text it has read*. Feed it sixteen times as much and the table goes from
+6% to 37% full on one benchmark and from 0.8% to 4.7% on another. It still
+pays to store it sparsely — that stops paying only around 50% full — but
+every storage number we have ever published needs the amount of data
+attached to it, and we have gone back and said so about the older ones too.
+
+### Chapter 14 — How long to look at each word *(phase 45)*
+
+When the system reads, each word is held in front of it for a fixed number
+of moments — eight, in every experiment we have run. Eight is about twice as
+long as it takes the system to settle on what it is looking at. The question
+this chapter asks is what that costs: after eight moments, does anything
+remain of the words that came *before*?
+
+The sandbox's answer was that nothing does — that the system ends up in a
+pure "last word" state — and that a shorter look (three moments) opens a
+window where the earlier words still matter. The first half is right. On the
+similarity scale the system itself uses, two sentences ending in the same
+word look 97% alike after eight moments. Shorten the look and they separate.
+
+**The second half is wrong in an interesting way.** We tested whether what
+comes back at a short look is really the earlier words or just the system not
+having settled yet — noise dressed up as memory. The test is whether it
+*repeats*: start from a different random state and see if you land in the
+same place. It does, and more than that: **you can identify which earlier
+words produced a state perfectly, at every look length we tried, including
+twelve.** The earlier words are always there. What changes with look length
+is not whether the information exists but *how loud it is* — and every part
+of the machinery that reads it works by comparing against a fixed threshold.
+So "does the system notice the earlier words" is a question about the
+readers, not about the state. That is a different problem from the one we
+thought we had.
+
+**The trade is real and it is steep.** Shorten the look to three moments and
+the system covers 265 of 376 words instead of 327, and — the part that
+actually decides it — the categories it discovers **stop passing their own
+statistical test entirely**. There is no free lunch here and eight is not too
+long. What this points at instead is keeping the fast reader and adding a
+second, slower one alongside it: the slow one remembers the earlier words
+without anything having to give up its threshold.
+
+### Chapter 15 — Where we are now
 
 Deliberately not chasing new frontiers. The current block set out to deepen
 the four things we believed the system was differentiated on: continual

@@ -150,7 +150,8 @@ def run_pipeline(R, epochs, seed, K, n_null=200):
     """Phase 19's recipe at `epochs` passes: perceive -> consolidate ->
     coverage -> categories -> predictive gain. Returns the three axes."""
     V = len(R.vocab)
-    org = PolysemyOrganism(N=R.N, K=K, omega=OMEGA, beta=BETA, seed=seed)
+    org = PolysemyOrganism(N=R.N, K=K, omega=OMEGA, beta=BETA, seed=seed,
+                           backend="numba")
     stream = R.stream(tr.HOLD_19)
     for _ in range(epochs):
         org.perceive(stream, **tr.PERCEIVE_19)

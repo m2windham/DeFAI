@@ -317,7 +317,8 @@ if __name__ == "__main__":
     print(f"  {'hold':>5} | {'frames':>8} {'slots':>6} {'memories':>9} "
           f"{'coverage':>10} | {'k':>3} {'MI':>7} {'nullp99':>8} {'MIz':>7}")
     for h in HOLDS:
-        org = PolysemyOrganism(N=N, K=K_TXT, omega=OMEGA, beta=BETA, seed=0)
+        org = PolysemyOrganism(N=N, K=K_TXT, omega=OMEGA, beta=BETA, seed=0,
+                               backend="numba")
         stream = R.stream(h)
         org.perceive(stream, **tr.PERCEIVE_19)
         org.consolidate(merge_thresh=0.84, prune_frac=0.001)
