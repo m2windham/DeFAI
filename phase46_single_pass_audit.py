@@ -81,7 +81,8 @@ import time
 import numpy as np
 
 import text_recipe as tr
-from phase45_settling_depth import cat_bigram, mutual_information, slot_labels
+from phase45_settling_depth import (assign_slots, cat_bigram,
+                                    mutual_information, slot_labels)
 from polysemy_organism import PolysemyOrganism, _entropy
 
 EPOCHS = (1, 3, 15)
@@ -157,7 +158,7 @@ def run_pipeline(R, epochs, seed, K, n_null=200):
     org.consolidate(merge_thresh=0.84, prune_frac=0.001)
     n_mem = org.mem.shape[0]
     states = R.embeddings[np.asarray(R.train_seq)]
-    assign = np.abs((org.mem.conj() @ states.T) / R.N).argmax(0)
+    assign = assign_slots(org.mem, states, R.N)
     slot_word = {}
     for k in range(n_mem):
         members = np.asarray(R.train_seq)[assign == k]

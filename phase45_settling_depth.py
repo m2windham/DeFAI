@@ -156,6 +156,21 @@ def cat_bigram(labels, k, pred_arr, succ_arr):
     return np.bincount(lp * k + ls, minlength=k * k).reshape(k, k).astype(float)
 
 
+def assign_slots(mem, states, N, chunk=20000):
+    """argmax_k |<mem_k, state>| / N, chunked over states.
+
+    The dense form `|mem.conj() @ states.T|` is (n_mem x n_tokens) complex,
+    which at corpus scale (1200 memories x 400K tokens) is 6.5 GB. Chunking
+    makes it O(n_mem x chunk) and changes nothing numerically -- argmax is
+    per-column."""
+    mem = np.ascontiguousarray(mem, dtype=complex)
+    out = np.empty(len(states), dtype=int)
+    for i in range(0, len(states), chunk):
+        blk = np.ascontiguousarray(states[i:i + chunk], dtype=complex)
+        out[i:i + chunk] = np.abs((mem.conj() @ blk.T) / N).argmax(0)
+    return out
+
+
 def slot_labels(org, n_mem):
     """Per-memory category label from `discover_categories_v2`'s own output
     (`word_slot_to_cat`), as an array indexed like `org.mem`'s rows."""
@@ -308,7 +323,7 @@ if __name__ == "__main__":
         org.consolidate(merge_thresh=0.84, prune_frac=0.001)
         n_mem = org.mem.shape[0]
         states = np.asarray([emb[w] for w in R.train_seq])
-        assign = np.abs((org.mem.conj() @ states.T) / N).argmax(0)
+        assign = assign_slots(org.mem, states, N)
         slot_word = {}
         for k in range(n_mem):
             mem_of = np.asarray(R.train_seq)[assign == k]

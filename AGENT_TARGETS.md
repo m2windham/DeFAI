@@ -1176,7 +1176,35 @@ T7.6 and NOT to be used until the fork is resolved).
   scale. Measure density **as a function of observation count**, not at one
   point.
 
-### T7.3 — Settling-depth sweep (phase 45)  `[claimed: claude/repo-agent-arch-economics-4adfij, 2026-08-08]`
+### T7.3 — Settling-depth sweep (phase 45)  `[DONE 2026-08-09: claude/repo-agent-arch-economics-4adfij — see ROADMAP row 45]`
+- **RESULT (2026-08-09), misses first.** (1) **A PROCESS MISS**: this
+  phase's predictions were authored before its first run but committed
+  after it. Phases 43/44/46/47 pre-registered in the required order; this
+  one did not, and the row says so. (2) **The mundane account is
+  FALSIFIED, and the way it fails re-frames the question.** 1-NN prefix
+  decoding at a fixed final token is **1.000 at every hold from 1 to 12**
+  (null p99 0.083), with ceiling ≥ 0.99 from hold=2 — so the retained
+  information is prefix IDENTITY, not un-converged noise, and it is not
+  confined to a window. (3) What the sweep moves is the prefix signal's
+  MAGNITUDE in similarity units — `ceiling − suffix` = 0.375/0.406/0.307/
+  0.207/0.078/**0.027**/0.003 at hold 1/2/3/4/6/8/12 — and every consumer
+  in the mechanism is a THRESHOLD on that similarity (`recruit` 0.75,
+  `active_bar` 0.6, `fuse_bar` 0.7, `merge_thresh` 0.8). **Path sensitivity
+  is a property of the consumer, not of the state.** (4) The work order's
+  own flag is off by one step: `merge_thresh = 0.8` crosses suffix between
+  **hold=4 (0.7931) and hold=6 (0.9219)**, not "from hold=4 upward". The
+  flag stands and remains untested for sequence-state consolidation.
+  **Held**: P1 exactly (hold=8 ceiling 1.0000, suffix 0.9735, PSI 0.0302);
+  P2 at 21.7× (bar was 5×); the `g_in·dt` knob reproduces the curve at
+  fixed frame count, so this is settling depth and not exposure length.
+  **P4 HELD and the trade is steep**: coverage 128/199/265/301/320/**327**/
+  321 of 376, and category-validity z = 1.3/2.1/2.6/6.8/10.5/**9.5**/9.3 —
+  **at hold ≤ 3 the categories do not clear their own null at all**. No
+  free lunch; hold=8 is not over-settling. **Consequence for T7.6**: arm
+  (c), the dual time constant, is the only one that buys path sensitivity
+  without paying this bill — it adds a second O(N) state instead of moving
+  the one state everything else reads.
+- **Original target text below.**
 - **Objective**: sandbox measurement (hypothesis) — at the phase 19
   exposure setting (`hold=8`) the end-of-sequence field state has a
   same-sequence ceiling of exactly 1.0000 and a suffix-sharing similarity

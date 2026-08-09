@@ -95,6 +95,39 @@ nothing" did NOT fire on that corpus.
   all folds. Clearing the stream null alone is exactly the artifact M5
   names and must be reported as a failure, not a partial success.
 
+ADDENDUM, WRITTEN AND COMMITTED AFTER THE FIRST RUN AND BEFORE THE SECOND.
+The first run FAILED P2: under the predecessor-permutation null the
+FREQUENCY arm still gained +2286 nats. The pre-registered consequence of
+that is severe and is honored -- "the measure is broken and nothing else in
+the phase counts" -- so sections 1-5's raw numbers are reported as
+diagnostics of the measure, not as pre-gate answers. The diagnosis: merging
+a frequent bigram shortens the stream and enlarges the symbol table, and an
+add-alpha model refitted on the longer table fits its own data better,
+which is a length/estimation effect present even with no sequential
+structure at all. Frequency-selection maximizes exactly that effect, which
+is why it is the arm the null does not kill.
+
+P7 -- THE REPAIRED STATISTIC, AND ITS CONFIRMATION SET. The statistic that
+answers the question actually asked is the NULL-CORRECTED gain,
+`corrected = gain(real) - gain(permuted)`, matched per fold, rule and M:
+the length/estimation term is common to both and cancels, leaving only what
+sequential structure buys. This is a POST-HOC repair, so it gets what a
+post-hoc repair needs: the corpus is split in half FIRST, the repair is
+exercised on SELECTION folds carved from the first half, and the ordering
+it produces is CONFIRMED on folds carved from the second half, which no
+selection has touched.
+  PREDICTION: under the corrected statistic, expected-total-gain beats
+  frequency-only on every confirmation fold -- i.e. P1's original claim is
+  right and the raw statistic was what failed. DECISION RULE: if the
+  ordering does not reproduce on the confirmation half, the corrected
+  statistic is not rescued either and the pre-gate returns "no measured
+  basis for a chunk-selection rule", which is a legitimate answer.
+  MUNDANE ACCOUNT (M7): the correction just subtracts a constant per rule,
+  so it re-ranks nothing and any reversal is arithmetic sleight of hand.
+  Distinguished by reporting the null term per rule -- if the null gains
+  differ ACROSS rules by more than the real gains do, the correction is
+  doing real work; if they are near-identical, M7 wins.
+
 P6 -- HONEST NEGATIVE, PRE-REGISTERED. If the category arm does not clear
 the label-permutation null, phase 29's "level 2 learns nothing" fires on
 this corpus, T2.4 stays blocked on its own honest negative, and no chunk
@@ -111,7 +144,7 @@ from collections import Counter
 import numpy as np
 
 import text_recipe as tr
-from phase45_settling_depth import slot_labels
+from phase45_settling_depth import assign_slots, slot_labels
 from polysemy_organism import PolysemyOrganism
 
 M_GRID = (16, 32, 64, 128, 256, 512)
@@ -365,12 +398,16 @@ if __name__ == "__main__":
     print("\n" + "=" * 70)
     print("(5) THE CATEGORY LEVEL -- P5/P6 (T2.4's blocker)")
     K_TXT = min(1200, V * 4)
-    org = PolysemyOrganism(N=R.N, K=K_TXT, omega=OMEGA, beta=BETA, seed=0)
+    t0 = time.time()
+    org = PolysemyOrganism(N=R.N, K=K_TXT, omega=OMEGA, beta=BETA, seed=0,
+                           backend="numba")
     org.perceive(R.stream(tr.HOLD_19), **tr.PERCEIVE_19)
+    print(f"  [perceive {time.time() - t0:.0f}s]", flush=True)
     org.consolidate(merge_thresh=0.84, prune_frac=0.001)
     n_mem = org.mem.shape[0]
+    print(f"  [consolidate {time.time() - t0:.0f}s, {n_mem} memories]", flush=True)
     states = R.embeddings[np.asarray(R.train_seq)]
-    assign = np.abs((org.mem.conj() @ states.T) / R.N).argmax(0)
+    assign = assign_slots(org.mem, states, R.N)
     org.discover_categories_v2(verbose=False)
     lab = slot_labels(org, n_mem)
     k = int(lab.max()) + 1
@@ -422,5 +459,60 @@ if __name__ == "__main__":
     else:
         print("  P5 MISSED / P6 FIRES -- phase 29's 'level 2 learns nothing' "
               "fires on this corpus; T2.4 stays blocked")
+
+    # ---------------- 6. the repaired statistic ---------------------------
+    print("\n" + "=" * 70)
+    print("(6) THE REPAIRED STATISTIC -- P7 (post-hoc, with a fresh confirmation half)")
+    seq = np.asarray(R.train_seq, int)
+    half = len(seq) // 2
+    halves = (("selection  (corpus 1st half)", seq[:half]),
+              ("CONFIRM    (corpus 2nd half)", seq[half:]))
+    rng7 = np.random.default_rng(2)
+    order = {}
+    for hname, hseq in halves:
+        hf = folds(hseq)
+        print(f"  {hname}: {N_FOLDS} folds of {len(hf[0][0])} train / "
+              f"{len(hf[0][1])} test")
+        print(f"  {'M':>5} {'rule':>11} | {'real':>9} {'null':>9} "
+              f"{'corrected':>10} | {'per-fold corrected':>46} | flips")
+        for M in (32, 64, 128):
+            per_rule = {}
+            for rule in ("frequency", "divergence", "total"):
+                real, null = [], []
+                for tr_s, te_s in hf:
+                    ch = select(bigram_stats(tr_s, V), M, rule)
+                    real.append(gain(te_s, ch, V))
+                    tr_p, te_p = rng7.permutation(tr_s), rng7.permutation(te_s)
+                    chp = select(bigram_stats(tr_p, V), M, rule)
+                    null.append(gain(te_p, chp, V))
+                per_rule[rule] = (np.array(real), np.array(null),
+                                  np.array(real) - np.array(null))
+            for rule in ("frequency", "divergence", "total"):
+                r_, n_, c_ = per_rule[rule]
+                flips = int(np.sum(c_ <= per_rule["frequency"][2])) \
+                    if rule != "frequency" else 0
+                print(f"  {M:>5} {rule:>11} | {r_.mean():>9.1f} {n_.mean():>9.1f} "
+                      f"{c_.mean():>10.1f} | "
+                      + " ".join(f"{x:>8.1f}" for x in c_)
+                      + f" | {flips}/{N_FOLDS}")
+            order[(hname, M)] = {r: per_rule[r][2] for r in per_rule}
+            # M7's discriminator: does the correction re-rank, or just shift?
+            nulls = {r: per_rule[r][1].mean() for r in per_rule}
+            reals = {r: per_rule[r][0].mean() for r in per_rule}
+            spread_n = max(nulls.values()) - min(nulls.values())
+            spread_r = max(reals.values()) - min(reals.values())
+            print(f"  {'':>5} {'M7 check':>11} | null spread across rules "
+                  f"{spread_n:.1f} vs real spread {spread_r:.1f} -- "
+                  + ("the correction does real work" if spread_n > spread_r
+                     else "M7 WINS: the correction is a common shift"))
+        print()
+    ok = all(np.all(order[(halves[1][0], M)]["total"]
+                    > order[(halves[1][0], M)]["frequency"]) for M in (32, 64, 128))
+    print(f"  P7 {'HELD' if ok else 'MISSED'}: expected-total-gain beats "
+          f"frequency-only on every CONFIRMATION fold at M=32/64/128 "
+          f"under the corrected statistic")
+    if not ok:
+        print("  -> the corrected statistic is not rescued either; the pre-gate "
+              "returns 'no measured basis for a chunk-selection rule'")
 
     print(f"\nTOTAL {time.time() - t_all:.1f}s")
