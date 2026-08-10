@@ -393,7 +393,206 @@ We have taken the claim out of the pitch. What replaces it is a better
 question we now know how to ask: *how blocked does a stream have to be
 before the announcement is worth anything to anyone?*
 
-### Chapter 12 — Where we are now
+### Chapter 12 — Half of every memory was never being used *(phase 43)*
+
+Every memory this system stores has two halves — think of each one as a
+note with both a *shape* and a *timing offset*. The shape is what the
+memory looks like; the timing offset was meant to let several memories be
+held at once without smearing together, the way several people humming
+different notes can still be told apart. Storing both halves is the single
+biggest reason our memories cost more than the simple baseline we measure
+against: roughly twice the bytes per memory, and that factor is most of the
+gap the release decision has been stuck on.
+
+**So we went and looked at what is actually in there.** Not argued about
+it — measured it, with a number that is zero exactly when a memory has no
+timing content at all and one-half when it is completely full of it. The
+answer, across three different bodies of data: **about 0.00026**. Better
+than 99.8% of memories are essentially all shape and no timing. Then we
+checked the obvious follow-up: does anything downstream even read the
+timing? We scrambled it — gave every memory a random offset — and the
+system's score did not move by a single digit. Nothing reads it.
+
+**Why is it empty?** The work order we were handed said the answer was
+structural: the machinery simply cannot put content there. We checked by
+deriving what the update rule actually does instead of describing it, and
+**that answer is wrong**. It can put content there. Turn one dial (the
+system's internal rotation speed) up, or let each input settle for less
+time, and the timing channel fills right up — we measured it going from
+0.00026 to 0.33. It is empty because of where two dials happen to be set,
+not because of how the thing is built. This matters: it means the
+"add timing information" upgrade someone might propose next is a settings
+change, not an invention.
+
+**And one honest catch about our own test.** The obvious check — throw the
+timing away and see if accuracy drops — showed no drop at all. That is a
+weaker result than it sounds. We built a version where the timing channel
+*is* full and threw it away too: still no drop, until the channel was
+almost entirely full. Our scoring method is simply blind to this until the
+effect gets large. So the reason we believe the channel is empty is that we
+measured the channel, not that the score didn't move.
+
+**What it is worth.** If we store only the shape and one small number for
+the offset, the memory cost falls from about 2.24× the baseline to about
+**1.32×** — comfortably inside the fallback target the release decision
+named — and, in the setup we measure on, nothing gets worse. The catch is
+that this is a one-way door: throw the timing channel away and the
+"several notes at once" capability from Chapter 3's neighborhood goes with
+it, permanently, along with anything we might later build on it.
+
+We deliberately did not choose. Both options are priced and the decision is
+the owner's, because it is not really a storage question — it is a question
+about what this system is for.
+
+### Chapter 13 — A rule we had backwards about the connection table *(phase 44)*
+
+Alongside its memories, the system keeps a table of which memory tends to
+follow which. That table is mostly empty — most memories never follow most
+others — so we store only the entries that exist. The work order we were
+given assumed there was still money on the table here: sparsify the
+connections and the storage bill comes down. **We checked before spending
+anything, and there was nothing to spend: the bill we have been quoting for
+months already assumed the sparse form.** Making it "the default" moves the
+number by exactly zero. Saying so first, before doing the interesting part,
+is the whole discipline in one paragraph.
+
+There *was* money somewhere else, and it was in the boring details: the
+table stores each entry's address and count in wider number formats than
+they need. Narrowing both — with a check each time that nothing is lost, so
+it is not a rounding trick — halves that part of the bill. We worked out
+what it should come to on paper first (5058 bytes) and then measured it
+(5058 bytes). Combined with Chapter 12's change, the storage bill goes from
+2.24× the simple baseline to about **1.15×**. Which, we now think, is where
+the sandbox's unexplained "1.13×" came from — it was quietly counting this
+too.
+
+**But the pre-registered test still failed, and it matters.** Even with the
+connection table squeezed as hard as it goes, the bill only falls from 2.24×
+to **2.07×** — still outside the 2× target. So the target was never going to
+be won or lost on the connection table. It is decided entirely by the choice
+in Chapter 12. That is a cleaner answer than a saving would have been.
+
+**And one assumption of ours turned out to be wrong.** We had been treating
+"the table is 6% full" as a fact about the system. It is a fact about *how
+much text it has read*. Feed it sixteen times as much and the table goes from
+6% to 37% full on one benchmark and from 0.8% to 4.7% on another. It still
+pays to store it sparsely — that stops paying only around 50% full — but
+every storage number we have ever published needs the amount of data
+attached to it, and we have gone back and said so about the older ones too.
+
+### Chapter 14 — How long to look at each word *(phase 45)*
+
+When the system reads, each word is held in front of it for a fixed number
+of moments — eight, in every experiment we have run. Eight is about twice as
+long as it takes the system to settle on what it is looking at. The question
+this chapter asks is what that costs: after eight moments, does anything
+remain of the words that came *before*?
+
+The sandbox's answer was that nothing does — that the system ends up in a
+pure "last word" state — and that a shorter look (three moments) opens a
+window where the earlier words still matter. The first half is right. On the
+similarity scale the system itself uses, two sentences ending in the same
+word look 97% alike after eight moments. Shorten the look and they separate.
+
+**The second half is wrong in an interesting way.** We tested whether what
+comes back at a short look is really the earlier words or just the system not
+having settled yet — noise dressed up as memory. The test is whether it
+*repeats*: start from a different random state and see if you land in the
+same place. It does, and more than that: **you can identify which earlier
+words produced a state perfectly, at every look length we tried, including
+twelve.** The earlier words are always there. What changes with look length
+is not whether the information exists but *how loud it is* — and every part
+of the machinery that reads it works by comparing against a fixed threshold.
+So "does the system notice the earlier words" is a question about the
+readers, not about the state. That is a different problem from the one we
+thought we had.
+
+**The trade is real and it is steep.** Shorten the look to three moments and
+the system covers 265 of 376 words instead of 327, and — the part that
+actually decides it — the categories it discovers **stop passing their own
+statistical test entirely**. There is no free lunch here and eight is not too
+long. What this points at instead is keeping the fast reader and adding a
+second, slower one alongside it: the slow one remembers the earlier words
+without anything having to give up its threshold.
+
+### Chapter 15 — Chunking: a measure that paid out for nothing *(phase 47)*
+
+Before building anything that groups common word-pairs into single units —
+the obvious next step for a system that reads — we ran three checks. This
+chapter is mostly about the check that saved us from all three.
+
+To decide whether chunking helps you need a score: how many fewer bits does
+the text take once the chunks exist. We built that score, and then we ran it
+on **shuffled text**, where by construction there are no real word-pairs to
+find. It should have scored zero. Instead the simplest chunk-picking rule —
+just take the most common pairs — scored **+2286**, a large positive number
+on text with no structure in it whatsoever. The score was rewarding
+something else entirely: merging pairs makes the text shorter, and shorter
+text is cheaper to describe no matter what is in it.
+
+We had written down in advance that if this happened, nothing else in the
+experiment counts. So it didn't. Everything we had measured up to that point
+went into the file as a diagnosis of a broken ruler rather than as an answer.
+
+**The repair, and why we don't just get to keep it.** Subtracting the
+shuffled-text score from the real-text score cancels the length effect and
+leaves only what real structure buys. That is a fix invented *after* seeing
+the failure, which is exactly the kind of fix that fools people. So we split
+the text in half, developed the fix on one half, and confirmed it on a half
+it had never seen. It holds there, and on the corrected score the
+"principled" chunk-picking rule beats the naive one on every single fold —
+which is what the original claim said, and which the broken ruler had been
+reporting backwards.
+
+**The result that changes a plan.** The most exciting claim we were handed
+was that chunking works even better one level up, on *categories* of words
+rather than words. It has a control that has to be run: compare against
+categories assigned **at random**, keeping the group sizes the same. Any
+grouping of ordinary text produces apparent structure through frequency
+alone, and only this control removes it. The discovered categories scored
+810. The random ones scored **1280** — better. Not a small margin, and not
+on one fold out of five: on all five.
+
+So there is nothing there, and we have said so. A planned piece of work that
+was waiting on this stays parked, on its own honest negative rather than on
+a guess. One check we did keep: chunk inventories **saturate and then go
+backwards** — more chunks help up to about sixty-four and actively hurt
+beyond that — and that reversal survives even when we stop charging for the
+chunk list itself. So it is a fact about language, not about our accounting,
+and it gives a stopping rule an earlier chapter's work was missing.
+
+### Chapter 16 — We checked our own headline, and it was too modest *(phase 46)*
+
+One of the things we say about this system is that it learns from a single
+pass — read the text once, the way a person does, rather than grinding over
+it repeatedly the way most machine learning does. It is one of the few
+claims that would survive a decision to stop competing on raw accuracy, so
+it had better be true.
+
+It sat on an awkward fact. The recipe that produced our language results
+reads the same text **fifteen times**. If the results only appear on the
+fifteenth pass, the claim is not one we get to make.
+
+So we re-ran everything at one pass and compared. On the three things we
+measure — how many words get their own memory, whether the categories the
+system invents pass their statistical test, and whether it spots words doing
+two jobs — **all three survive a single pass**. We had predicted that word
+coverage would be the casualty, and gave a specific reason why. We were
+wrong: coverage after one pass is 327 words out of 376, and after fifteen it
+is **320**. The extra passes don't add words; they quietly merge memories
+that one pass had kept apart.
+
+The one thing extra passes do buy is confidence in the categories — the
+statistical test goes from comfortably passed to very comfortably passed.
+That is worth having and it is now the only thing we claim for them.
+
+**Two limits we are not glossing over.** The one-versus-fifteen comparison
+was only affordable on the small text; on the large one we compared one pass
+against three. And the word-sense-detection count bounces around a lot
+between random starts (39, 39, 71 on one pass), so the right statement is
+"three runs cannot see a difference", not "there is none".
+
+### Chapter 17 — Where we are now
 
 Deliberately not chasing new frontiers. The current block set out to deepen
 the four things we believed the system was differentiated on: continual
@@ -413,6 +612,24 @@ That last one cost us an argument we liked. It also replaced it with a
 sharper question we can actually answer, which is the better trade. What
 remains untouched: a proper study of what protects old memories, and the
 damage-and-recovery experiment.
+
+**Added 2026-08-09.** A second block (Chapters 12–16) went after the
+*economics* of the design rather than its capabilities, and it followed the
+same pattern — most of what we were handed did not survive contact with a
+measurement. Half of every memory turned out to be unused, which is worth a
+lot of storage but only if we agree to give the capability up permanently
+(Chapter 12); a saving we were told to go find had already been taken
+(Chapter 13); a "window" we were told to open turned out to be a question
+about our own thresholds rather than about the system (Chapter 14); a
+chunking result we were asked to replicate came apart on a control it had
+never been run against (Chapter 15). The one that went the other way is
+Chapter 16, where our own headline claim turned out to be too modest.
+
+**The open question, and it is not ours to settle.** The storage decision in
+Chapter 12 is a one-way door: take it and the system gets much cheaper and
+permanently loses a capability we have demonstrated but never yet used. We
+priced both sides carefully and deliberately did not choose. Everything that
+would be built on top of that decision is parked until it is made.
 
 ---
 

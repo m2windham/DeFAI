@@ -198,7 +198,13 @@ prototype baseline wins raw accuracy outright (0.872). **NOT SOTA; release
 hold in force** (see ROADMAP). Mechanism findings: task-1 slot flooding at
 K=40, and a frozen-label readout artifact (fixed in-phase). Defensible
 public claims: unsupervised representation + structure learning + bitwise
-persistence in one single-pass online mechanism.
+persistence in one single-pass online mechanism. **"Single-pass" audited
+2026-08-09 (phase 46)**: word coverage, category validity and polysemy
+detection all survive ONE pass — coverage is 327/376 at one epoch against
+320/376 at fifteen, so the extra passes consolidate rather than cover, and
+the only axis they strengthen is the category certificate (MI z 9.1 → 12.7
+on fables, 32.0 → 38.3 at corpus scale). Scope: 1-vs-15 measured on the
+small corpus, 1-vs-3 at scale.
 
 `phase34_capacity_scaling.py` — N=128 fixed, vocabulary swept 50→800 with
 per-word exposure held constant: grammaticality collapses 0.994 → 0.284

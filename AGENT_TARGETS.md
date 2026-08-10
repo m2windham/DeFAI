@@ -610,7 +610,22 @@ verbatim, evict=250 + LabelEvidenceReadout as the baseline arm.
   pre-registered scope caveat, not an assumption. Full numbers: ROADMAP
   row 28.
 
-### T2.4 — Phase 29: recursive hierarchy  `[claimed: —]`
+### T2.4 — Phase 29: recursive hierarchy  `[BLOCKED 2026-08-09 by its own pre-gate — T7.5, phase 47]`
+- **BLOCKER (2026-08-09, measured not argued)**: phase 47's category-level
+  chunk census clears a stream-permutation null (810.3 vs 350.4 nats) and
+  **FAILS a label-permutation null outright — 810.3 against 1279.8 on 5/5
+  folds**, i.e. a RANDOM partition at fixed category sizes compresses the
+  stream better than `discover_categories_v2`'s. That is exactly the
+  clustering artifact any Zipfian stream manufactures, and only the
+  label-permutation control removes it. This target's own pre-registered
+  "level 2 learns nothing" therefore FIRES on the gutenberg8 corpus.
+  Category-level allocation measures 12.66 nats/slot against word-level
+  24.84 — the reverse of the sandbox anchor that motivated re-opening it.
+  **Do not open this without either (a) a corpus where the
+  label-permutation null is cleared, or (b) a level-2 unit that is not a
+  category bigram** (phase 40's finding that the boundary is ORDER, not
+  graph size, points at the second). Harness §17 pins the artifact so a
+  reversal has to be earned.
 - **Objective**: recruit/consolidate one level up — tokens are category
   n-gram signatures; discover phrase-level states. Certify with phase 24's
   level-agnostic MI-vs-null.
@@ -1044,6 +1059,297 @@ sharpest control — the same organism, provably, before and after damage.
 
 ---
 
+## Category 7 — Architecture economics (owner work order, 2026-08-08)
+
+**Provenance, and it is load-bearing.** T7.1–T7.5 originate from an
+exploratory sandbox session (2026-08-08) that cloned `main`, ran on the
+phase 20/21 Gutenberg corpus and the phase 19 recipe, and produced **no
+branch and no repo changes**. Nothing it reported is a result. Every
+sandbox number quoted in these targets is an **indicative anchor to be
+re-derived under the SOP** — hypothesis, not finding. Where a measurement
+here disagrees with a sandbox anchor, **the measurement wins and the
+disagreement is reported as a finding**, not reconciled away.
+
+Standing additions for every target in this category, on top of the SOP:
+pre-register a **named mundane account** (the most boring reason the
+prediction fails) alongside every prediction; check baseline/competitor
+behavior against the literature *before* predicting it; tag any NOVELTY
+claim as measured vs premise-derived; band negatives so a reversal must be
+earned.
+
+Phase numbers reserved by this claim: **43, 44, 45, 46, 47** (48 held for
+T7.6 and NOT to be used until the fork is resolved).
+
+### T7.1 — Phase-channel audit and the storage fork (phase 43)  `[DONE 2026-08-09: claude/repo-agent-arch-economics-4adfij — the fork is priced and WITH THE OWNER; see ROADMAP row 43]`
+- **RESULT (2026-08-09), misses first.** (1) **The work order's own
+  mechanistic account is FALSIFIED** — deriving the perceive recursion
+  rather than describing it gives `z_t ~ Σ_j b a^j x_{t−j}` with
+  `a = 1 − g_in·dt + i·omega·dt`, a phasor sum, so the reachable set is NOT
+  {rotation of a real vector}. Measured: R(omega=0) = exactly 0 at every
+  hold, R ∝ omega², 0.33 by omega ≥ 4, and R PEAKS at shallow settling
+  (hold 2–4). The channel is empty by **parameter regime**, not
+  construction. **T7.6(a) is therefore a parameter setting, not a new
+  mechanism.** (2) **The behavior null is weaker than it looks**: the
+  pre-registered positive control measured the readout's resolution floor
+  at **R ≈ 0.06** (substitution costs exactly 0.0000 there and −0.1256 only
+  at R = 0.462), and the store sits ~230× inside it — so `dACC = 0` is not
+  the evidence; the residual measurement is. **T7.6(b) inherits this as a
+  bar**: a phase-carrying arm must move the readout past R ≈ 0.06 or score
+  as a null whatever the dynamics do. (3) **The sandbox's ~1.13× is
+  contradicted**: derived 1.32× from the layout before measuring, measured
+  **1.318×** held-out; 1.02× is the memory term alone and the sandbox total
+  drops 33h's graph term. (4) Parity remains unreachable by this lever.
+  **Held**: median R **2.55e-04** held-out over 560 live slots (92% < 1e-3,
+  99.8% < 1e-2); cross-corpus at the phase 19/20 recipe (fables 410/413 <
+  1e-3 — the sandbox's 416/418 reproduces; gutenberg8 1199/1200);
+  store-mode `dACC` held-out −0.0005 [−0.0050, +0.0025]; the per-slot phase
+  is **GAUGE** (exactly 0 ACC delta under random per-slot rotation); 33h's
+  76.10 KB/ACC-pt = 2.236× reproduced exactly. **M1 measured and left
+  standing**: no committed pipeline builds a complex-valued stream (census
+  of 54 files), and a constructed one reaches R = 0.462 — the width is
+  usable, just unused. **THE FORK: (A) 44.83 KB/ACC-pt = 1.32×, ≤2×
+  fallback MET, imaginary channel forfeited permanently; (B) 76.10 = 2.24×,
+  floor stands and the option-(a) re-scope is forced.** Priced, not chosen.
+  Harness §15 (10 checks) green both backends.
+- **Original target text below.**
+- **Why first**: every other cost lever is small next to this one, and
+  T7.6's design depends on which branch the owner picks.
+- **Objective**: T1.9 recorded "nothing left to engineer" for the cost
+  floor. That is established for **lossless width narrowing** (33g,
+  complex128→complex64). It is NOT established for a **representation
+  change**. Audit whether the stored `xi` actually uses the imaginary
+  channel; if it does not, price the `(real N-vector, phase scalar)` layout
+  against the floor's 2.03× complex-vs-real term.
+- **Sandbox anchor (hypothesis)**: after optimal global de-rotation the
+  residual imaginary energy had median 1e-4, 416/418 slots below 1e-3;
+  substituting the de-rotated real part left word→slot assignment agreement
+  1.0000 and overlap-profile correlation 0.9996 — on the phase 19 fables
+  recipe.
+- **Mechanistic account to test alongside it**: `perceive`'s only phase
+  source is `dz = 1j*omega*z + g_in*(x - z)`. If that is a content-blind
+  global rotation, the reachable set is exactly {e^{iθ}·real} for real
+  inputs and the emptiness is structural, not incidental.
+- **Do**: (1) reproduce the audit at the **33h configuration** (K=112, the
+  arm the floor was measured on), reporting the residual DISTRIBUTION not
+  just its mean; (2) test the mechanistic account — residual under (a) a
+  different corpus, (b) `omega` swept including 0, (c) complex-valued
+  inputs if any pipeline produces them; (3) cost the layout (256 B + 4 B vs
+  512 B) and **derive the floor from the layout before measuring it**;
+  (4) verify losslessness against every pinned anchor on both backends.
+- **Mundane account**: the residual is at floor only because the inputs are
+  real; a pipeline with genuinely complex inputs would use the width and
+  the saving is an artifact of one embedding choice. Step (2) must be able
+  to distinguish this.
+- **Deliverable**: an **owner decision artifact**, not a recommendation.
+  The fork is mutually exclusive — (A) spend it: halve the store, meet the
+  ≤2× fallback, permanently forfeit phase-16 binding including the
+  path-encoding T7.5/T7.6 would need; (B) cash it in: keep the width and
+  make it load-bearing (T7.6), leaving 2.24× standing and forcing the
+  option-(a) gate re-scope. **Price both, choose neither.**
+
+### T7.2 — Sparse P as the default path (phase 44)  `[DONE 2026-08-09: claude/repo-agent-arch-economics-4adfij — see ROADMAP row 44]`
+- **RESULT (2026-08-09), misses first.** (1) **A premise of the target was
+  already spent**: 33h's 0.36× graph term IS the CSR number, not a dense
+  number awaiting sparsification (dense float64 100 352 B vs the measured
+  10 116 B), so **CSR-as-default-storage moves the floor by exactly
+  0.000×**. (2) **The mundane account FIRED — density is not scale-free.**
+  Over 16× observations at fixed K: digits 0.099 → **0.374 (3.79×)**,
+  gutenberg8 0.0077 → **0.0466 (6.08×)**. P3 MISSED as written; growth is
+  sublinear but unsaturated. **Standing consequence: every CSR byte number
+  in this project needs an observation count attached**, phase 42's 3.64%
+  at K=1580 included. (3) The compute crossover HELD inside its band but
+  the honest reading is that sparse **loses at every shape this project
+  reasons at**: `next_hops` dense/sparse 0.72× at K=112, 0.95× at 400,
+  **1.15× at 500** (crossover), 2.84× at 1580; `rollout` negative at every
+  K; full `kstep` 0.08–0.23×; `kstep_row` wins from K≈200.
+  **Held**: the narrow-CSR derivation landed to the byte (derived
+  `4·nnz + 2·(K+1) = 5058 B`, measured 5058 B, P reconstructed identically),
+  and the floor moves 2.236× → **2.066×** (c64) and 1.318× → **1.147×**
+  (real+phase). **The pre-registered rule fired: the ≤2× fallback is still
+  MISSED by graph engineering alone**, which settles that the fallback is
+  decided by the complex-vs-real term and never by the graph. It also
+  reconciles T7.1's contradiction — **1.147× is the sandbox's unreproduced
+  ~1.13×**, so the sandbox was pricing a narrowed graph too and said so
+  only for the store. **Default changed, deliberately inert**:
+  `next_hops(sparse=None)` dispatches on `SPARSE_MIN_K = 800` **and on
+  integer counts** (T6.3's bitwise condition), set at the ≥2× point rather
+  than the measured 500 break-even because phase 42 measured ±20% host
+  variance; phases 30/40 reason at K ≤ 60, so the dispatch cannot move an
+  anchor. Harness §16 (10 checks) green both backends.
+- **Original target text below.**
+- **Objective**: the graph contributes 0.36× to the cost floor; 33g
+  measured P at ~6% density at K=160. T6.3 already built
+  `SparseTransitions` and moved `next_hops` onto a shared Dijkstra with the
+  dense body pinned bitwise (harness §12).
+- **Do**: make CSR the default storage/compute path **where T6.3 measured
+  it to win**, keeping dense where T6.3 measured a negative (full `kstep` —
+  a dense K² output is BLAS's home ground; the win was `kstep_row`).
+  Extend the bitwise pinning to every op whose default path changes.
+  Re-derive the graph term in the cost floor.
+- **Mundane account**: density is 6% at K=160 but P may densify with corpus
+  size; if density rises with observation count the saving evaporates at
+  scale. Measure density **as a function of observation count**, not at one
+  point.
+
+### T7.3 — Settling-depth sweep (phase 45)  `[DONE 2026-08-09: claude/repo-agent-arch-economics-4adfij — see ROADMAP row 45]`
+- **RESULT (2026-08-09), misses first.** (1) **A PROCESS MISS**: this
+  phase's predictions were authored before its first run but committed
+  after it. Phases 43/44/46/47 pre-registered in the required order; this
+  one did not, and the row says so. (2) **The mundane account is
+  FALSIFIED, and the way it fails re-frames the question.** 1-NN prefix
+  decoding at a fixed final token is **1.000 at every hold from 1 to 12**
+  (null p99 0.083), with ceiling ≥ 0.99 from hold=2 — so the retained
+  information is prefix IDENTITY, not un-converged noise, and it is not
+  confined to a window. (3) What the sweep moves is the prefix signal's
+  MAGNITUDE in similarity units — `ceiling − suffix` = 0.375/0.406/0.307/
+  0.207/0.078/**0.027**/0.003 at hold 1/2/3/4/6/8/12 — and every consumer
+  in the mechanism is a THRESHOLD on that similarity (`recruit` 0.75,
+  `active_bar` 0.6, `fuse_bar` 0.7, `merge_thresh` 0.8). **Path sensitivity
+  is a property of the consumer, not of the state.** (4) The work order's
+  own flag is off by one step: `merge_thresh = 0.8` crosses suffix between
+  **hold=4 (0.7931) and hold=6 (0.9219)**, not "from hold=4 upward". The
+  flag stands and remains untested for sequence-state consolidation.
+  **Held**: P1 exactly (hold=8 ceiling 1.0000, suffix 0.9735, PSI 0.0302);
+  P2 at 21.7× (bar was 5×); the `g_in·dt` knob reproduces the curve at
+  fixed frame count, so this is settling depth and not exposure length.
+  **P4 HELD and the trade is steep**: coverage 128/199/265/301/320/**327**/
+  321 of 376, and category-validity z = 1.3/2.1/2.6/6.8/10.5/**9.5**/9.3 —
+  **at hold ≤ 3 the categories do not clear their own null at all**. No
+  free lunch; hold=8 is not over-settling. **Consequence for T7.6**: arm
+  (c), the dual time constant, is the only one that buys path sensitivity
+  without paying this bill — it adds a second O(N) state instead of moving
+  the one state everything else reads.
+- **Original target text below.**
+- **Objective**: sandbox measurement (hypothesis) — at the phase 19
+  exposure setting (`hold=8`) the end-of-sequence field state has a
+  same-sequence ceiling of exactly 1.0000 and a suffix-sharing similarity
+  of 0.980: a pure last-token attractor that has also forgotten its own
+  initial condition. A window at hold≈3 held reproducibility 0.945 with
+  suffix-sharers at 0.703.
+- **Do**: sweep `hold` (equivalently `g_in·dt`) against slot coverage,
+  category validity (phase 24 MI-vs-null), and a path-sensitivity index
+  `(ceiling − suffix)/(ceiling − floor)`. Report the trade on the axes the
+  project already measures.
+- **Flag for consolidation**: the default `merge_thresh=0.8` sits between
+  ceiling and suffix at hold=3 and *below* suffix from hold=4 up, where
+  distinct suffix-sharing states would be merged. If sequence states are
+  ever consolidated this threshold is load-bearing and is currently
+  untested for that use.
+- **Mundane account**: the time constant `1/(g_in·dt)` ≈ 4 frames fully
+  explains both numbers; there is no window, only an EMA, and hold=3
+  "works" solely because settling is incomplete — i.e. the state is noisy
+  rather than path-aware. Distinguish by testing whether the retained
+  information is prefix IDENTITY or just un-converged noise.
+
+### T7.4 — Single-pass audit (phase 46)  `[DONE 2026-08-09: claude/repo-agent-arch-economics-4adfij — see ROADMAP row 46]`
+- **RESULT (2026-08-09), miss first.** **P1 MISSED, in the direction that
+  strengthens the claim.** Predicted: one epoch loses ≥10 points of
+  coverage. Measured on fables, 1 vs 15 epochs: **327/376 → 320/376** — the
+  extra fourteen passes *cost* seven words, with consolidated memories
+  falling 405 → 356, i.e. the epochs fuse memories one pass had already
+  separated. On gutenberg8, 1 vs 3: **387.3 → 388.3 of 395**. **Held**: P2
+  on both corpora (a single pass clears the permutation null at **z = 9.1**
+  fables / **z = 32.0** gutenberg8, strengthening to 12.7 / 38.3), and P3
+  (words above phase 21's noise floor **50.0 → 51.3**, +3%, inside the
+  ±20% rule — so re-reading a fixed corpus does NOT manufacture detection
+  signal, the failure mode the rule was written to catch). **Two scope
+  sentences that must travel**: the 1-vs-15 comparison exists only on the
+  2 431-token fables corpus (the large corpus was audited 1-vs-3 at 3.3M
+  frames/epoch), and the detection axis has a wide three-seed spread
+  (39/39/71 at one pass), so it is "not epoch-sensitive at the resolution
+  three seeds resolve". On fables the detection axis is not measurable at
+  all — one candidate clears the n≥100 bar in 2 431 tokens — which is
+  phase 19's own n=200–500 finding reappearing. **NOVELTY's one-sentence
+  claim now carries the audit and both scope sentences**, per the
+  pre-registered rule.
+- **Original target text below.**
+- **Objective**: phase 19's recipe runs 15 epochs. "Single-pass online" is
+  one of the capability axes any gate re-scope would stand on; a re-scoped
+  gate must not rest on an axis the production recipe violates.
+- **Do**: re-measure the headline results (coverage, category validity,
+  polysemy detection) at **1 epoch** against the multi-epoch numbers, paired
+  seeds. Report which survive. **This is an audit, not an improvement
+  target** — a large drop is a legitimate and important finding.
+- **Mundane account**: multi-epoch is doing ordinary optimization work any
+  online learner would need; the honest claim is "single-pass capable,
+  multi-pass tuned", and the fix is a wording change in NOVELTY rather than
+  an experiment.
+
+### T7.5 — Macro-Recruit pre-gates (phase 47)  `[DONE 2026-08-09: claude/repo-agent-arch-economics-4adfij — T2.4 STAYS BLOCKED; see ROADMAP row 47]`
+- **RESULT (2026-08-09), misses first — four of them.** (1) **P2 FAILED and
+  its pre-registered consequence was honored**: the frequency arm gained
+  **+2286 nats under the predecessor-permutation null**, so the raw measure
+  is broken and sections 1–5's numbers are diagnostics, not answers.
+  Diagnosis: merging shortens the stream and enlarges the table, and an
+  add-α model refitted on the longer table fits its own data better — a
+  length/estimation effect present with no sequential structure at all.
+  (2) **P1 MISSED on the pre-registered statistic** — held out, plain
+  frequency beats expected-total-gain at every M (M=64: 2519.8 vs 1589.9),
+  reversing the sandbox's in-sample ordering; the M1 check clears
+  total-gain of being frequency in disguise (overlap 0.55–0.62). (3) **P3
+  MISSED — the sandbox's own UNK confound does not reproduce**: the UNK
+  share is exactly 0.253 as reported, but the gain ratio is **1.15×**, not
+  ≥2×, and the payoff is **0.93% of total cross-entropy** either way.
+  (4) **P5 MISSED / P6 FIRED, and this is the consequential one.** The
+  category arm clears the stream-permutation null (810.3 vs 350.4) and
+  **FAILS the label-permutation null outright — 810.3 against 1279.8 on
+  5/5 folds**, i.e. a random partition at fixed sizes compresses better
+  than the discovered one. That is exactly the clustering artifact M5
+  named. **Phase 29's "level 2 learns nothing" FIRES on this corpus:
+  T2.4 stays blocked on its own honest negative and no chunk mechanism
+  should be built at the category level.** Category-level allocation is
+  12.66 nats/slot vs word-level 24.84 — the reverse of the sandbox's
+  ~+91 vs +11.7. **Held**: P4 (peak at **M=64**, marginal block negative
+  from M=128 **even with the table cost removed**, so the reversal is
+  language and not accounting — the stopping rule phase 41 lacked); and
+  P7, the null-corrected statistic, **committed before the run that tested
+  it and confirmed on a corpus half no selection had touched** —
+  expected-total-gain beats frequency on every confirmation fold at
+  M=32/64/128 (M=64: 1984.2 vs 51.1). **Net: the chunk-selection rule
+  survives on a repaired measure, at the WORD level only, worth ~1% of
+  cross-entropy.**
+- **Original target text below.**
+- **Objective**: replicate three sandbox pre-gates **under the SOP** before
+  any chunk mechanism is built. Sandbox anchors, all indicative:
+  expected-total-gain chunk selection beat frequency-only and
+  divergence-only over 5 seeds (+2908 / +1740 / +880 nats at 64 slots), all
+  arms negative under a predecessor-permutation null; **the top chunks were
+  UNK-heavy** (UNK 25.3% of the stream under OOV→UNK mapping) and excluding
+  UNK contexts cut the word-level gain +2908 → +748, i.e. ~74% of the
+  headline was a vocabulary artifact; inventory saturates near M≈128 and
+  REVERSES (−472 nats at M=256, −1481 at M=512); a category-stream census
+  gave +1458 nats vs +65 null (+556 vs +33 UNK-dropped), 0/5 sign flips.
+- **Do**: pre-register, then replicate with **stream construction fixed and
+  stated** (OOV mapped vs deleted give different answers), the project's own
+  `discover_categories_v2` (slot-level, not the word-level PPMI k-means
+  proxy the sandbox used), and harness banding for the negative.
+- **Mundane account**: the category-stream gain is a k-means artifact — any
+  clustering of a Zipfian stream produces apparent second-order structure
+  through frequency effects alone. The permutation null is the control;
+  verify it is constructed to kill exactly that.
+
+### T7.6 — Deep-architecture arms (phase 48)  `[BLOCKED: contingent on T7.1's fork, owner decision]`
+Do not start until the owner has resolved T7.1. Under branch (A) most of
+this is moot; under branch (B) it is the work that earns the width.
+Ordered by cost-to-information: (a) content-dependent phase — a per-item or
+per-position phase increment makes the accumulated state a phasor sum
+`Σ e^{iφ_j} x_j`, order-sensitive, at zero additional stored bytes;
+pre-register against phase 16's measured constraint that superpositions
+collapse in 9–56 steps under attractor pull, so LIFETIME is the binding
+risk, not accuracy. (b) readout must change too — `overlaps` returns
+`(M.conj() @ z)/N` and every consumer takes `np.abs`, so a phase-carrying
+dynamics would silently score as a null against a phase-blind readout; any
+binding arm is TWO changes. (c) dual time constant — a companion field
+state with a slower `g_in` is O(N), ~0.001× of the K×N store, the cheapest
+route to sequence memory and independent of the phase fork. (d) graph
+order — phase 40 established the boundary is ORDER not size; a dense
+third-order tensor at K=112 is ~1.4M entries and dead on arrival, so the
+affordable form is low-rank (R·3K) or T7.5's sparse chunk-node inventory,
+whose saturation curve caps the rank worth buying. Price both against
+T7.5's measured gain before building either.
+
+---
+
 ## Dependency sketch
 
 ```
@@ -1060,4 +1366,9 @@ T6.2 retention     ├─► inform any future gate re-test / product claims
 T6.3 logic depth   │
 T6.4 polysemy→act ─┘   T6.5 re-baseline ─► E4 (T3.1) go/no-go
 T4.1 ablation (re-scoped, now unblocked)
+
+Category 7 (architecture economics, owner work order 2026-08-08) — ORDERED:
+T7.1 phase-channel audit + storage fork ─► owner decision ─► T7.6 (blocked)
+T7.2 sparse-P default   T7.3 settling depth   T7.4 single-pass audit
+T7.5 macro-recruit pre-gates ─► T2.4 (phase 29) if the category arm survives
 ```
