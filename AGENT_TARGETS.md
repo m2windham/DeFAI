@@ -871,7 +871,7 @@ same split** — an unpaired fixed-seed baseline is a bug (T1.9).
   over blocking, and it is the honest version of what T6.1 was reaching
   for. It would also give T6.2 its stream.
 
-### T6.2 — Retention mechanism study (phase 39)  `[claimed: —]`
+### T6.2 — Retention mechanism study (phase 39)  `[claimed: claude/phase-39-retention-mechanism-r7k2qm, 2026-08-11 — reserving phase number 39]`
 - **Objective**: characterize *what actually protects old memories*, so
   retention becomes a tunable property instead of an emergent accident.
   Factorize the contributions: eviction window E, victim rule
