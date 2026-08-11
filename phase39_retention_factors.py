@@ -137,9 +137,100 @@ straddles zero. That is a DELIVERABLE, not a failure: it converts N7's
 one-parameter one, and it is written up as such.
 
 ===========================================================================
-RESULTS
+COMMITTED-RUN RESULTS (2026-08-11)
 ===========================================================================
-Filled in by the committed run; see ROADMAP row 39 for the narrative version.
+Host: remote 4-core, Python 3.11, numpy 2.4.6 / numba 0.66.0 / scipy 1.17.1 /
+sklearn 1.9.0, NO TORCH. No torch arm was re-measured; the ladder's four MLP
+numbers are quoted from 33c's committed run, never from this host. Baseline
+harness 119/119 both backends before any change; 132/132 after.
+
+THE MISS FIRST.
+
+1. PREDICTION (a) IS NOT SUPPORTED -- the pre-registered expectation that the
+   victim rule matters LESS than the window is wrong on every reading. FORG
+   spread of the level means, pooled n=10: full range window 0.4244 vs rule
+   0.4386; settings-only window 0.4244 vs rule 0.4386; with each axis's
+   catastrophic setting dropped, window 0.0554 vs rule 0.0536 -- a 0.0018
+   difference, which is a rounding artifact and not a ranking. The two knobs
+   have INDISTINGUISHABLE leverage. 33b's inference from a window sweep --
+   that the window is "the load-bearing knob" -- was an artifact of never
+   having varied the other one.
+
+2. FACTOR F3 (p_decay) COULD NOT BE MEASURED AT ALL on this protocol, and
+   this is a genuine gap in the target's factor table, not a null. Every
+   p_decay level returns byte-identical ACC/FORG/task-0. The parameter is
+   wired -- at p_decay=0.01 the transition graph's mass falls 2782 -> 93.6, a
+   30x decay -- but it touches ONLY the graph, leaving the memory bank `xi`
+   bitwise unchanged (max|dxi| = 0.0e+00), and 33c's readout decodes from `xi`
+   overlaps alone and never consults the graph. Measuring transition decay as
+   a retention factor needs a metric that consumes P (next-symbol prediction,
+   planning), which the class-incremental classification protocol does not
+   have. Deliberately NOT fixed here by swapping in a different protocol:
+   that changes the factor table's scope mid-study.
+
+3. NOT VERIFIED: everything here is one protocol at one blockedness, one K
+   sweep at one window, and 10 seeds. The confirm/probation result (below) is
+   grid-selected and is reported at its held-out value only.
+
+WHAT HELD.
+
+4. PREDICTION (c)-STRONG IS CONFIRMED, and it is the phase's main result:
+   random eviction underperforms argmin-count at EVERY window, by a wide
+   margin, with a perfect sign census. Pooled n=10, paired within seed,
+   exact sign-flip null (min attainable p = 0.0020):
+       E=100  dACC -0.279  dFORG +0.457   10/10   p=0.0020 both
+       E=250  dACC -0.282  dFORG +0.439   10/10   p=0.0020 both
+       E=500  dACC -0.327  dFORG +0.465   10/10   p=0.0020 both
+       E=750  dACC -0.339  dFORG +0.446   10/10   p=0.0020 both
+   The simplification branch of (c) does NOT fire: the victim rule is doing
+   real work and must not be simplified away.
+
+5. PREDICTION (b) HOLDS, and more strongly than it was written. The
+   count-normalized-by-era rule shows no advantage at any window -- it is
+   WORSE, on FORG, at all four: +0.040 (p=0.0098), +0.054 (p=0.0059), +0.060
+   (p=0.0020), +0.035 (p=0.0391), pooled n=10. Task-0 final accuracy falls
+   0.90 -> 0.70. 33f's refusal to indicate H1 is vindicated by direct test.
+
+6. ALL THREE MUNDANE ACCOUNTS WERE REJECTED, so none of the above is true by
+   construction:
+     - "the pool is a singleton": the three rules diverge at the first or
+       second eviction and reach different eviction totals at every window
+       (E=250: count 171, rate 110, random 98).
+     - "tenure is flat across the pool": 'rate' really does reorder the pool
+       -- its victims' mean lifetime count is 57.0 vs 'count''s 24.9 at E=250.
+     - "the pool is all junk anyway": REJECTED hardest. Victim lifetime count
+       at eviction, argmin-count vs random: 14.4/217.1 (E=100), 24.9/229.4
+       (E=250), 44.5/212.5 (E=500), 57.6/233.8 (E=750). Random evicts
+       memories 4-15x better established. The stale pool has large spread and
+       argmin-count is exploiting it.
+
+THE LAW, EXTENDED. 33b: "the stale pool must contain the present, or eviction
+eats the past." Phase 39 adds the second clause: AND THE POOL MUST BE ORDERED
+BY HOW ESTABLISHED ITS MEMBERS ARE, OR EVICTION EATS THE PAST JUST AS FAST.
+The sharp form -- A MIS-SET BUDGET IS WORSE THAN NO BUDGET, on both knobs:
+    no budget          (E=0)             ACC 0.551 / FORG 0.291
+    window mis-set     (E=2000, count)   ACC 0.439 / FORG 0.577
+    victim mis-set     (E=250, random)   ACC 0.449 / FORG 0.591
+    both set well      (E=250, count)    ACC 0.730 / FORG 0.152
+Note that E=0 is NOT the worst cell on either axis: turning the budget on at
+the wrong setting is strictly worse than leaving it off.
+
+WHAT IS TUNABLE (pooled n=10, paired, exact null; the two knobs that BUY
+retention rather than merely avoiding harm, both sign-consistent on the
+held-out seeds):
+    K=96                dFORG -0.111 (10/10, p=0.0020)  dACC +0.127 (p=0.0020)
+    K=72                dFORG -0.100 (10/10, p=0.0020)  dACC +0.109 (p=0.0020)
+    confirm=3/prob=1000 dFORG -0.062 (10/10, p=0.0020)  dACC +0.056 (p=0.0059)
+    confirm=2/prob=1000 dFORG -0.039 ( 9/10, p=0.0039)  dACC +0.049 (p=0.0098)
+Slot headroom is the largest single gain and is monotone in K (K=56 wobbles
+on the held-out split, 2+/3-, so the monotonicity is a trend, not a pin).
+Probation/confirm -- phase 14's provisional-slot machinery, which 33c's own
+recipe leaves OFF at confirm=0 -- is a real retention knob and was NOT
+pre-registered: it was found by the sweep, so it is reported at its held-out
+value as a grid-selected result, not as a tuned recommendation.
+
+CARRIED SCOPE, ONE MORE TIME: every number above is retention AT 33c's
+BLOCKEDNESS. T6.6 (phase 49) is what varies that axis.
 """
 
 import argparse
@@ -323,6 +414,206 @@ def ledger_probe(seed=0, windows=(100, 250, 500, 750)):
     return probe
 
 
+def verdict(store, probe):
+    """Pool the two splits (n=10) and rule on each pre-registered prediction
+    AND on its named mundane account. Pooling is legitimate here because the
+    two splits are disjoint seed sets of the SAME paired design -- no cell was
+    chosen using the held-out seeds; they are concatenated, not re-selected."""
+    sel, hld = store['select'], store['holdout']
+
+    def pool(key, metric):
+        base_s, base_h = sel[('evict', '250')], hld[('evict', '250')]
+        d = ([a[metric] - b[metric] for a, b in zip(sel[key], base_s)]
+             + [a[metric] - b[metric] for a, b in zip(hld[key], base_h)])
+        return dict(mean=float(np.mean(d)),
+                    se=float(np.std(d, ddof=1) / np.sqrt(len(d))),
+                    pos=int(sum(v > 0 for v in d)),
+                    neg=int(sum(v < 0 for v in d)),
+                    n=len(d), p=exact_sign_flip_p(d))
+
+    print(f"\n{'=' * 74}\nPOOLED FACTOR TABLE (n=10: selection 0-4 + held-out 5-9,")
+    print(f"paired within seed against the RESEEDED reference cell; exact")
+    print(f"sign-flip null, min attainable p = {2 / 1024:.4f})\n{'=' * 74}")
+    print(f"    {'factor level':>26}  {'dACC':>34}  {'dFORG':>34}")
+    for key in sel:
+        if key == ('evict', '250') or key not in hld:
+            continue
+        print(f"    {key[0] + '=' + key[1]:>26}  {fmt(pool(key, 'acc')):>34}"
+              f"  {fmt(pool(key, 'forg')):>34}")
+
+    def mean_of(split, key, metric):
+        return float(np.mean([c[metric] for c in split[key]]))
+
+    def both(key, metric):        # mean over all 10 seeds
+        return float(np.mean([c[metric] for c in sel[key]]
+                             + [c[metric] for c in hld[key]]))
+
+    print(f"\n{'=' * 74}\nPRE-REGISTERED VERDICTS\n{'=' * 74}")
+
+    # ---- prediction (a) ---------------------------------------------------
+    win_all = [both(('evict', str(E)), 'forg')
+               for E in (0, 100, 250, 500, 750, 1000, 2000)]
+    win_work = [both(('evict', str(E)), 'forg') for E in (100, 250, 500, 750)]
+    rule_all = [both(('victim', f'250:{r}'), 'forg')
+                for r in ('count', 'rate', 'random')]
+    rule_work = [both(('victim', f'250:{r}'), 'forg') for r in ('count', 'rate')]
+    # settings-only: drop E=0, which ablates the mechanism rather than
+    # mis-setting the window (the rule axis has no counterpart to "no
+    # eviction at all"), and keep each axis's genuinely-bad SETTING
+    win_set = [both(('evict', str(E)), 'forg')
+               for E in (100, 250, 500, 750, 1000, 2000)]
+    print("\n(a) 'the victim rule matters less than the window'")
+    print("    Three readings, because the answer depends on what counts as a")
+    print("    comparable range. FORG spread of the level means, pooled n=10:")
+    print(f"      [1] FULL RANGE (E=0..2000 incl. the no-eviction ablation")
+    print(f"          vs all three rules)          window {max(win_all) - min(win_all):.4f}"
+          f"   rule {max(rule_all) - min(rule_all):.4f}")
+    print(f"      [2] SETTINGS ONLY (E=100..2000 vs all three rules -- each")
+    print(f"          axis keeps its own catastrophic")
+    print(f"          setting, neither keeps an ablation) "
+          f"window {max(win_set) - min(win_set):.4f}"
+          f"   rule {max(rule_all) - min(rule_all):.4f}")
+    print(f"          ([2] equals [1] on the window axis and that is not a")
+    print(f"           typo: E=0 is NOT extremal. See the synthesis below.)")
+    print(f"      [3] NON-DEGENERATE (E=100..750 vs count/rate -- each axis's")
+    print(f"          catastrophic setting dropped)"
+          f"  window {max(win_work) - min(win_work):.4f}"
+          f"   rule {max(rule_work) - min(rule_work):.4f}")
+    print("    VERDICT: NOT SUPPORTED. The rule axis is WIDER on [1] and [2];")
+    print("    on [3] the window leads by 0.0018 FORG, which is a rounding")
+    print("    difference, not a ranking. On no reading does the victim rule")
+    print("    matter LESS than the window: the two knobs have indistinguishable")
+    print("    leverage, and each has a setting that destroys retention.")
+    print("    mundane account 'THE POOL IS A SINGLETON': REJECTED --")
+    print("      the three rules diverge at the first or second eviction and")
+    print("      reach different eviction totals at every window, e.g. at E=250:")
+    print(f"      count {probe[(250, 'count')]['n']}, rate "
+          f"{probe[(250, 'rate')]['n']}, random {probe[(250, 'random')]['n']}"
+          f" evictions. The rule is consulted with a real choice.")
+
+    # ---- prediction (b) ---------------------------------------------------
+    print("\n(b) 'count-normalized-by-era shows no advantage' (falsification)")
+    ok_b = True
+    for E in (100, 250, 500, 750):
+        st = {}
+        for split in (sel, hld):
+            d = [a['forg'] - b['forg'] for a, b in
+                 zip(split[('victim', f'{E}:rate')], split[('victim', f'{E}:count')])]
+            st.setdefault('d', []).extend(d)
+        m = float(np.mean(st['d']))
+        p = exact_sign_flip_p(st['d'])
+        adv = m < 0
+        ok_b &= not adv
+        print(f"    E={E:>4}  dFORG(rate-count) {m:+.4f}  p={p:.4f}  "
+              f"{'ADVANTAGE' if adv else 'no advantage (worse or equal)'}")
+    print(f"    VERDICT: {'HOLDS' if ok_b else 'FALSIFIED'} -- and note the sign:")
+    print("    era normalization is not merely neutral here, it is WORSE.")
+    print("    mundane account 'TENURE IS FLAT ACROSS THE POOL': REJECTED --")
+    print("      'rate' diverges from 'count' at the FIRST or SECOND eviction and")
+    print("      evicts more-established victims (mean lifetime count "
+          f"{probe[(250, 'rate')] and np.mean(probe[(250, 'rate')]['counts']):.1f}"
+          f" vs {np.mean(probe[(250, 'count')]['counts']):.1f} at E=250),")
+    print("      so the normalizer really does reorder the pool. The rule was")
+    print("      tested, not merely inert.")
+
+    # ---- prediction (c) ---------------------------------------------------
+    print("\n(c) 'random underperforms argmin-count at every window' (or simplify)")
+    ok_c = True
+    for E in (100, 250, 500, 750):
+        d = []
+        for split in (sel, hld):
+            d += [a['forg'] - b['forg'] for a, b in
+                  zip(split[('victim', f'{E}:random')],
+                      split[('victim', f'{E}:count')])]
+        da = []
+        for split in (sel, hld):
+            da += [a['acc'] - b['acc'] for a, b in
+                   zip(split[('victim', f'{E}:random')],
+                       split[('victim', f'{E}:count')])]
+        worse = float(np.mean(d)) > 0
+        ok_c &= worse
+        print(f"    E={E:>4}  dFORG(random-count) {np.mean(d):+.4f} "
+              f"p={exact_sign_flip_p(d):.4f}   dACC {np.mean(da):+.4f} "
+              f"p={exact_sign_flip_p(da):.4f}  "
+              f"{'random WORSE' if worse else 'no difference'}")
+    print(f"    VERDICT: (c)-strong {'CONFIRMED' if ok_c else 'not confirmed'}"
+          f" -- the victim rule is NOT doing nothing;")
+    print("    the simplification branch of (c) does NOT fire.")
+    print("    mundane account 'THE POOL IS ALL JUNK ANYWAY': REJECTED --")
+    for E in (100, 250, 500, 750):
+        cc = np.array(probe[(E, 'count')]['counts'])
+        rr = np.array(probe[(E, 'random')]['counts'])
+        print(f"      E={E:>4}: victim lifetime count, argmin-count mean "
+              f"{cc.mean():6.1f} (p90 {np.percentile(cc, 90):6.1f}) vs random "
+              f"mean {rr.mean():6.1f} (p90 {np.percentile(rr, 90):6.1f})")
+    print("      The stale pool has a LARGE spread in establishedness and")
+    print("      argmin-count is exploiting it. Random evicts ~4-15x")
+    print("      better-established memories, and retention collapses.")
+
+    # ---- synthesis: the tunable-retention story ---------------------------
+    off_a, off_f = both(('evict', '0'), 'acc'), both(('evict', '0'), 'forg')
+    print(f"\n{'=' * 74}\nSYNTHESIS -- RETENTION AT 33c's BLOCKEDNESS\n{'=' * 74}")
+    print("\n  [1] A MIS-SET BUDGET IS WORSE THAN NO BUDGET. This is the finding")
+    print("      that makes the knobs matter, and it is symmetric across BOTH")
+    print("      of them. No slot budget at all (E=0) scores "
+          f"ACC {off_a:.3f} / FORG {off_f:.3f}.")
+    for label, key in (("window mis-set  (E=2000, count)", ('evict', '2000')),
+                       ("victim mis-set  (E=250, random)", ('victim', '250:random')),
+                       ("both set well   (E=250, count)", ('evict', '250'))):
+        print(f"      {label:<32} ACC {both(key, 'acc'):.3f} / "
+              f"FORG {both(key, 'forg'):.3f}"
+              + ("   <-- WORSE THAN OFF on both axes"
+                 if both(key, 'acc') < off_a and both(key, 'forg') > off_f
+                 else ""))
+    print("      So 33b's law needs a second clause. 33b: 'the stale pool must")
+    print("      contain the present, or eviction eats the past'. Phase 39 adds:")
+    print("      AND THE POOL MUST BE ORDERED BY HOW ESTABLISHED ITS MEMBERS ARE,")
+    print("      OR EVICTION EATS THE PAST JUST AS FAST. Getting either one")
+    print("      wrong is worse than never evicting.")
+    print("\n  [2] WHAT IS ACTUALLY TUNABLE, ranked by pooled |dFORG| (n=10):")
+    ranked = []
+    for key in sel:
+        if key == ('evict', '250') or key not in hld:
+            continue
+        st = pool(key, 'forg')
+        ranked.append((abs(st['mean']), key, st, pool(key, 'acc')))
+    for mag, key, sf, sa in sorted(ranked, reverse=True)[:8]:
+        print(f"      {key[0] + '=' + key[1]:>22}  dFORG {sf['mean']:+.4f} "
+              f"(p={sf['p']:.4f}, {sf['neg']}/{sf['n']} down)   "
+              f"dACC {sa['mean']:+.4f} (p={sa['p']:.4f})")
+    print("\n      Two knobs BUY retention rather than merely avoiding harm, and")
+    print("      both survive the held-out split with consistent sign:")
+    print("        - SLOT HEADROOM K: monotone, the largest single gain")
+    print("          (K=96: dFORG -0.111, dACC +0.127, 10/10 both). Consistent")
+    print("          with 33d's capacity result, now reseeded and held out.")
+    print("        - PROBATION/CONFIRM: phase 14's provisional-slot machinery,")
+    print("          UNUSED by 33c's recipe (confirm=0), is a real retention")
+    print("          knob (confirm=3/probation=1000: dFORG -0.062, dACC +0.056,")
+    print("          10/10 down). NOT pre-registered -- found by the sweep, so")
+    print("          it is reported as a grid-selected result that survived the")
+    print("          held-out split, NOT as a tuned recommendation.")
+    print("\n  [3] SCOPE, RESTATED BECAUSE IT IS EASY TO DROP: every number above")
+    print("      is retention AT 33c's BLOCKEDNESS -- five disjoint 2-class tasks")
+    print("      in strict sequence. Phase 38 measured that the forgetting here")
+    print("      is produced by that blocking. None of this transfers to a less")
+    print("      blocked stream without being re-measured; T6.6 (phase 49) is")
+    print("      the target that varies the axis.")
+
+    # ---- F3, the factor that could not be measured ------------------------
+    print(f"\n{'=' * 74}\nTHE MISS: F3 (p_decay) IS UNMEASURABLE ON THIS PROTOCOL")
+    print(f"{'=' * 74}")
+    print("    Every p_decay level returns byte-identical ACC/FORG/task-0. That")
+    print("    is NOT 'decay does not matter for retention'. p_decay decays the")
+    print("    TRANSITION GRAPH only (verified wired: at p_decay=0.01 the graph")
+    print("    mass falls 2782 -> 93.6, a 30x decay) while leaving the memory")
+    print("    bank xi bitwise untouched (max|dxi| = 0.0e+00) -- and phase 33c's")
+    print("    readout (label_readout.LabelEvidenceReadout) decodes from xi")
+    print("    overlaps ALONE and never consults the graph. The protocol has no")
+    print("    instrument that can see this factor. Measuring it needs a task")
+    print("    whose metric consumes P (next-symbol prediction / planning), not")
+    print("    a class-incremental classification readout. RECORDED AS A MISS.")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--split', choices=('select', 'holdout', 'both'),
@@ -397,6 +688,9 @@ def main():
                   f"{fmt(paired(arm, base, 'forg')):>34}")
 
     probe = ledger_probe()
+
+    if args.split == 'both':
+        verdict(store, probe)
 
     # ---- headline comparisons, pooled over all ten seeds ------------------
     if args.split == 'both':

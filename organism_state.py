@@ -141,6 +141,9 @@ def save_state(org, path, compress_spec=None):
         P=org.graph.P, z=org.z,
         rng_state=np.frombuffer(
             json.dumps(org.rng.bit_generator.state).encode(), dtype=np.uint8),
+        evict_rng_state=np.frombuffer(          # T6.2 control arm's stream
+            json.dumps(org.evict_rng.bit_generator.state).encode(),
+            dtype=np.uint8),
     )
     arrays.update(_pack_registry(org))
     if hasattr(org, 'mem'):
@@ -213,6 +216,9 @@ def _save_compressed(org, path, spec):
         evictions=org.evictions, tenure=org.tenure, z=org.z,
         rng_state=np.frombuffer(
             json.dumps(org.rng.bit_generator.state).encode(), dtype=np.uint8),
+        evict_rng_state=np.frombuffer(          # T6.2 control arm's stream
+            json.dumps(org.evict_rng.bit_generator.state).encode(),
+            dtype=np.uint8),
     )
     arrays.update(_pack_registry(org))    # O(K): never a byte problem
     if st.factors is not None:
@@ -280,6 +286,14 @@ def load_state(path, cls=Organism):
         org.tenure = f['tenure'].copy() if 'tenure' in f else np.zeros(K)
         org.z = f['z'].copy()
         org.rng.bit_generator.state = json.loads(bytes(f['rng_state']).decode())
+        # T6.2: evict_victim='random' draws from its own stream, so the
+        # "continue is identical to never stopping" guarantee covers it only
+        # if that stream round-trips too. Absent in every pre-T6.2 file, where
+        # the constructor's freshly seeded generator is the correct state
+        # (nothing had drawn from it).
+        if 'evict_rng_state' in f:
+            org.evict_rng.bit_generator.state = json.loads(
+                bytes(f['evict_rng_state']).decode())
         _unpack_registry(f, org)          # v3 only; absent in v1/v2
         if 'mem' in f:
             org.mem = f['mem'].astype(WORK_XI)
