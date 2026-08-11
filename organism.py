@@ -27,7 +27,8 @@ during logic tasks -- MIT/McGovern 2026):
 
   PERCEPTION ("language"):  Organism.perceive -- field settling, saccade
       segmentation, recruitment, pooling, fusion, recycling. Decides WHAT was
-      just seen. Owns all slot-lifecycle state (prov/hits/age/nvis).
+      just seen. Owns all slot-lifecycle state (prov/hits/age/nvis, plus
+      T6.2's tenure when the era-normalized victim rule is selected).
   LOGIC ("reasoning"):      TransitionGraph -- the relational structure
       (which follows which). Knows nothing about fields, overlaps, or bars.
   BOUNDARY:                 EventBoundary -- perception emits only committed,
@@ -58,6 +59,19 @@ import numpy as np
 import fastpath
 
 _SQRT2 = math.sqrt(2.0)
+
+# T6.2 (phase 39) victim rules for the slot budget. 'count' is T1.2's
+# original argmin-lifetime-count rule and stays the default: it is the only
+# one that ticks no extra state and draws no extra randomness, so the
+# pre-T6.2 code path is reproduced bitwise. The integer codes are what the
+# numba kernel sees (it cannot branch on strings).
+_EVICT_VICTIMS = fastpath.EVICT_VICTIMS          # single source of truth
+_VICTIM_COUNT = _EVICT_VICTIMS['count']
+_VICTIM_RATE = _EVICT_VICTIMS['rate']
+_VICTIM_RANDOM = _EVICT_VICTIMS['random']
+_NO_DRAWS = np.zeros(0)
+# offset so the control arm's generator can never alias self.rng's stream
+EVICT_RNG_OFFSET = 90439
 
 
 def normalize(v, norm):
@@ -1031,6 +1045,18 @@ class Organism:
                                             # confident use; persists across perceive calls
                                             # when evict > 0 (T1.2), serialized by E3
         self.evictions = np.zeros(K)        # per-slot pressure-eviction tally (diagnostic)
+        self.tenure = np.zeros(K)           # frames a slot has been occupied since its last
+                                            # (re)recruitment -- T6.2's era normalizer. Ticks
+                                            # ONLY under evict_victim='rate', so the default
+                                            # victim rule's arithmetic is untouched; serialized
+                                            # by E3 additively (absent => zeros, like age)
+        # dedicated stream for evict_victim='random' (T6.2's control arm), so
+        # drawing a victim never shifts recall's stochastic trajectory. Built
+        # unconditionally (it is one object) but consumed only by that rule.
+        try:
+            self.evict_rng = np.random.default_rng(seed + EVICT_RNG_OFFSET)
+        except TypeError:                   # seed=None or an exotic seed object
+            self.evict_rng = np.random.default_rng(EVICT_RNG_OFFSET)
         self.graph = TransitionGraph(K)     # LOGIC layer: learned transitions between memories
         self.z = normalize(self.rng.standard_normal(N) + 1j * self.rng.standard_normal(N), self.norm)
         self.registry = SymbolRegistry(K) if symbols else None   # T3.3, opt-in
@@ -1091,7 +1117,8 @@ class Organism:
 
     def _perceive(self, stream, g_in=4.0, dt=0.05, eta=0.02, recruit=0.55, p_decay=0.0,
                   confirm=0, probation=6000, pool=False, active_bar=0.6, s_hat=0.0,
-                  amb=0.0, fuse_bar=0.7, evict=0, evict_debug=None):
+                  amb=0.0, fuse_bar=0.7, evict=0, evict_victim='count',
+                  evict_debug=None):
         """p_decay: exponential forgetting of transition counts, applied once
         per observed transition (synaptic decay). 0.0 = original behavior
         (counts accumulate forever); 1/p_decay is the effective memory in
@@ -1269,6 +1296,28 @@ class Organism:
         default) reproduces prior behavior exactly, including leaving
         self.age untouched.
 
+        evict_victim (T6.2, phase 39): WHICH stale slot dies. The staleness
+        window `evict` decides the candidate pool; this decides the pick
+        inside it. Three rules, all label-free:
+          'count'  (DEFAULT) argmin lifetime `count` -- T1.2's rule, the
+                   consolidate() junk signal. Bitwise identical to the
+                   pre-T6.2 code path: no extra state ticks, no extra draws.
+          'rate'   argmin count / max(tenure, 1) -- the LABEL-FREE reading
+                   of 33f's "count-normalized-by-era" H1 candidate. Era is
+                   taken as a slot's own occupancy tenure (frames since it
+                   was last recruited), never a task index: raw argmin-count
+                   is biased against slots that have simply had less time to
+                   accumulate count, and this removes that bias. Ticks
+                   self.tenure; nothing else reads it. 33f's H1 was ABSENT,
+                   so this is a falsification test, not a fix.
+          'random' uniform over the stale pool -- the CONTROL ARM. Draws come
+                   from a caller-independent stream derived from `seed`, one
+                   pre-drawn value per frame, so self.rng (recall's stream)
+                   is never touched and the two backends pick the same victim
+                   frame-for-frame.
+        Only the pool composition differs between rules; the pressure gate,
+        the 0.8x novelty throttle, and the recycle path are shared.
+
         evict_debug (T1.7, diagnostic only): when a list is passed, every
         pressure eviction appends one row (frame, slot, count, age) -- the
         victim's lifetime count and staleness age AT eviction, with `frame`
@@ -1284,12 +1333,28 @@ class Organism:
         learning (0.6 = original); beyond sigma* it must sit below the
         token-vs-memory overlap or P never learns. pool=False with
         active_bar=0.6 reproduces phase-14 behavior exactly."""
+        try:                                  # fail loudly on a typo'd rule rather
+            victim = _EVICT_VICTIMS[evict_victim]   # than silently running 'count'
+        except KeyError:
+            raise ValueError(
+                f"unknown evict_victim {evict_victim!r}; "
+                f"expected one of {sorted(_EVICT_VICTIMS)}") from None
         if self._use_fastpath():
             return fastpath.perceive_fast(
                 self, stream, g_in=g_in, dt=dt, eta=eta, recruit=recruit,
                 p_decay=p_decay, confirm=confirm, probation=probation,
                 pool=pool, active_bar=active_bar, s_hat=s_hat, amb=amb,
-                fuse_bar=fuse_bar, evict=evict, evict_debug=evict_debug)
+                fuse_bar=fuse_bar, evict=evict, evict_victim=evict_victim,
+                evict_debug=evict_debug)
+        if victim == _VICTIM_RANDOM and evict > 0:
+            # one draw per frame, from a generator that is NOT self.rng, so
+            # recall's stochastic stream is unchanged by the control arm; the
+            # fastpath draws the same values chunk-by-chunk off the same
+            # generator, so the two backends pick the same victim every time
+            stream = list(stream)
+            vdraw = self.evict_rng.random(len(stream))
+        else:
+            vdraw = _NO_DRAWS
         z = self.z
         boundary = EventBoundary(self.graph, p_decay, self.registry)
         prov = np.zeros(self.K, bool)
@@ -1302,18 +1367,28 @@ class Organism:
         last_k = -1
 
         def evict_one():
-            """Slot budget under recruitment pressure: reclaim the least-
-            established stale slot (argmin lifetime count among slots idle
-            > evict frames). Returns True if a slot was freed."""
+            """Slot budget under recruitment pressure: reclaim a stale slot
+            (idle > evict frames), chosen by evict_victim. Returns True if a
+            slot was freed."""
             ev = self.used & (age > evict)
             if not ev.any():
                 return False
-            j = int(np.argmin(np.where(ev, self.count, np.inf)))
+            if victim == _VICTIM_RANDOM:       # control arm: uniform over the pool
+                cand = np.flatnonzero(ev)
+                j = int(cand[min(int(vdraw[frame_t] * cand.size), cand.size - 1)])
+            else:
+                # 'count'  : argmin lifetime count (T1.2's junk signal)
+                # 'rate'   : argmin count per frame of tenure -- removes the
+                #            head start a long-occupied slot has in raw count
+                score = (self.count / np.maximum(self.tenure, 1.0)
+                         if victim == _VICTIM_RATE else self.count)
+                j = int(np.argmin(np.where(ev, score, np.inf)))
             if evict_debug is not None:            # T1.7 ledger: observe-only,
                 evict_debug.append((frame_t, j,    # recorded before mutation
                                     float(self.count[j]), float(age[j])))
             self.used[j] = False; self.count[j] = 0
             prov[j] = False; hits[j] = 0; nvis[j] = 0; age[j] = 0
+            self.tenure[j] = 0                     # reborn slot starts its era over
             self.evictions[j] += 1
             self.graph.retire(j)
             expired = np.zeros(self.K, bool); expired[j] = True
@@ -1375,6 +1450,7 @@ class Organism:
                             f = int(np.argmin(self.used.astype(float)))
                             self.xi[f] = normalize(z, self.norm); self.used[f] = True
                             prov[f] = True; hits[f] = 0; age[f] = 0; nvis[f] = 1
+                            self.tenure[f] = 0
                 prev_x = x
             dz = 1j * self.omega * z + g_in * (x - z)     # input-driven (no retrieval: avoids collapse)
             z = normalize(z + dt * dz, self.norm)
@@ -1397,6 +1473,7 @@ class Organism:
                     f = int(np.argmin(self.used.astype(float)))
                     self.xi[f] = normalize(z, self.norm); self.used[f] = True; k = f
                     age[f] = 0
+                    self.tenure[f] = 0
                     if confirm > 0:
                         prov[f] = True; hits[f] = 0
                 else:                                      # familiar -> refine memory
@@ -1429,6 +1506,8 @@ class Organism:
                         boundary.invalidate(expired)
             elif evict > 0:                                 # plain mode: budget clock only
                 age[self.used] += 1
+            if victim == _VICTIM_RATE:         # era normalizer: occupancy, never reset
+                self.tenure[self.used] += 1    # by use -- only by (re)recruitment
             if m[k] > active_bar and self.used[k]:
                 self.count[k] += 1
                 if not prov[k]:                            # gate: only confirmed, confident

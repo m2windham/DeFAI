@@ -700,6 +700,84 @@ decision as more painful than it is.
 
 ---
 
+### Chapter 19 — Which folder do you throw away? *(phase 39)*
+
+**Added 2026-08-11.** The system has a fixed number of memory folders. When
+they are all full and something genuinely new shows up, it has to throw one
+away to make room. We built that rule a while back and found a law for it,
+and this chapter is about discovering that we had only checked half of it.
+
+The rule has two parts. First: a folder is only a candidate if nobody has
+touched it for a while. Second: among those candidates, throw away the one
+with the least written in it. Earlier work swept the first part hard — how
+long is "a while"? — and found something genuinely surprising, which we
+wrote up as the whole story: set the bar too long and the only untouched
+folders are your *oldest* ones, so you burn your own history and end up
+worse than if you had never tidied up. Set it short and the junk you created
+minutes ago is what goes stale first, so you recycle your own clutter and
+the old memories survive.
+
+That was true, and we then quietly assumed the second part barely mattered.
+It was never tested. This phase tested it, by adding a deliberately stupid
+version — **throw away a random untouched folder** — and running it against
+the real rule at every setting of the first knob, on ten separate runs with
+five of them held back so we could not fool ourselves.
+
+**The stupid version is a disaster, and that is the result.** At every
+setting, throwing away a random stale folder instead of the emptiest one
+costs about as much as getting the first knob completely wrong. Old-memory
+retention collapses. It went the same direction on all ten runs, which is
+the strongest agreement the test can produce at that number of runs.
+
+Why? Because we had been picturing the stale pile as a bin of equally
+worthless scraps, in which case "pick the emptiest" and "pick any" would be
+the same act. It is not. When we logged what actually gets thrown out, the
+real rule discards folders with a handful of entries, and the random version
+discards folders with **four to fifteen times more** written in them. The
+stale pile is a mix of genuine clutter and perfectly good old memories, and
+the second part of the rule is what tells them apart. It was doing the heavy
+lifting the whole time and we had credited the first part with all of it.
+
+So **the prediction we wrote down in advance was wrong**, and we are saying
+so plainly: we predicted the folder-choosing rule would matter *less* than
+the timing knob. Measured, the two matter about equally. The one-line law
+gains a second clause — *the stale pile must contain the present, **and you
+must throw out the emptiest thing in it**, or you eat your own history
+either way* — and the blunt practical version is that **a badly configured
+tidying rule is worse than never tidying at all.** Both wrong settings score
+worse than simply switching the whole mechanism off.
+
+Two other things fell out. We had a specific "improvement" on the shelf —
+adjust for the fact that newer folders have had less time to fill up — that
+an earlier investigation had declined to endorse. We tested it properly
+rather than assuming, and it is not neutral, it is **actively worse**. That
+shelf is now clear. And we found a real retention gain hiding in plain
+sight: a caution mechanism built years ago, which makes brand-new folders
+prove themselves before they count as permanent, is **switched off** in the
+recipe this benchmark uses. Turning it on improves old-memory retention on
+every run. We are flagging it rather than adopting it, because we found it
+by searching a grid, and this project has watched three grid-found results
+evaporate on re-testing.
+
+**What we could not measure, and are not pretending otherwise.** One of the
+four knobs we set out to test — how fast the system forgets *connections
+between* memories, as opposed to the memories themselves — turned out to be
+invisible to this experiment. The knob works; we verified it does something
+drastic to the connection table. But the exam we are grading with only ever
+looks at the memories, never the connections, so every setting scores
+identically. That is a hole in the study, not a finding, and writing it down
+as "connection decay doesn't matter" would have been a lie of exactly the
+kind this file exists to prevent. Measuring it needs a different exam.
+
+**The caveat that travels with all of it.** An earlier chapter recorded that
+the forgetting in this benchmark is caused by teaching things in strictly
+separated blocks. This whole study lives at that one setting. Everything
+above is "how to protect old memories *when the lessons are fully
+separated*" — it is not a general statement about memory, and the phase that
+varies that setting has not been run yet.
+
+---
+
 ## What people push back on, and the honest answer
 
 **"It doesn't beat the benchmarks, so why does it matter?"**

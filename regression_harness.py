@@ -1247,6 +1247,127 @@ def section_16_sparse_default():
 
 
 # ============ 17. settling depth + chunk statistics (T7.3/T7.5, phases 45/47)
+def section_18_victim_rule():
+    print("\n(18) eviction victim rule (T6.2, phase 39): which stale slot dies")
+    import os as _os, tempfile
+    from organism_state import save_state, load_state
+
+    # A stimulus with SPREAD IN ESTABLISHEDNESS, which is the whole point: a
+    # few core memories revisited many times, plus a run of one-off novelties
+    # that keep the bank under recruitment pressure. Phase 39's finding is
+    # that the victim rule only has something to do when the stale pool
+    # contains both kinds -- section 9's world-A/world-B toy evicts 3 times
+    # and cannot see this at all.
+    Nv, Kv, CORE, JUNK = 32, 8, 4, 28
+    NORMv = np.sqrt(Nv)
+    r0 = np.random.default_rng(11)
+    Gr, _ = np.linalg.qr(r0.standard_normal((Nv, CORE))
+                         + 1j * r0.standard_normal((Nv, CORE)))
+    core = Gr.T * NORMv
+    junk = np.array([(lambda v: v / np.linalg.norm(v) * NORMv)(
+        r0.standard_normal(Nv) + 1j * r0.standard_normal(Nv))
+        for _ in range(JUNK)])
+
+    def build():
+        r = np.random.default_rng(3)
+        out = []
+        for blk in range(120):
+            for _ in range(40):                       # establish a core memory
+                out.append(core[blk % CORE] + 0.35 * NORMv / np.sqrt(Nv) *
+                           (r.standard_normal(Nv) + 1j * r.standard_normal(Nv)))
+            for _ in range(12):                       # a novel one-off: pressure
+                out.append(junk[blk % JUNK] + 0.35 * NORMv / np.sqrt(Nv) *
+                           (r.standard_normal(Nv) + 1j * r.standard_normal(Nv)))
+        return out
+
+    S = build()
+
+    def core_retention(o):
+        u = o.used
+        return float(np.mean([max(np.abs(o.overlaps(core[h], o.xi[u])))
+                              for h in range(CORE)]))
+
+    res, leds = {}, {}
+    for rule in ('count', 'rate', 'random'):
+        led = []
+        o = Organism(N=Nv, K=Kv, seed=0)
+        o.perceive(S, evict=150, evict_victim=rule, evict_debug=led)
+        res[rule] = o
+        leds[rule] = np.array([row[2] for row in led])   # victim lifetime count
+
+    # -- the phase-39 headline, at toy scale: argmin-count PROTECTS the core,
+    #    uniform-random does not. This is the sign that must not silently flip.
+    check("core retention, victim='count'", core_retention(res['count']),
+          0.95, 1.01, note="phase 39: argmin-count evicts the stream's own churn")
+    check("core retention, victim='random'", core_retention(res['random']),
+          0.70, 0.94,
+          note="phase 39 (c) CONFIRMED: uniform eviction eats established "
+               "memories. On the 33c protocol this costs dFORG +0.44 "
+               "(n=10 paired, exact p=0.0020)")
+    check("random loses core retention vs count",
+          core_retention(res['count']) - core_retention(res['random']),
+          0.02, 0.40, note="the victim rule is load-bearing, not decoration")
+
+    # -- the mundane account phase 39 had to reject: if the stale pool were a
+    #    singleton, or all-junk, the rules could not differ. Pin that it has
+    #    real spread, so a future change that flattens it fails HERE.
+    check("victim lifetime count, rule='count'", float(leds['count'].mean()),
+          3.0, 15.0, note="argmin-count takes barely-established slots")
+    check("victim lifetime count, rule='random'", float(leds['random'].mean()),
+          20.0, 90.0,
+          note="phase 39's discriminator: random takes ~5x better-established "
+               "victims, so the pool HAS spread -- 'the pool is all junk "
+               "anyway' was rejected, not assumed")
+
+    # -- default-path neutrality: this is the invariant that lets T6.2 touch
+    #    organism.py/fastpath.py at all. Omitting the parameter must be
+    #    bitwise identical to passing the default.
+    a = Organism(N=Nv, K=Kv, seed=0); a.perceive(S, evict=150)
+    b = Organism(N=Nv, K=Kv, seed=0); b.perceive(S, evict=150, evict_victim='count')
+    check("evict_victim omitted == 'count', max state delta",
+          float(max(np.abs(a.xi - b.xi).max(), np.abs(a.P - b.P).max(),
+                    np.abs(a.age - b.age).max())), 0.0, 0.0,
+          note="EXACT: the default rule adds no arithmetic and no rng draw")
+    check("tenure ticks only under 'rate' (count)", float(res['count'].tenure.sum()),
+          0.0, 0.0, note="era normalizer is inert unless selected")
+    check("tenure ticks only under 'rate' (random)", float(res['random'].tenure.sum()),
+          0.0, 0.0)
+    check("tenure ticks under 'rate'", float(res['rate'].tenure.sum()),
+          1e3, 1e6, note="and is the only state the rate rule adds")
+
+    # -- E3: every rule must keep "continue == never stopped", including the
+    #    control arm, whose victim draws come off org.evict_rng
+    for rule in ('count', 'rate', 'random'):
+        one = Organism(N=Nv, K=Kv, seed=0)
+        one.perceive(S[:3000], evict=150, evict_victim=rule)
+        one.perceive(S[3000:], evict=150, evict_victim=rule)
+        two = Organism(N=Nv, K=Kv, seed=0)
+        two.perceive(S[:3000], evict=150, evict_victim=rule)
+        path = _os.path.join(tempfile.gettempdir(), f"e3_victim_{rule}.npz")
+        save_state(two, path)
+        two = load_state(path, cls=Organism)
+        two.perceive(S[3000:], evict=150, evict_victim=rule)
+        d = max(np.abs(one.xi - two.xi).max(), np.abs(one.P - two.P).max(),
+                np.abs(one.age - two.age).max(),
+                np.abs(one.tenure - two.tenure).max(),
+                np.abs(one.evictions - two.evictions).max())
+        check(f"E3 restore mid-run, victim='{rule}', max state delta",
+              float(d), 0.0, 1e-12,
+              note=("org.evict_rng round-trips too, or the control arm would "
+                    "silently diverge after a load" if rule == 'random' else
+                    "numba 0.0e+00 exactly; the numpy backend's ~2e-15 on this "
+                    "stimulus predates T6.2 (reproduced on origin/main)"))
+
+    try:                                   # a typo must not silently run 'count'
+        Organism(N=Nv, K=Kv, seed=0).perceive(S[:10], evict=150,
+                                              evict_victim='argmin')
+        bad = 1.0
+    except ValueError:
+        bad = 0.0
+    check("unknown evict_victim raises ValueError", bad, 0.0, 0.0,
+          note="silently falling back to the default would fake a null result")
+
+
 def section_17_settling_and_chunks():
     print("\n(17) settling depth and chunk statistics (T7.3/T7.5, phases 45/47)")
     import phase45_settling_depth as p45
@@ -1370,6 +1491,7 @@ if __name__ == "__main__":
     section_15_phase_channel()
     section_16_sparse_default()
     section_17_settling_and_chunks()
+    section_18_victim_rule()
 
     dt = time.time() - t0
     print(f"\n{'='*70}")

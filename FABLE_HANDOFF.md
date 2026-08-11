@@ -57,7 +57,12 @@ memory) and the roadmap records exactly why each was rejected.
   `fuse_bar` (phase 26) exposes the duplicate-fusion threshold for
   calibration. **`recruit` is a similarity floor, not a novelty threshold —
   higher = more eager recruitment.** This inverted reading cost real time
-  once; don't re-derive it.
+  once; don't re-derive it. The slot budget (T1.2) has **two** knobs, not
+  one: `evict=E` (the staleness window) and `evict_victim` (T6.2, default
+  `'count'`). Phase 39 measured them as equally load-bearing and measured
+  that **either one mis-set is worse than `evict=0`** — do not ship a budget
+  having checked only the window, which is the mistake 33b's write-up
+  invited.
 - **`TransitionGraph` (logic, "reasoning")**: owns the transition matrix P;
   mutations only via `observe`/`merge`/`retire`/`fold`. Phase-30 ops run on
   the graph with the field absent: `kstep` (multi-step inference), `rollout`
@@ -130,7 +135,14 @@ Engineering spine (all landed, all pinned):
 - **E3** `organism_state.py`: schema-versioned .npz save/load, rng state
   included. Pinned: mid-stream save→load→continue is bitwise identical to
   never stopping; deterministic replay; cross-backend restore. Schema is
-  now **v3** (T3.3 symbol registry); v1 and v2 files still load.
+  now **v3** (T3.3 symbol registry); v1 and v2 files still load. T6.2 added
+  `org.tenure` and `org.evict_rng` on the same additive terms `age` and
+  `evictions` already used — the current writer writes them, older files
+  absent-load as zeros / a freshly seeded generator, **no schema bump**. The
+  second is load-bearing rather than cosmetic: `evict_victim='random'` draws
+  its victims from `evict_rng`, so leaving it unserialized would have made
+  the bitwise guarantee silently false for that mode alone. Harness §18 pins
+  the round-trip for all three victim rules.
 - **E5** `organism.py::SymbolRegistry` (T3.3): stable symbol IDs decoupled
   from slot indices, at the EventBoundary seam. Opt-in and observational.
   See open thread 6 below.
