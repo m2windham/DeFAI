@@ -633,6 +633,73 @@ would be built on top of that decision is parked until it is made.
 
 ---
 
+### Chapter 18 — We changed the exam, and said so out loud *(decisions, 2026-08-11)*
+
+**Added 2026-08-11.** Two decisions had been sitting unmade while work piled
+up around them. Both are now made, and this chapter exists because the first
+one is the kind of decision a project can quietly cheat on.
+
+**We changed what counts as ready — and we did not pass the old test.**
+A year ago the rule was: *at least as good as the state of the art, or
+cheap enough to make up for it, or we are not ready.* We did not clear
+either bar. On the standard benchmark the system scores 0.712 where a
+much simpler supervised method scores 0.872, and a third method (replay)
+beats us on **both** measures and tops the entire field. On cost, we spent
+four separate efforts trying to get under a 2× budget and finished at 2.24×,
+for a reason that turned out to be arithmetic rather than sloppiness: our
+memories are complex numbers and theirs are ordinary ones, so ours are twice
+the size before anything else happens.
+
+So we changed the exam. The new one asks whether the system does four things
+at once that the benchmark winner does not do **at all**: learn its own
+representations with nobody labelling anything, discover structure, survive
+being saved and reloaded exactly, and do all of it seeing each item **once**.
+
+Changing your own exam after failing it is exactly the move that should make
+a reader suspicious, so here is the honest defence and the honest admission,
+in that order.
+
+*The defence.* We audited the new exam **before** adopting it, and we
+audited the part most likely to be embarrassing. Our own text recipe had
+been quietly reading each corpus fifteen times — which would have made
+"sees each item once" a false claim about our own production code. We ran
+that check expecting to lose, and wrote down in advance that a big drop
+would be a real and important finding. Instead the system did *better* on a
+single pass than on fifteen (Chapter 16). The one axis that could have
+collapsed under scrutiny got stronger. Re-scoping onto a claim you just
+stress-tested is a different act from re-scoping onto a claim you find
+convenient.
+
+*The admission.* It is still a concession. We are not claiming we met the
+old bar; we are claiming the old bar measured one axis and we are
+differentiated on others. Those are different sentences and only the second
+one is ours. The standing rule we have written into the project is that
+**every** description of what this system can do must carry the "not
+state of the art, cost target conceded" line in the same breath — not in a
+footnote, not on a later page. If a piece of writing about this project
+falls apart when you add that sentence, the writing is wrong, not the
+sentence.
+
+**The second decision: we refused to guess.** The one-way storage door from
+Chapter 12 is still shut. The obvious move was to walk through it — the
+cheaper side meets the cost target comfortably and costs almost nothing in
+accuracy. But "almost nothing" was measured on a *different test* from the
+one where forgetting actually shows up, and forgetting is precisely what a
+lossier memory should damage first. So before choosing, we are running the
+cheap version through the test that would expose it. If it holds, we take
+the door; if old memories degrade, we keep the expensive memories and live
+with the cost.
+
+Two smaller things fell out of looking at it properly. The cost saving no
+longer decides anything important, because we just conceded that branch of
+the exam — so this is now a design choice, not a scramble for a number. And
+the door is narrower than we had been telling ourselves: of the four things
+we thought we would be giving up, two turn out not to depend on the door at
+all, including the cheapest and most promising one. We had been pricing the
+decision as more painful than it is.
+
+---
+
 ## What people push back on, and the honest answer
 
 **"It doesn't beat the benchmarks, so why does it matter?"**
