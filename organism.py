@@ -27,7 +27,8 @@ during logic tasks -- MIT/McGovern 2026):
 
   PERCEPTION ("language"):  Organism.perceive -- field settling, saccade
       segmentation, recruitment, pooling, fusion, recycling. Decides WHAT was
-      just seen. Owns all slot-lifecycle state (prov/hits/age/nvis).
+      just seen. Owns all slot-lifecycle state (prov/hits/age/nvis, plus
+      T6.2's tenure when the era-normalized victim rule is selected).
   LOGIC ("reasoning"):      TransitionGraph -- the relational structure
       (which follows which). Knows nothing about fields, overlaps, or bars.
   BOUNDARY:                 EventBoundary -- perception emits only committed,

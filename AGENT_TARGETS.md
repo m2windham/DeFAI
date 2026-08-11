@@ -871,7 +871,60 @@ same split** — an unpaired fixed-seed baseline is a bug (T1.9).
   over blocking, and it is the honest version of what T6.1 was reaching
   for. It would also give T6.2 its stream.
 
-### T6.2 — Retention mechanism study (phase 39)  `[claimed: claude/phase-39-retention-mechanism-r7k2qm, 2026-08-11 — reserving phase number 39]`
+### T6.2 — Retention mechanism study (phase 39)  `[DONE 2026-08-11: claude/phase-39-retention-mechanism-r7k2qm — (a) NOT SUPPORTED, (b) holds, (c)-strong CONFIRMED; see ROADMAP row 39]`
+**Outcome in one paragraph.** Retention at 33c's blockedness has **two**
+load-bearing knobs, not one. **(a) is NOT SUPPORTED**: the victim rule does
+not matter less than the window — pooled n=10 FORG spread of the level means
+is 0.4386 across rules vs 0.4244 across windows (full range), and 0.0536 vs
+0.0554 with each axis's catastrophic setting dropped, a 0.0018 gap that is
+rounding rather than a ranking. 33b's "the window is the load-bearing knob"
+was an artifact of having swept only the window. **(c)-strong is CONFIRMED
+and is the headline**: uniform-random eviction loses to argmin-count at every
+window (dACC −0.279/−0.282/−0.327/−0.339, dFORG +0.457/+0.439/+0.465/+0.446
+at E=100/250/500/750), 10/10 sign census, exact paired p=0.0020 — the n=10
+floor — so the simplification branch does **not** fire and the victim rule
+must not be simplified away. **(b) holds and harder than written**: the
+count-normalized-by-era rule has no advantage anywhere and is affirmatively
+**worse** on FORG at all four windows (+0.035…+0.060), task-0 final falling
+0.90 → 0.70; 33f's refusal to indicate H1 is vindicated by direct test. All
+three pre-registered **mundane accounts were rejected**, so none of this is
+true by construction — decisively, random evicts memories **4–15× better
+established** than argmin-count does (victim lifetime count 217.1 vs 14.4 at
+E=100), so the stale pool has real spread and argmin-count exploits it.
+
+**What a stranger should do with this.**
+- **33b's law now has a second clause.** "The stale pool must contain the
+  present, or eviction eats the past" **AND the pool must be ordered by how
+  established its members are, or eviction eats the past just as fast.**
+  Sharp form, symmetric across both knobs: **a mis-set budget is worse than
+  no budget.** E=0 gives ACC 0.551 / FORG 0.291; E=2000 gives 0.439 / 0.577;
+  random at E=250 gives 0.449 / 0.591; E=250 with argmin-count gives
+  0.730 / 0.152. Never ship `evict>0` without checking BOTH knobs.
+- **Two knobs buy retention** (pooled n=10, held-out sign-consistent): slot
+  headroom K (K=96: dFORG −0.111 / dACC +0.127, 10/10; roughly monotone, but
+  K=56 wobbles out of sample so monotonicity is a trend, not a pin), and —
+  **not pre-registered, found by the sweep** — probation/confirm, phase 14's
+  provisional-slot machinery which **33c's own recipe leaves off at
+  confirm=0** (confirm=3/probation=1000: dFORG −0.062 10/10, dACC +0.056).
+  Quoted at its held-out value; it is a grid-selected result, not a tuned
+  recommendation, and anyone banking it should reseed again.
+- **New default-off hook**: `perceive(evict_victim='count'|'rate'|'random')`
+  in organism.py + fastpath.py, with `org.tenure` and `org.evict_rng`
+  round-tripping additively in E3 (no schema bump). `'count'` is the default
+  and its path is **bitwise identical to pre-T6.2 main on both backends**.
+  Pinned by harness §18 (13 checks).
+- **`p_decay` (F3) is a GAP, not a null.** Every level returns byte-identical
+  ACC/FORG. The parameter is wired (graph mass 2782 → 93.6 at 0.01) but
+  touches only the transition graph, and 33c's readout decodes from `xi`
+  alone. **Do not record "transition decay does not affect retention"** —
+  it was never measured. Measuring it needs a metric that consumes P
+  (next-symbol prediction / planning). Deliberately deferred rather than
+  patched by swapping protocols mid-study.
+- **SCOPE, non-negotiable**: every number is retention **at 33c's
+  blockedness**. Phase 38 measured that the forgetting here is produced by
+  sequential blocking; 33c is one fully-blocked point and **T6.6 (phase 49)**
+  is what varies the axis. Nothing here transfers to a less blocked stream
+  without re-measurement.
 - **Objective**: characterize *what actually protects old memories*, so
   retention becomes a tunable property instead of an emergent accident.
   Factorize the contributions: eviction window E, victim rule
@@ -1502,10 +1555,13 @@ T7.1 fork ─► measure first (T7.7) ─► then choose ─► T7.6 unblocks
 
 **Phase-number ledger (check before reserving).** Used through 47.
 **48** reserved for T7.6 and deliberately unused until T7.7 reports.
-**39** reserved for T6.2, **49** for T6.6, **50** for T7.7, **31** for T4.1.
+**39** USED by T6.2 (`phase39_retention_factors.py`, landed 2026-08-11), **49** reserved for T6.6, **50** for T7.7, **31** for T4.1.
 Next free number for anything else: **51**.
 
-**Open, unclaimed and unblocked right now**: T6.2 (phase 39), T6.6
+**Open, unclaimed and unblocked right now**: T6.6
 (phase 49), T7.7 (phase 50), T4.1 (phase 31), T3.2, T4.2, and — newly, by
-the 2026-08-11 re-scope — T5.1 and T4.3. Still blocked: T2.4 (by T7.5's
+the 2026-08-11 re-scope — T5.1 and T4.3. T6.2 (phase 39) closed 2026-08-11
+and its `p_decay` gap is an open follow-on: measuring transition decay as a
+retention factor needs a protocol whose metric consumes the transition
+graph, which the class-incremental readout does not. Still blocked: T2.4 (by T7.5's
 own pre-gate) and T7.6 (until T7.7 reports).

@@ -508,42 +508,73 @@ scales, not proven so in general.
 > **In plain terms.** The filing cabinet has a fixed number of folders. When
 > it's full and something new arrives, which folder do you throw out? Only
 > one that is both *unused recently* and *never got properly established*.
-> The subtle bit — and it cost us a failed experiment to learn — is what
-> "recently" means. Set the bar at "untouched for ages" and the only
-> candidates are your oldest memories, so you flush your own history and
-> get worse. Set it short and the junk you created five minutes ago goes
-> stale first, so you recycle your own clutter and keep the past. The
-> one-line law: **the stale pile has to contain the present, or throwing
-> out stale things eats your history.**
+> There are **two** ways to get this wrong, and we have now measured both.
+> The first is what "recently" means: set the bar at "untouched for ages"
+> and the only candidates are your oldest memories, so you flush your own
+> history. Set it short and the junk you made five minutes ago goes stale
+> first, so you recycle clutter and keep the past. The second — which we
+> originally expected to be a detail, and it is not — is **which** of the
+> stale folders you pick. Picking at random instead of picking the least
+> filled-in one is just as destructive as setting the window wrong, because
+> the stale pile is not uniformly worthless: a random pick throws out
+> folders that are typically **4–15× more filled in**. The two-line law:
+> **the stale pile has to contain the present, or throwing out stale things
+> eats your history — and you have to throw out the emptiest folder in it,
+> or the same thing happens anyway.** The blunt version we can now state:
+> **a badly set eviction policy is worse than never evicting at all.**
 
 
 **Claim.** A slot budget where eviction fires **only** under recruitment
 pressure, reclaiming the least-established *stale* slot, lifts the
-capacity-flooding ceiling — and the staleness window is the load-bearing
-parameter, with a stateable law.
+capacity-flooding ceiling. **Two** parameters are load-bearing and neither
+dominates: the staleness window *and* the victim rule. Both have a stateable
+law, and either one mis-set is worse than running no budget at all.
 
 **Evidence.** `phase33b_slot_budget.py`: pre-registered E=2000 **failed**
 (ACC 0.665 → 0.511) because with a long window only previous eras are ever
 stale, so eviction degenerates into a recency flush; at E=250 the stream's
 own churn goes stale mid-task and is recycled first — ACC 0.712, FORG
-0.169, fresh recruits every task. The finding, in one line: **the stale
-pool must contain the present, or eviction eats the past.** Pinned in
-harness §9. `phase33f_eviction_ledger.py` exonerated the victim rule from
-the task-1 regression (H3: not an eviction pathology).
+0.169, fresh recruits every task. Pinned in harness §9.
+`phase33f_eviction_ledger.py` exonerated the victim rule from the task-1
+regression (H3: not an eviction pathology).
+`phase39_retention_factors.py` (T6.2) then **factorized the mechanism**, one
+factor at a time, 10 paired/held-out seeds, exact paired sign-flip nulls,
+against a random-eviction control — and **corrected this entry's earlier
+claim that the window is *the* load-bearing parameter**. Random eviction
+loses to argmin-count at every window (dACC −0.28…−0.34, dFORG +0.44…+0.47,
+10/10 seeds, exact p=0.0020), and the two axes' FORG spreads are
+indistinguishable (0.4386 across rules vs 0.4244 across windows; 0.0536 vs
+0.0554 with each axis's catastrophic setting dropped). The count-normalized-
+by-era rule was tested as a falsification and is affirmatively **worse**
+(dFORG +0.035…+0.060 at all four windows). All three pre-registered mundane
+accounts were rejected. Pinned in harness §18.
 
-**Scope caveats.** One protocol, one K, one window found post-hoc within a
-measured plateau (100–750). Whether the law generalizes to other stream
-statistics is untested.
+**Scope caveats.** **Everything here is measured at 33c's blockedness** —
+five disjoint 2-class tasks in strict sequence — and phase 38 measured that
+the forgetting on this benchmark is produced by that sequential blocking.
+None of it is a general retention claim; T6.6 (phase 49) is the target that
+varies the axis. Also: one protocol, one dataset, and a window still chosen
+post-hoc within a measured plateau (100–750). **`p_decay` remains
+unmeasured** as a retention factor — 33c's readout decodes from `xi` alone
+and never consults the transition graph, so the protocol has no instrument
+for it; this is a gap, not a null result.
 
 **Mini-roadmap.**
 1. *Implement* — done, mechanism + E3-serialized clock.
-2. *Improve* — **T6.2 / phase 39**: factorize window vs victim rule vs
-   decay against a random-eviction control; falsify the count-normalized
-   victim rule that 33f affirmatively did *not* indicate.
-3. *Perfect* — make the window **self-calibrating** from the measured
-   live-slot revisit interval, so the law becomes a mechanism instead of a
-   tuned constant. That would also close a Path-B requirement (products
-   cannot hand-tune E per deployment).
+2. *Improve* — **done, T6.2 / phase 39**, with the headline going the
+   opposite way from the prediction: the victim rule is **not** secondary to
+   the window, and must not be simplified away. Two knobs that *buy*
+   retention were identified — slot headroom K, and phase 14's
+   probation/confirm machinery, which 33c's own recipe leaves switched off
+   (the latter grid-selected, held-out-confirmed, not yet a recommendation).
+3. *Perfect* — make **both** parameters self-calibrating: the window from
+   the measured live-slot revisit interval, and the victim rule from the
+   measured spread of establishedness in the stale pool (phase 39 showed
+   that spread is what argmin-count is exploiting, and it is measurable
+   online). That would turn the law into a mechanism instead of two tuned
+   constants, and close a Path-B requirement — products cannot hand-tune
+   either knob per deployment, and phase 39 showed that getting either one
+   wrong is worse than shipping no budget.
 
 ---
 
