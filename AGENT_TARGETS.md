@@ -41,11 +41,17 @@ longer resting on committed values alone. The Category 7 host and this
 one have **no torch**. State which you have rather than assuming this
 one's state. See ROADMAP "Verification log".
 
-**Two owner decisions are open, and they are coupled**: the gate
-re-scope (33c/33h — "not another agent target") and T7.1's storage fork
-(A spend / B cash in). T7.6 is blocked behind the fork and T5.1 behind
-the gate; phase 48 stays reserved and unused until the fork resolves.
-Do not start either, and do not treat their numbers as settled.
+**Both owner decisions were ruled on 2026-08-11.**
+(1) **The gate is re-scoped to the capability axes and the RELEASE HOLD is
+LIFTED** — full decision record at the top of `ROADMAP.md`, required
+reading before you write any release-facing artifact. It **concedes** the
+cost branch rather than passing it, and the "NOT SOTA / cost conceded"
+line travels with every capability claim. T5.1 and T4.3 are unblocked;
+unblocked is not "released".
+(2) **T7.1's storage fork is to be measured, not chosen blind** — see
+**T7.7 (phase 50)**. The re-scope removed the fork's gate stakes, so it is
+now an architecture call on measured merit. **T7.6 and phase 48 remain
+untouched** until T7.7 reports.
 
 ---
 
@@ -751,15 +757,26 @@ staged. Order decided in triage (ROADMAP): D1 first.
 ## Category 5 — Path B (blocked)
 
 ### T5.1 — Release tag + episodic-memory product fork  `[claimed: —]`
-- **Status**: **BLOCKED by RELEASE HOLD** until T1.4 passes the owner's
-  bar. Engineering gate (E1+E2+E3+Phase 26 synthetic) already OPEN.
-  (T1.4 ran 2026-08-05: bar NOT met — 0.712 vs 0.872, ROADMAP row 33c;
-  the hold stands pending the owner's decision.) **The gap-closing
-  sequence T1.5–T1.9 is now exhausted and the decision is fully
-  specified: raw-accuracy is buyable as a protocol variation (K=160,
-  0.900), and the cost branch has a measured ~2.2× floor with an
-  arithmetic reason (33h). What remains is an owner call on re-scoping
-  the gate to the capability axes — not another agent target.**
+- **Status**: **UNBLOCKED 2026-08-11 — the RELEASE HOLD is lifted.** The
+  owner re-scoped the gate to the capability axes; the full decision
+  record, with the evidence table and the not-claimed list, is at the top
+  of `ROADMAP.md` and is **required reading before any release artifact is
+  written**. History: T1.4 ran 2026-08-05 and the bar was NOT met (0.712 vs
+  0.872, row 33c); T1.5–T1.9 exhausted the gap-closing sequence; 33h
+  measured the cost floor at ~2.2× with an arithmetic reason. The re-scope
+  **concedes** the cost branch rather than passing it — do not write
+  otherwise.
+- **Unblocked is not "released".** Cutting the tag is a separate owner
+  action requiring its own go-ahead. Do not cut a tag, create the product
+  repo, or publish anything on the strength of this status line alone.
+- **Binding on every artifact this target produces**: the four capability
+  axes and the "NOT SOTA on class-incremental accuracy / cost branch
+  conceded" line appear **together**, in the same breath, every time.
+  Replay scores 0.913/0.105 and tops the ladder above even the prototype
+  bar; the ≤2× fallback is missed at a measured 2.24× (2.07× narrowed). A
+  capability claim quoted without its benchmark caveat misrepresents the
+  decision. If a draft cannot survive stating both, the draft is wrong —
+  not the caveat.
 - **When unblocked**: cut release tag on main → create separate product
   repo (hard fork, never a branch) → discoveries flow only via the
   versioned engine (phase script + pinned harness numbers + release tag).
@@ -1389,7 +1406,52 @@ T7.6 and NOT to be used until the fork is resolved).
   through frequency effects alone. The permutation null is the control;
   verify it is constructed to kill exactly that.
 
-### T7.6 — Deep-architecture arms (phase 48)  `[BLOCKED: contingent on T7.1's fork, owner decision]`
+### T7.7 — Fork decision measurement: the (A) store on the ladder (phase 50)  `[claimed: —]`
+**Opened by the repo owner 2026-08-11 as the ruling on T7.1's fork: measure
+before choosing.** T7.1 priced the fork and correctly refused to choose it.
+The owner declines to choose it blind either — nobody has yet run the (A)
+store and the accuracy arm **in the same experiment**, and this project's
+own rule is not to bank a number where it was not measured.
+- **What changed the stakes, and read this before you scope the work**: the
+  gate was re-scoped to the capability axes on 2026-08-11 (ROADMAP decision
+  record), which **removes the fork's gate stakes**. Meeting the ≤2×
+  fallback no longer decides a release. So this target is NOT "can (A) clear
+  the gate" — that question is closed and the branch is conceded. It is:
+  **does the (A) layout hold up behaviorally where the organism is actually
+  evaluated, and what does it really cost there?** The fork is now an
+  architecture decision on measured merit.
+- **Do**: run the `real_phase` store (currently a default-OFF
+  `CompressionSpec` lever from phase 43) through the **33c ladder** at
+  K=112 and K=160, against the identical c64 arm, paired seeds s=0–4 with
+  held-out confirmation on s=5–9 and **the prototype bar recomputed on each
+  seed's own split** (an unpaired fixed-seed bar is the bug T1.6/T1.8 were
+  burned by). Report ACC **and FORG** — phase 43's ≤0.005 behavior bound was
+  measured on the cost-frontier protocol, not on the continual ladder, and
+  FORG is exactly where a lossy store would be expected to hurt first.
+  Report the KB/ACC-pt for both arms with the narrow-CSR variant, each with
+  its observation count attached (phase 44: density is not scale-free).
+- **Pre-register**, with the named mundane account: (a) whether you expect
+  the ≤0.005 bound to transfer to the ladder, and what size of FORG
+  regression would make (A) not worth taking at any cost saving; (b) the
+  mundane account — the bound transfers fine and the whole exercise merely
+  re-derives phase 43 on a second protocol, which is a legitimate and
+  useful outcome to record; (c) the honest-negative branch: if (A) costs
+  real FORG, the fork resolves to **(B)** and the cost floor stands at
+  2.07×, which the re-scoped gate can now absorb.
+- **Deliver an owner decision artifact again, but this time with a
+  recommendation** — T7.1 was right to withhold one because the fork was
+  unmeasured on this axis; you will have measured it.
+- **Do NOT** touch phase 48 or start any T7.6 arm. Note for scoping: T7.6's
+  arms **(c) dual time constant** and **(d) graph order** are
+  **fork-independent** by T7.6's own text, so (A) costs only arms (a)+(b),
+  and those carry phase 43's R ≈ 0.06 readout-blindness bar and phase 16's
+  measured 9–56 step collapse. State that in the recommendation; the fork
+  text as written overstates what (A) forfeits.
+- **Done when** (plus protocol section C): `phase50_*.py`, the paired
+  ACC/FORG/cost table held out, ROADMAP row, harness section, and a
+  recommendation the owner can act on in one reading.
+
+### T7.6 — Deep-architecture arms (phase 48)  `[BLOCKED: contingent on T7.1's fork — now measured by T7.7 (phase 50), still owner-decided]`
 Do not start until the owner has resolved T7.1. Under branch (A) most of
 this is moot; under branch (B) it is the work that earns the width.
 Ordered by cost-to-information: (a) content-dependent phase — a per-item or
@@ -1429,16 +1491,21 @@ T6.4 polysemy→act ─┘   T6.5 re-baseline ─► E4 (T3.1) go/no-go
 T4.1 ablation (re-scoped, now unblocked)
 
 Category 7 (architecture economics, owner work order 2026-08-08) — ORDERED:
-T7.1 phase-channel audit + storage fork ─► owner decision ─► T7.6 (blocked)
+T7.1 phase-channel audit + storage fork ─► T7.7 (phase 50) ─► T7.6 (blocked)
 T7.2 sparse-P default   T7.3 settling depth   T7.4 single-pass audit
 T7.5 macro-recruit pre-gates ─► T2.4 (phase 29) if the category arm survives
+
+Owner rulings 2026-08-11:
+gate RE-SCOPED to capability axes ─► RELEASE HOLD LIFTED ─► T5.1, T4.3 open
+T7.1 fork ─► measure first (T7.7) ─► then choose ─► T7.6 unblocks
 ```
 
 **Phase-number ledger (check before reserving).** Used through 47.
-**48** reserved for T7.6 and deliberately unused until the fork resolves.
-**39** reserved for T6.2, **49** reserved for T6.6, **31** for T4.1.
-Next free number for anything else: **50**.
+**48** reserved for T7.6 and deliberately unused until T7.7 reports.
+**39** reserved for T6.2, **49** for T6.6, **50** for T7.7, **31** for T4.1.
+Next free number for anything else: **51**.
 
 **Open, unclaimed and unblocked right now**: T6.2 (phase 39), T6.6
-(phase 49), T4.1 (phase 31), T3.2, T4.2. Blocked: T2.4 (by T7.5's own
-pre-gate), T7.6 + T5.1 + T4.3 (by the two owner decisions).
+(phase 49), T7.7 (phase 50), T4.1 (phase 31), T3.2, T4.2, and — newly, by
+the 2026-08-11 re-scope — T5.1 and T4.3. Still blocked: T2.4 (by T7.5's
+own pre-gate) and T7.6 (until T7.7 reports).

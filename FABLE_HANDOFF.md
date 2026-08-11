@@ -287,14 +287,51 @@ module — persistence is its defining feature, hence E3).
    because phase 43 falsified the structural account: `perceive` already
    computes a phasor sum and the channel is empty only because
    `omega/g_in = 0.0375` with deep settling.
-   **Nothing below the fork should be built until it is resolved** —
-   phase 48 is reserved for T7.6 and deliberately unused. If (B) is
-   chosen, the cheapest arm is the **dual time constant** (a second O(N)
-   field state at a slower `g_in`, ~0.001× of the K×N store), because
-   phase 45 measured that moving the ONE existing state costs 62 words of
-   coverage and the category certificate outright — and any phase-carrying
-   arm must also change the readout, which phase 43 measured to be blind
-   below a residual of **R ≈ 0.06**.
+   **OWNER RULING 2026-08-11 — measure before choosing.** The fork is not
+   to be decided blind: nobody has run the (A) store and the accuracy arm
+   in the same experiment. **T7.7 (phase 50)** runs (A) through the 33c
+   ladder at K=112/160 and reports ACC *and* **FORG** — phase 43's ≤0.005
+   bound was measured on the cost-frontier protocol, not the continual
+   ladder, and FORG is where a lossy store should hurt first.
+   **The same-day gate re-scope changed what this fork is for**: with the
+   cost branch conceded, meeting ≤2× no longer decides a release, so the
+   fork is now an architecture call on measured merit rather than a
+   gate-clearing move.
+   **Correct one thing in the framing above before you act on it**: (A)
+   does *not* cost you all of T7.6. Arms **(c) dual time constant** and
+   **(d) graph order** are fork-independent by T7.6's own text, so (A)
+   forfeits only (a)+(b) — and those two carry the worst measured evidence
+   in the category: any phase-carrying arm must also change the readout,
+   which phase 43 measured blind below **R ≈ 0.06**, and phase 16 measured
+   superpositions collapsing in 9–56 steps. (c) remains the cheapest route
+   to sequence memory either way (a second O(N) field state at a slower
+   `g_in`, ~0.001× of the K×N store), because phase 45 measured that moving
+   the ONE existing state costs 62 words of coverage and the category
+   certificate outright.
+   **Nothing below the fork is built until T7.7 reports** — phase 48 stays
+   reserved and unused.
+
+10. **THE RELEASE HOLD IS LIFTED (owner ruling, 2026-08-11)** and this is
+   now the first thing a cold start needs to know about claims. The gate
+   is **re-scoped to the capability axes** — unsupervised representation +
+   structure learning + bitwise persistence in one single-pass online
+   mechanism. The full decision record, with the per-axis evidence table
+   and the not-claimed list, is at the **top of `ROADMAP.md`** and is
+   required reading before writing anything release-facing.
+   The re-scope is admissible because the axis was **audited first**:
+   phase 46 tested whether the production 15-epoch recipe violated the
+   single-pass claim, with a large drop pre-registered as a legitimate
+   finding, and the axis held on all three measures (coverage is in fact
+   *better* at one pass). Re-scoping onto an audited axis is not the same
+   act as re-scoping onto a convenient one.
+   **It concedes rather than passes the cost branch**, and the caveats do
+   not go away: **not SOTA** on class-incremental accuracy (0.712 vs the
+   0.872 prototype bar, and replay tops the whole ladder at 0.913/0.105),
+   cost parity and the ≤2× fallback both missed at a measured 2.24×
+   (2.07× narrowed), equal-accuracy cost-effectiveness not claimable.
+   **Every capability claim carries that line in the same breath.** T5.1
+   and T4.3 are unblocked; unblocked is **not** released, and cutting the
+   tag is a separate owner action.
 
 ## Practical notes
 

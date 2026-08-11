@@ -11,6 +11,22 @@ this file is where that discipline lives; (2) give any new session or
 reviewer the honest summary in one read; (3) source material for the D2
 launch essay, so marketing never outruns the harness.
 
+> **BINDING, added 2026-08-11 — the gate was re-scoped and the RELEASE HOLD
+> lifted.** The readiness gate is now the capability axes: *unsupervised
+> representation + structure learning + bitwise persistence, in one
+> single-pass online mechanism*. The full decision record, with the
+> per-axis evidence table and the not-claimed list, is at the top of
+> `ROADMAP.md`.
+> **This makes job (1) above load-bearing rather than aspirational.** The
+> re-scope **concedes** the cost branch instead of passing it, so the
+> caveats are now the price of the claims and travel with them: **not SOTA**
+> on class-incremental accuracy (0.712 vs the 0.872 prototype bar; replay
+> tops the ladder at 0.913/0.105), **cost parity and the ≤2× fallback both
+> missed** at a measured 2.24× (2.07× narrowed), equal-accuracy
+> cost-effectiveness **not claimable**. Every claim below is quoted with
+> that line in the same breath — including in the D2 essay. A capability
+> claim published without it misrepresents the decision that authorized it.
+
 **Rules for editing.** A claim enters this file only with (a) a phase
 script, (b) measured numbers against a null or baseline, (c) a scope
 caveat written by the person who ran it. Numbers here must match the

@@ -9,6 +9,75 @@ is deliberately absent. Full reasoning lives in the session notes and the
 review discussion; the standing rules of engagement in `FABLE_HANDOFF.md`
 still bind everything here.
 
+## OWNER DECISION RECORD — 2026-08-11: the gate is re-scoped, the RELEASE HOLD lifts
+
+**Decided by the repo owner, 2026-08-11.** The gate adopted 2026-07-14 —
+*"at least SOTA / cost-effective or we are not ready"* — is **re-scoped to
+the capability axes**. The RELEASE HOLD that has stood since phase 33c
+(2026-08-05) is **lifted**. This is the decision 33h specified and left
+open, and it is recorded here rather than in a session log because every
+public claim this project makes now inherits from it.
+
+**The re-scoped gate, and the measured evidence for each axis.** The gate
+is now: *unsupervised representation + structure learning + bitwise
+persistence, in one single-pass online mechanism* — a conjunction the
+prototype bar does not satisfy on any of its four terms.
+
+| Axis | Evidence | Scope it carries |
+|---|---|---|
+| **Unsupervised representation** | No labels enter any mechanism (standing rule, enforced by review). The phase-33 readout is **eval-side only** — `label_readout.py`, pinned by `test_label_readout.py`, which reproduces the committed evict=0 anchor ACC 0.665. | The readout is a measuring instrument, not part of the organism. Any claim that quotes ACC is quoting an instrument reading. |
+| **Structure learning** | Category validity without geometry (phase 24; class-bigram MI against a label-permutation null). Field-free logic layer doing real work (phases 30/40: kstep, rollout, planning; confidence-weighted planning +1.04 nats/plan over hop-count above a shuffled-shrinkage null). Hierarchical recall un-oracled (phases 35/36). | Phase 40's honest split: the confidence planner beats hop-count, but against phase 30's own MLE planner it clears on selection seeds and **fails held-out**. Quote the hop-count comparison, not the MLE one. |
+| **Bitwise persistence** | E3 round-trip green for schema v3 uncompressed **and** compressed, plus v1 + v2 backward load. `SymbolRegistry` gives stable symbol identity across save/restore (T3.3) and survives independently of slots. Bitwise sections in `test_fastpath_equivalence.py` hold to 0.0e+00. | Verified by harness on two hosts (2026-08-09, 2026-08-11). This is the strongest-evidenced axis and the only one that is engineering rather than science. |
+| **Single-pass online** | **Audited and survived** (phase 46 / T7.4), which is why this axis is admissible at all. At ONE epoch vs fifteen: coverage is *better* at one pass (327/376 vs 320/376); the category certificate clears its permutation null at z = 9.1 (fables) and z = 32.0 (gutenberg8); polysemy detection moves 50.0 → 51.3 (+3%, inside the ±20% rule). | Two scope sentences travel with these numbers, always: (i) the 1-vs-15 comparison exists only on the 2 431-token fables corpus — the large corpus was audited 1-vs-3; (ii) the detection axis has a wide three-seed spread, so the claim is "not epoch-sensitive at the resolution three seeds resolve", never "epoch-invariant". |
+
+**Why this is defensible and not a concession dressed up.** The audit came
+first. Phase 46 was run specifically to test whether the production recipe
+violated the axis a re-scoped gate would stand on — a large drop was
+pre-registered as a legitimate and important finding — and the axis held on
+all three measures. Re-scoping onto an audited axis is a different act from
+re-scoping onto a convenient one.
+
+**WHAT THIS DECISION DOES NOT CLAIM.** Every line here is measured, and
+none of it is repaired by the re-scope:
+
+- **NOT SOTA on class-incremental accuracy.** ORGANISM+B scores 0.712 against
+  the supervised prototype bar's 0.872 (phase 33c). **Experience replay beats
+  the organism on BOTH axes and tops the entire ladder** at 0.913/0.105,
+  above even the prototype bar. This was a missed pre-registered clause and
+  it stays on the record.
+- **Cost parity NOT met, and the ≤2× fallback NOT met** as literally written:
+  measured floor 76.1 KB/ACC-pt = **2.24×** the bar (2.07× with phase 44's
+  narrow CSR). The re-scope **concedes this branch** rather than passing it.
+  The reason is arithmetic, not tuning — a prototype is a real N-vector and a
+  field memory is a complex one.
+- **Equal-accuracy cost-effectiveness is not claimable**, because the
+  accuracies are not equal. Unconstrained KB/ACC-pt must never be quoted from
+  33h without its scope sentence; it is minimized where accuracy is worst.
+- **Task-free operation is NOT a differentiator** (phase 38; N4 edited down,
+  not deleted). Removing the boundary annotation costs gradient arms almost
+  nothing.
+- **E4 DEFERRED** on measurement (phase 42), and **T2.4 stays blocked** — the
+  category level of the chunking measure fails its label-permutation null
+  (phase 47).
+
+**Standing rule for every public artifact from here.** Any release note,
+essay, demo or README sentence states the four capability axes **and** the
+"not SOTA / cost branch conceded" line in the same breath. A capability
+claim quoted without its benchmark caveat is a misrepresentation of this
+decision, not a summary of it.
+
+**Consequences.** T5.1 (release tag + episodic-memory product fork) is
+**UNBLOCKED**, and T4.3 (D2/D3) with it. Cutting the tag is a separate
+owner action with its own go-ahead — unblocking is not instruction to
+release. The engineering gate (E1+E2+E3+phase 26 synthetic) was already
+open and remains so.
+
+**Not settled by this decision:** T7.1's storage fork. See the phase-50
+target (T7.7) — the re-scope removes the fork's *gate* stakes but not its
+architecture stakes, and it is now to be decided on measured merit.
+
+---
+
 ## Strategic structure: Path A main, product forks downstream
 
 - **This repository stays Path A**: the research line. One continuously
@@ -209,7 +278,8 @@ re-scoped and unblocked:
 | 45 (T7.3) | Sequence | Is there a settling-depth window where the field state carries the prefix? | **Prefix identity is perfectly decodable at EVERY hold** — what the knob moves is its magnitude in similarity units, so path sensitivity is a consumer-threshold question. The window costs 62 words of coverage and the category certificate outright. |
 | 46 (T7.4) | Audit | Does "single-pass online" survive when the recipe runs 15 epochs? | **Yes, on all three axes — and coverage is *better* at one pass (327 vs 320).** Multi-pass buys only the category certificate. |
 | 47 (T7.5) | Chunking | Three pre-gates before any chunk mechanism is built. | **The raw measure failed its own null and its pre-registered consequence was honored.** Repaired and confirmed on untouched text, the word-level selection rule survives (~1% of cross-entropy); **the category level fails the label-permutation null — T2.4 stays blocked.** |
-| 48 (T7.6) | Deep arms | Content-dependent phase, phase-aware readout, dual time constant, graph order. | **BLOCKED on the owner's fork decision.** Phase number reserved and deliberately unused. |
+| 50 (T7.7) | Cost floor | **Owner ruling 2026-08-11 on T7.1's fork: measure before choosing.** Run the (A) `real_phase` store through the **33c ladder** at K=112/160 against the identical c64 arm — paired s=0–4, held out s=5–9, prototype bar recomputed per seed — and report **ACC *and* FORG**, plus KB/ACC-pt with observation counts attached. Phase 43's ≤0.005 behavior bound was measured on the cost-frontier protocol, not the continual ladder, and FORG is where a lossy store should hurt first. The 2026-08-11 re-scope **removed this fork's gate stakes**, so the question is no longer "can (A) clear the gate" but whether (A) holds up where the organism is actually evaluated. Deliver a recommendation this time. Scoping note for the recommendation: T7.6's arms (c) dual time constant and (d) graph order are **fork-independent**, so (A) forfeits only (a)+(b) — and those carry phase 43's R ≈ 0.06 readout-blindness bar and phase 16's 9–56 step collapse. | *open* |
+| 48 (T7.6) | Deep arms | Content-dependent phase, phase-aware readout, dual time constant, graph order. | **BLOCKED until T7.7 (phase 50) reports.** Phase number reserved and deliberately unused. |
 
 Two standing lessons, paid for in T1.6/T1.8/T1.9, bind all of them: reseed
 every arm **and** hold out fresh seeds for any grid-selected claim; reseed

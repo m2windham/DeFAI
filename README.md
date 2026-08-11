@@ -194,8 +194,14 @@ discipline as phase 3.
 cost-effective or we are not ready"), measured on class-incremental
 split-digits with a standard ladder: organism ACC 0.665 / FORG 0.200 — 2×
 the retention of the gradient arms (SGD/EWC ~0.32), but a supervised
-prototype baseline wins raw accuracy outright (0.872). **NOT SOTA; release
-hold in force** (see ROADMAP). Mechanism findings: task-1 slot flooding at
+prototype baseline wins raw accuracy outright (0.872). **NOT SOTA** — and
+that has not changed. **Release hold LIFTED 2026-08-11 by owner ruling**,
+not by passing this gate: the gate was **re-scoped to the capability axes**
+and the cost branch **conceded** at a measured 2.24× (≤2× fallback missed).
+On the re-run ladder (33c) the organism reaches 0.712 against the 0.872 bar,
+and experience replay beats it on both axes at 0.913/0.105, topping the
+whole ladder. See the decision record at the top of `ROADMAP.md`; every
+capability claim below carries this paragraph with it. Mechanism findings: task-1 slot flooding at
 K=40, and a frozen-label readout artifact (fixed in-phase). Defensible
 public claims: unsupervised representation + structure learning + bitwise
 persistence in one single-pass online mechanism. **"Single-pass" audited
@@ -343,9 +349,13 @@ The project's standing goal: one continuously-running oscillator field
 that perceives, remembers, learns world structure, and generates — now
 validated on synthetic worlds (core track, phases 1–18) with first
 footholds on real language (language track, through its phase 21).
-**Standing constraint: the Path B release hold** (ROADMAP, 2026-07-15) —
-no release tag or product fork until the phase-33 gate passes. The
-open threads, roughly ordered by leverage:
+**The Path B release hold (ROADMAP, 2026-07-15) was LIFTED on 2026-08-11**
+— by an owner re-scope of the gate to the capability axes, **not** by the
+phase-33 gate passing, which it did not. The tag and product fork are
+unblocked but uncut; the standing constraint that replaces the hold is that
+no release-facing artifact states a capability claim without the "not SOTA /
+cost branch conceded" line beside it. The open threads, roughly ordered by
+leverage:
 
 0. **Un-oracle hierarchical recall, then re-run the phase-33 gate**
    (phases 34/35 → planned phase 36): replace phase 35's ground-truth
