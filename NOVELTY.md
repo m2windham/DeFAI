@@ -41,7 +41,7 @@ ROADMAP row they cite. If a claim is weakened by a later run, it is
 | N4 | Gradient-free continual learning | **Solid** | T6.1/T6.2 — boundary-free + retention |
 | N5 | Category validity without geometry | **Solid** | k-selection at scale (phase 27 residual) |
 | N6 | Bitwise persistence + stable symbol identity | **Solid (engineering)** | T4.1 — survive a lesion |
-| N7 | Eviction under recruitment pressure | **Narrow but crisp** | T6.2 — factorize it |
+| N7 | Eviction under recruitment pressure | **Narrow but crisp** (factorized; the law now has two clauses — T6.2 done) | self-calibrate **both** knobs from online statistics (N7 step 3) |
 | N8 | Phase-superposition binding | **Partial — unsolved** | protection mechanism |
 | N9 | The measurement discipline itself | **Underrated** | codify as a harness tier |
 
