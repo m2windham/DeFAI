@@ -51,6 +51,11 @@ except ImportError:          # fastpath silently unavailable; organism.py
         return deco
 
 
+# T6.2 (phase 39) slot-budget victim rules, canonical here because the kernel
+# branches on the integer code and organism.py imports this module (not the
+# other way round). 'count' is T1.2's original rule and the default.
+EVICT_VICTIMS = {'count': 0, 'rate': 1, 'random': 2}
+
 PERCEIVE_CHUNK = 32768       # frames per kernel call (bounded memory for
                              # generator streams; ~26 MB at N=50 complex128)
 RECALL_CHUNK = 8192          # steps of pre-generated noise per kernel call
@@ -84,11 +89,52 @@ def _reg_kill(slot_sym, journal, journal_n, jcap, k):
 
 
 @njit(cache=True, fastmath=True)
+def _pick_victim(used, count, age, tenure, vdraw, evict, victim, t):
+    """T6.2 (phase 39): choose which stale slot the budget reclaims. Mirrors
+    evict_one()'s selection in organism.py line for line, ties included
+    (lowest slot index wins, matching np.argmin). Returns -1 when the stale
+    pool is empty, i.e. no eviction happens."""
+    K = used.shape[0]
+    if victim == 2:                            # control arm: uniform over the pool
+        n = 0
+        for k2 in range(K):
+            if used[k2] and age[k2] > evict:
+                n += 1
+        if n == 0:
+            return -1
+        r = int(vdraw[t] * n)
+        if r >= n:                             # only if a draw returns exactly 1.0
+            r = n - 1
+        seen = 0
+        for k2 in range(K):
+            if used[k2] and age[k2] > evict:
+                if seen == r:
+                    return k2
+                seen += 1
+        return -1
+    best = np.inf
+    je = -1
+    for k2 in range(K):
+        if used[k2] and age[k2] > evict:
+            s = count[k2]
+            if victim == 1:                    # count per frame of tenure
+                d = tenure[k2]
+                if d < 1.0:
+                    d = 1.0
+                s = s / d
+            if s < best:
+                best = s
+                je = k2
+    return je
+
+
+@njit(cache=True, fastmath=True)
 def _perceive_chunk(frames, n_valid, z_io, xi, xic, used, count, P,
-                    prov, hits, age, nvis, evicts, prev_x, state_i,
+                    prov, hits, age, nvis, evicts, tenure, vdraw, prev_x, state_i,
                     ledger, ledger_n, slot_sym, next_id, journal, journal_n,
                     g_in, dt, eta, recruit, p_decay, confirm, probation,
-                    pool, active_bar, s_hat, amb, fuse_bar, evict, omega, norm):
+                    pool, active_bar, s_hat, amb, fuse_bar, evict, victim,
+                    omega, norm):
     """One chunk of the perceive loop. All state mutates in place.
     state_i = [last_k, boundary_prev, have_prev_x] (int64).
     xic is the maintained conjugate of xi (kept in sync on every row edit)
@@ -111,7 +157,16 @@ def _perceive_chunk(frames, n_valid, z_io, xi, xic, used, count, P,
     -> surviving id, DEAD=2 tombstoned id) are appended to `journal` in
     order, drained after the chunk. journal_n = [rows_written, overflowed].
     Nothing here feeds a mechanism decision, so registry-on and registry-off
-    runs are bitwise identical."""
+    runs are bitwise identical.
+
+    tenure/vdraw/victim (T6.2 phase 39, evict_victim): `victim` selects WHICH
+    stale slot dies -- 0 argmin count (T1.2's rule, the DEFAULT and the only
+    one that touches neither extra array), 1 argmin count/tenure (the
+    label-free "count normalized by era"), 2 uniform over the stale pool (the
+    control arm). `tenure` ticks only under rule 1; `vdraw` holds one
+    pre-drawn uniform per frame of THIS chunk, taken caller-side off a
+    generator that is not org.rng, so both backends pick the same victim and
+    recall's stream is untouched. Rules 0 and 2 get size-0/unread arrays."""
     N = xi.shape[1]
     K = xi.shape[0]
     reg = slot_sym.shape[0] > 0
@@ -253,15 +308,11 @@ def _perceive_chunk(frames, n_valid, z_io, xi, xic, used, count, P,
                             break
                     if tail < 0.8 * active_bar:
                         if evict > 0.0 and all_used:
-                            # slot budget: reclaim the least-established
-                            # stale slot (argmin count among slots idle
-                            # > evict frames) -- evict_one() in organism.py
-                            bestc = np.inf
-                            je = -1
-                            for k2 in range(K):
-                                if used[k2] and age[k2] > evict and count[k2] < bestc:
-                                    bestc = count[k2]
-                                    je = k2
+                            # slot budget: reclaim a stale slot (idle > evict
+                            # frames), picked by `victim` -- evict_one() in
+                            # organism.py
+                            je = _pick_victim(used, count, age, tenure, vdraw,
+                                              evict, victim, t)
                             if je >= 0:
                                 if ledger.shape[0] > 0:    # T1.7 ledger
                                     li = ledger_n[0]
@@ -277,6 +328,8 @@ def _perceive_chunk(frames, n_valid, z_io, xi, xic, used, count, P,
                                 hits[je] = 0.0
                                 nvis[je] = 0.0
                                 age[je] = 0.0
+                                if victim == 1:
+                                    tenure[je] = 0.0   # reborn: era starts over
                                 evicts[je] += 1.0
                                 for c in range(K):     # graph.retire
                                     P[je, c] = 0.0
@@ -296,6 +349,8 @@ def _perceive_chunk(frames, n_valid, z_io, xi, xic, used, count, P,
                             prov[f] = True
                             hits[f] = 0.0
                             age[f] = 0.0
+                            if victim == 1:
+                                tenure[f] = 0.0
                             nvis[f] = 1.0
             prev_x[:] = x
             have_prev = 1
@@ -330,15 +385,11 @@ def _perceive_chunk(frames, n_valid, z_io, xi, xic, used, count, P,
                     f = k2
                     break
             if evict > 0.0 and mk < 0.8 * recruit and all_used:
-                # slot budget: reclaim the least-established stale slot
-                # (argmin count among slots idle > evict frames); the 0.8x
-                # novelty throttle mirrors evict_one() in organism.py
-                bestc = np.inf
-                je = -1
-                for k2 in range(K):
-                    if used[k2] and age[k2] > evict and count[k2] < bestc:
-                        bestc = count[k2]
-                        je = k2
+                # slot budget: reclaim a stale slot (idle > evict frames),
+                # picked by `victim`; the 0.8x novelty throttle mirrors
+                # evict_one() in organism.py
+                je = _pick_victim(used, count, age, tenure, vdraw,
+                                  evict, victim, t)
                 if je >= 0:
                     if ledger.shape[0] > 0:            # T1.7 ledger
                         li = ledger_n[0]
@@ -354,6 +405,8 @@ def _perceive_chunk(frames, n_valid, z_io, xi, xic, used, count, P,
                     hits[je] = 0.0
                     nvis[je] = 0.0
                     age[je] = 0.0
+                    if victim == 1:
+                        tenure[je] = 0.0               # reborn: era starts over
                     evicts[je] += 1.0
                     for c in range(K):             # graph.retire
                         P[je, c] = 0.0
@@ -371,6 +424,8 @@ def _perceive_chunk(frames, n_valid, z_io, xi, xic, used, count, P,
                 used[f] = True
                 k = f
                 age[f] = 0.0
+                if victim == 1:
+                    tenure[f] = 0.0
                 if confirm > 0:
                     prov[f] = True
                     hits[f] = 0.0
@@ -429,6 +484,10 @@ def _perceive_chunk(frames, n_valid, z_io, xi, xic, used, count, P,
             for k2 in range(K):
                 if used[k2]:
                     age[k2] += 1.0
+        if victim == 1:                            # era normalizer: occupancy,
+            for k2 in range(K):                    # never reset by use -- only
+                if used[k2]:                       # by (re)recruitment
+                    tenure[k2] += 1.0
         if mk > active_bar and used[k]:
             count[k] += 1.0
             if not prov[k]:                        # gate: only confirmed, confident
@@ -465,10 +524,11 @@ def _drain_ledger(out, ledger, ledger_n, frame0):
 def perceive_fast(org, stream, g_in=4.0, dt=0.05, eta=0.02, recruit=0.55,
                   p_decay=0.0, confirm=0, probation=6000, pool=False,
                   active_bar=0.6, s_hat=0.0, amb=0.0, fuse_bar=0.7, evict=0,
-                  evict_debug=None):
+                  evict_victim='count', evict_debug=None):
     """Drop-in backend for Organism.perceive. Consumes any iterable of
     frames (list, array, or generator) in bounded-memory chunks."""
     N, K = org.N, org.K
+    victim = EVICT_VICTIMS[evict_victim]
     xi = np.ascontiguousarray(org.xi, dtype=np.complex128)
     xic = np.conj(xi).copy()
     P = np.ascontiguousarray(org.graph.P, dtype=np.float64)
@@ -487,6 +547,15 @@ def perceive_fast(org, stream, g_in=4.0, dt=0.05, eta=0.02, recruit=0.55,
     ledger = np.empty((PERCEIVE_CHUNK if evict_debug is not None else 0, 4),
                       np.float64)
     ledger_n = np.zeros(1, np.int64)
+    # T6.2: the era normalizer is persistent state like age, and is passed in
+    # place so it outlives the call; rules 0/2 never read or write it. The
+    # control arm's uniforms are drawn PER CHUNK off org.evict_rng -- a
+    # Generator's sequential .random() stream is chunk-split-invariant, so the
+    # numpy backend's one big draw yields the identical sequence.
+    tenure = getattr(org, 'tenure', None)
+    if tenure is None:                             # organism built pre-T6.2
+        tenure = np.zeros(K, np.float64)
+    no_draws = np.zeros(0, np.float64)
     frames_done = 0
     # T3.3 registry: size-0 slot_sym = off (every kernel branch dead).
     # Journal capacity bound: an ALIAS needs a fusion (<= 1 per frame) and a
@@ -521,13 +590,16 @@ def perceive_fast(org, stream, g_in=4.0, dt=0.05, eta=0.02, recruit=0.55,
         fill += 1
         if fill == PERCEIVE_CHUNK:
             _perceive_chunk(buf, fill, z_io, xi, xic, org.used, org.count, P,
-                            prov, hits, age, nvis, org.evictions, prev_x, state_i,
+                            prov, hits, age, nvis, org.evictions, tenure,
+                            (org.evict_rng.random(fill) if victim == 2 and evict > 0
+                             else no_draws),
+                            prev_x, state_i,
                             ledger, ledger_n, slot_sym, next_id,
                             journal, journal_n,
                             float(g_in), float(dt), float(eta), float(recruit),
                             float(p_decay), int(confirm), float(probation),
                             bool(pool), float(active_bar), float(s_hat),
-                            float(amb), float(fuse_bar), float(evict),
+                            float(amb), float(fuse_bar), float(evict), int(victim),
                             float(org.omega), float(org.norm))
             if evict_debug is not None:
                 _drain_ledger(evict_debug, ledger, ledger_n, frames_done)
@@ -536,13 +608,16 @@ def perceive_fast(org, stream, g_in=4.0, dt=0.05, eta=0.02, recruit=0.55,
             fill = 0
     if fill > 0:
         _perceive_chunk(buf, fill, z_io, xi, xic, org.used, org.count, P,
-                        prov, hits, age, nvis, org.evictions, prev_x, state_i,
+                        prov, hits, age, nvis, org.evictions, tenure,
+                        (org.evict_rng.random(fill) if victim == 2 and evict > 0
+                         else no_draws),
+                        prev_x, state_i,
                         ledger, ledger_n, slot_sym, next_id,
                         journal, journal_n,
                         float(g_in), float(dt), float(eta), float(recruit),
                         float(p_decay), int(confirm), float(probation),
                         bool(pool), float(active_bar), float(s_hat),
-                        float(amb), float(fuse_bar), float(evict),
+                        float(amb), float(fuse_bar), float(evict), int(victim),
                         float(org.omega), float(org.norm))
         if evict_debug is not None:
             _drain_ledger(evict_debug, ledger, ledger_n, frames_done)

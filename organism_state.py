@@ -26,7 +26,10 @@ staleness clock (org.age) and per-slot eviction tally (org.evictions) are
 part of the organism's dynamical state and round-trip here. Files written
 before T1.2 lack the two arrays and load with zeroed clocks -- exactly the
 state a pre-budget organism had -- so the schema version is unchanged
-(additive migration, not a reinterpretation of existing fields).
+(additive migration, not a reinterpretation of existing fields). T6.2's era
+normalizer (org.tenure, read only by evict_victim='rate') joins on exactly
+those terms: written by the current writer, absent-loads-as-zeros for every
+older file, no schema bump.
 
 Consolidation products (mem/Pn/kept_idx) are saved when present so a
 restored organism can recall() immediately without re-consolidating.
@@ -134,7 +137,7 @@ def save_state(org, path, compress_spec=None):
         params=np.array([org.N, org.K], dtype=np.int64),
         hyper=np.array([org.omega, org.beta], dtype=np.float64),
         xi=org.xi, used=org.used, count=org.count,
-        age=org.age, evictions=org.evictions,
+        age=org.age, evictions=org.evictions, tenure=org.tenure,
         P=org.graph.P, z=org.z,
         rng_state=np.frombuffer(
             json.dumps(org.rng.bit_generator.state).encode(), dtype=np.uint8),
@@ -207,7 +210,7 @@ def _save_compressed(org, path, spec):
         )).encode(), dtype=np.uint8),
         p_data=st.p_data, p_indices=st.p_indices, p_indptr=st.p_indptr,
         used=st.used, count=st.count, age=st.age,
-        evictions=org.evictions, z=org.z,
+        evictions=org.evictions, tenure=org.tenure, z=org.z,
         rng_state=np.frombuffer(
             json.dumps(org.rng.bit_generator.state).encode(), dtype=np.uint8),
     )
@@ -271,6 +274,10 @@ def load_state(path, cls=Organism):
             org.age = f['age'].copy() if 'age' in f else np.zeros(K)
             org.graph.P = f['P'].copy()
         org.evictions = f['evictions'].copy() if 'evictions' in f else np.zeros(K)
+        # T6.2's era normalizer: same additive migration as age/evictions --
+        # files written before it (incl. every v1/v2 file) load with a zeroed
+        # tenure, which is exactly the state a pre-T6.2 organism had
+        org.tenure = f['tenure'].copy() if 'tenure' in f else np.zeros(K)
         org.z = f['z'].copy()
         org.rng.bit_generator.state = json.loads(bytes(f['rng_state']).decode())
         _unpack_registry(f, org)          # v3 only; absent in v1/v2
