@@ -14,23 +14,38 @@ noise floors; pre-register predictions; run `regression_harness.py` under
 BOTH backends (`DEFAI_BACKEND=numpy|numba`) before trusting any change;
 `test_fastpath_equivalence.py` for kernel edits.
 
-Verification state as of 2026-08-08, on the merged tree carrying T1.9
-(phase 33h), T2.1 (phase 27's outcome), T3.3 (the symbol registry), T6.3
-(phase 40's logic-layer depth), T6.4 (phase 41's detection-driven
-splitting), T6.5 (phase 42's re-baseline) and T6.1 (phase 38's task-free
-falsification):
-E1 ALL PASS both backends (92 checks: 31 + T1.8's section 10 + T3.3's
-section 11 + T6.3's section 12 + T6.4's section 13 + T6.1's section 14),
-`test_fastpath_equivalence.py` green incl. the narrowed-store section 7 and
-the symbol-registry section 8, `test_label_readout.py` green,
-E3 round-trips green for schema v3 uncompressed/compressed and v1 + v2
-backward load. **Torch status changed on 2026-08-08**: it is installed on
-the T6.1 host (2.13.0+cpu, the same version 33c's committed run used), and
-`phase33c_gate_retest.py` was re-run there and reproduced EXACTLY, torch
-arms included — prototypes 0.872, organism 0.665/0.200, ORGANISM+B
-0.712/0.169. The ladder's torch arms are therefore no longer resting on
-committed values alone. Earlier hosts had no torch; if yours does not, say
-so rather than assuming this one's state. See ROADMAP "Verification log".
+Verification state as of 2026-08-11, on the merged tree at `a341cc5`,
+which carries everything through Category 7 — T1.9 (phase 33h), T2.1
+(phase 27's outcome), T3.3 (the symbol registry), T6.1/T6.3/T6.4/T6.5
+(phases 38/40/41/42) and T7.1–T7.5 (phases 43–47, architecture
+economics):
+E1 ALL PASS both backends (**119 checks**: 31 + T1.8's section 10 +
+T3.3's section 11 + T6.3's section 12 + T6.4's section 13 + T6.1's
+section 14 + T7.1's section 15 + T7.2's section 16 + T7.3/T7.5's
+section 17), `test_fastpath_equivalence.py` green incl. the
+narrowed-store section 7 and the symbol-registry section 8,
+`test_label_readout.py` green, E3 round-trips green for schema v3
+uncompressed/compressed and v1 + v2 backward load.
+**Re-verified independently by the repo owner on 2026-08-11**, on a
+different host from the one that ran Category 7 (Python 3.11, numpy
+2.4.6 / numba 0.66.0 / scipy 1.17.1 / sklearn 1.9.0, **no torch**):
+119/119 both backends (numpy 111.5s, numba 39.1s) plus both auxiliary
+suites green. PR #49's verification claims therefore reproduce on a
+second host — the first time this project has held a Category to that
+standard.
+**Torch status is host-dependent and has now changed twice**: the T6.1
+host (2026-08-08) had 2.13.0+cpu and re-ran `phase33c_gate_retest.py`
+reproducing EXACTLY, torch arms included — prototypes 0.872, organism
+0.665/0.200, ORGANISM+B 0.712/0.169 — so the ladder's torch arms are no
+longer resting on committed values alone. The Category 7 host and this
+one have **no torch**. State which you have rather than assuming this
+one's state. See ROADMAP "Verification log".
+
+**Two owner decisions are open, and they are coupled**: the gate
+re-scope (33c/33h — "not another agent target") and T7.1's storage fork
+(A spend / B cash in). T7.6 is blocked behind the fork and T5.1 behind
+the gate; phase 48 stays reserved and unused until the fork resolves.
+Do not start either, and do not treat their numbers as settled.
 
 ---
 
@@ -1048,6 +1063,52 @@ total, both backends).
     **18.2× smaller, lossless**; full store 15.43× in 20 ms. CSR is
     **storage only** — perceive writes P in place, so the kernel needs dense.
 
+### T6.6 — The blocking sweep (phase 49)  `[claimed: —]`
+**Opened by the repo owner 2026-08-11.** T6.1 ended by exposing a
+follow-on and deliberately refusing to smuggle it in; it was left with no
+home for three merges. This is that home. Read T6.1's RESULT block first —
+this target exists *because* T6.1's framing carried a confound, and the
+whole point is to measure the axis the confound was hiding.
+- **The question**: T6.1 decomposed A→C into "boundary signal removed"
+  (worth almost nothing: mlp-seq +0.000, mlp-ewc **+0.056**) and "stream
+  unblocked" (worth almost everything: mlp-seq +0.629). Catastrophic
+  forgetting is therefore produced by **sequential blocking**, and a task
+  boundary is only the annotation on it. So the honest question is not
+  "what happens without boundaries" but ***how blocked must a stream be
+  before gradient methods need the annotation at all?***
+- **Objective**: sweep blockedness as a continuous axis — from fully
+  interleaved (i.i.d. class mixture) to fully blocked (33c's hard task
+  switches) — with the boundary annotation ON and OFF at each level.
+  The deliverable is the **crossover point**: the blockedness at which
+  (i) gradient arms begin to collapse, and (ii) the annotation starts
+  being worth more than nothing. Report both as curves with paired seeds,
+  not as a verdict.
+- **Why it is worth running**: every continual-learning claim this project
+  can make, including the ones N4 still carries, is a claim about *where
+  on this axis* the organism wins. T6.1 showed we have been quoting a
+  single point (fully blocked) and a single mis-specified alternative
+  (fully drifted) as if they were the whole space. Locating the crossover
+  turns N4 from a slogan into a scoped, defensible statement — and it is
+  the only route left to one, since T6.1 removed the unscoped version.
+- **Context**: `phase38_task_free_continual.py` (its three conditions are
+  three points on this axis and its harness §14 invariances are the
+  internal-validity check to keep), `phase33c_gate_retest.py` (the fully
+  blocked endpoint and the ladder), `phase2_drift.py`,
+  `phase11_transition_decay.py`.
+- **Pre-registered predictions required before any committed run**, plus
+  the **named mundane account** Category 7 made standard. State in advance
+  where you expect the crossover and what would falsify a crossover
+  existing at all — a monotone curve with no knee is a real and publishable
+  outcome, and it would mean "blockedness" is not a threshold phenomenon.
+- **Standing warning**: ORGANISM+B was **bitwise invariant** to the
+  annotation in T6.1 and should remain so at every level of this sweep —
+  it consumes no boundary information. If it ever moves, that is a plumbing
+  leak, not a finding. Pin that invariance in the harness section.
+- **Done when** (plus protocol section C): `phase49_*.py`, paired seeds
+  with the baseline reseeded on the same split, both crossover curves,
+  ROADMAP row, harness section, and **N4 rewritten to the measured scope**
+  — edited down as readily as up.
+
 ### T4.1 (re-scoped) — Phase 31 perception ablation
 Now unblocked and materially better instrumented than when written:
 E3 restore is bitwise, `SymbolRegistry` survives lesions (identity is
@@ -1361,7 +1422,7 @@ T3.1 ─► cheaper nulls for T2.1/T2.3     T3.2, T3.3 independent
 T4.1 ─► D4 demo       T4.2 independent of the hold (demo, not product)
 
 Category 6 (consolidation posture, 2026-08-07) — all independent:
-T6.1 task-free CL ─┐
+T6.1 task-free CL ─► T6.6 blocking sweep (phase 49, opened 2026-08-11)
 T6.2 retention     ├─► inform any future gate re-test / product claims
 T6.3 logic depth   │
 T6.4 polysemy→act ─┘   T6.5 re-baseline ─► E4 (T3.1) go/no-go
@@ -1372,3 +1433,12 @@ T7.1 phase-channel audit + storage fork ─► owner decision ─► T7.6 (block
 T7.2 sparse-P default   T7.3 settling depth   T7.4 single-pass audit
 T7.5 macro-recruit pre-gates ─► T2.4 (phase 29) if the category arm survives
 ```
+
+**Phase-number ledger (check before reserving).** Used through 47.
+**48** reserved for T7.6 and deliberately unused until the fork resolves.
+**39** reserved for T6.2, **49** reserved for T6.6, **31** for T4.1.
+Next free number for anything else: **50**.
+
+**Open, unclaimed and unblocked right now**: T6.2 (phase 39), T6.6
+(phase 49), T4.1 (phase 31), T3.2, T4.2. Blocked: T2.4 (by T7.5's own
+pre-gate), T7.6 + T5.1 + T4.3 (by the two owner decisions).
