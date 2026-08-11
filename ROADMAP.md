@@ -197,6 +197,7 @@ re-scoped and unblocked:
 | 40 (T6.3) | Logic layer | Confidence-weighted planning, compositional goals, macro-edges, and sparse-P speedup — reasoning depth on the field-free graph. **DONE 2026-08-08 — see row 40: (a) confirmed, (b) split (bitwise yes, 2× crosses at K=800 not 112), (c) the negative fired and its condition is an ORDER, not a graph size.** |
 | 41 (T6.4) | Polysemy | Close the loop: detection (phase 12/21/28) drives field splitting (phase 10), scored on **downstream utility at matched capacity**. **DONE 2026-08-08 — the loop closes asymmetrically**: +0.063 held-out next-category accuracy over an exactly matched-capacity control (all 5 seeds positive, 56% of the headroom to the eval-only ceiling), successor distinctness 15/15 vs a same-word null — but generation does NOT improve (both metrics sign-flip) and word-level likelihood loses to the unsplit organism. Synthetic-corpus scope; see row 41. |
 | 42 (T6.5) | Engineering | Re-baseline throughput/profile post-33g/T3.3; produce the measured E4 go/no-go. **Run 2026-08-08 — see row 42 below: E4 DEFER, nulls are 22.4% not ≥50%.** |
+| 49 (T6.6) | Continual learning | **Opened by the repo owner 2026-08-11**, as the home for the follow-on phase 38 exposed and deliberately refused to smuggle in. Phase 38 decomposed its own result into "boundary signal removed" (worth ~nothing) and "stream unblocked" (worth everything), which means catastrophic forgetting is produced by **sequential blocking** and a boundary is only the annotation on it. So: *how blocked must a stream be before gradient methods need the annotation at all?* Sweep blockedness continuously from i.i.d. interleaved to 33c's hard switches, with the annotation ON and OFF at each level, and report the two crossover curves — where gradient arms begin to collapse, and where the annotation starts being worth more than zero. A monotone curve with no knee is a real outcome and must be pre-registered as such. ORGANISM+B must stay bitwise invariant to the annotation at every level (phase 38's §14 invariance); if it moves, that is a plumbing leak, not a finding. N4 to be rewritten to whatever scope this measures. |
 | 31 (T4.1) | Lesion | Perception ablation vs logic survival, now with registry-identity and precision-lesion arms plus bitwise E3 recovery. |
 
 **Category 7 — architecture economics (owner work order, 2026-08-08; phases 43–47 run 2026-08-09).** Targets T7.1–T7.5 in `AGENT_TARGETS.md`. Provenance is load-bearing and is recorded in that file's category header: stages 1–5 came from an exploratory sandbox session that produced no branch and no repo changes, so every sandbox number was treated as an indicative anchor to be re-derived, and four of them did not survive.
@@ -215,6 +216,24 @@ every arm **and** hold out fresh seeds for any grid-selected claim; reseed
 the baseline on the same split.
 
 ## Verification log
+
+- **2026-08-11 (repo owner, independent re-verification of PR #49 —
+  no code changed; remote 4-core host, Python 3.11, numpy 2.4.6 / numba
+  0.66.0 / scipy 1.17.1 / sklearn 1.9.0, **no torch**)**: the merged tree
+  at `a341cc5` was checked out on a **different host from the one that ran
+  Category 7**, the scientific stack installed from `requirements.txt`
+  (which resolved to the same four versions), and the full suite re-run
+  from cold. **119/119 ALL PASS both backends** (numpy 111.5s, numba
+  39.1s), `test_fastpath_equivalence.py` green, `test_label_readout.py`
+  green — including its reproduction of the committed evict=0 anchor
+  ACC 0.665. Category 7's verification claims therefore reproduce on a
+  second host rather than resting on the running agent's own report.
+  Timings are faster than Category 7's (174.3s/54.5s) and that is host
+  speed, not a behavior change: every check is inside its band and the
+  bitwise sections are bitwise. Scope: this re-verifies the **harness**,
+  not the phase scripts' committed runs — no phase 43–47 script was
+  re-executed end-to-end here, and with no torch on this host every torch
+  arm on record remains a committed number.
 
 - **2026-08-09 (Category 7 / T7.1–T7.5, architecture economics; remote
   4-core host, Python 3.11.15, numpy 2.4.6 / numba 0.66.0 / scipy 1.17.1 /
