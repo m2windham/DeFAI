@@ -1459,7 +1459,7 @@ T7.6 and NOT to be used until the fork is resolved).
   through frequency effects alone. The permutation null is the control;
   verify it is constructed to kill exactly that.
 
-### T7.7 — Fork decision measurement: the (A) store on the ladder (phase 50)  `[claimed: —]`
+### T7.7 — Fork decision measurement: the (A) store on the ladder (phase 50)  `[claimed: claude/t7-7-fork-ladder, 2026-08-13]`
 **Opened by the repo owner 2026-08-11 as the ruling on T7.1's fork: measure
 before choosing.** T7.1 priced the fork and correctly refused to choose it.
 The owner declines to choose it blind either — nobody has yet run the (A)
