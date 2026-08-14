@@ -156,6 +156,79 @@ it does not change any default (`real_phase` stays default-OFF whatever
 the recommendation says -- flipping it is the owner's act, not this
 script's); and it RECOMMENDS rather than decides.
 
+======================================================================
+COMMITTED-RUN FINDINGS (2026-08-13/14; numpy 2.4.4, numba 0.67, torch
+2.13.0+cpu, 2-core host with erratic wall-clock -- identical cells took
+1.3-97s; baseline harness 132/132 both backends at aaf4845 before the run)
+======================================================================
+
+THE MISSES AND CAVEATS FIRST.
+(1) P4's OPEN QUESTION RESOLVED NEGATIVE, and it is the run's best
+    demonstration of why held-out seeds exist: the probe's seed-0
+    observation (K=160 c64 calib 0.9301 ABOVE replay 0.9100) does NOT
+    survive -- on held-out seeds replay beats the K=160 arm on ALL FIVE
+    (organism minus replay: -0.0012 to -0.0461, mean -0.0215). Replay
+    still tops the ladder (held-out 0.9187/0.0834). The seed-0 gap was
+    selection, caught by the pre-registered discipline.
+(2) The LARGEST fork delta observed is dFORG argmax at K=112 held-out:
+    +0.0034 [+0.0000, +0.0089] -- positive (rp forgets more), sign
+    consistent with "a lossy store hurts FORG first", but 6x inside the
+    kill line, inside the 0.010 band, and it does not replicate at
+    calib-b8 (-0.0006) or at K=160 (argmax -0.0050, i.e. rp BETTER).
+    Recorded as the number to watch, not a cost.
+(3) Scope on the K=160 leg: at calib-b8 the K=160 arm (held-out 0.8972)
+    is NOT better than the K=112 arm (0.9029) -- 33h's knee logic holds;
+    K=160 exists here to test the fork at 33d's bar-crossing capacity,
+    not as a better operating point. Its floor is 3.16x (c64+CSR).
+(4) Replay's FORG held-out (0.0834) sits below 33c's committed 0.105:
+    rng-provenance (33c's module-level torch seed after seq/ewc consumed
+    rng state), disclosed in-run; ACC 0.9187 is inside the P4 band.
+
+EVERY PRE-REGISTERED PREDICTION HELD.
+P1 EXACT: bar s0 0.872/120/30720 B; K=160 c64 argmax s0 0.9002; K=112
+   held-out floors c64+CSR 76.10 = 2.236x and c64+narrow 70.30 = 2.066x
+   (phase 44's committed values to the second decimal); rp 44.88 = 1.319x
+   and rpn 39.07 = 1.148x vs 44.83/39.04 -- drift +0.05/+0.03 KB/pt,
+   inside the +-0.5 attributable band (store-mode acc vs uncompressed
+   acc construction difference, as registered).
+P2 HELD -- THE BOUND TRANSFERS. Worst held-out mean dACC -0.0012 (band
+   0.005), worst held-out mean dFORG +0.0034 (band 0.010), kill line
+   (+-0.02) nowhere near touched, on both K, both decoders. Store-mode
+   paired deltas, held-out, calib-b8: K=112 dACC -0.0005 [-0.0030,
+   +0.0015], dFORG -0.0006 [-0.0019, +0.0000]; K=160 dACC +0.0019
+   [+0.0000, +0.0057], dFORG -0.0018 [-0.0071, +0.0017]. At K=160 the
+   rp arm is nominally BETTER on both axes -- quoted as inside-noise,
+   not as a win; nothing here crosses 33e's 0.02 claim threshold.
+P3 HELD: rp/c64 price ratio 0.590 (K=112) and 0.581 (K=160) vs the
+   derived 0.58 +- 0.02 -- the (A) discount is K-independent because it
+   lives entirely in the xi term.
+P4 HELD in band (replay held-out 0.9187 vs 0.91 +- 0.02).
+
+M1 -- THE NAMED MUNDANE ACCOUNT IS THE OUTCOME. The bound transfers and
+this phase re-derives phase 43 on the ladder protocol: a legitimate,
+pre-registered, useful result. The fork's behavioral question is now
+CLOSED on the protocol where the organism is evaluated: the (A) store is
+behavior-neutral (within +-0.005 ACC / +-0.010 FORG, held out, both K,
+both decoders) and costs 0.581-0.590x of (B) wherever it is priced.
+
+THE COST TABLE STANDS ON ITS OWN (held-out means, bar recomputed per
+seed = 34.03 KB/ACC-pt; every byte number at frames=33600, with sum(P),
+nnz, density attached in section (3) of the report):
+   K=112: c64+CSR 68.70KB = 76.10 KB/pt = 2.236x | c64+narrow 63.47KB =
+   70.30 = 2.066x | rp+CSR 40.49KB = 44.88 = 1.319x | rp+narrow 35.25KB
+   = 39.07 = 1.148x  (nnz ~1251, sum(P) ~4556, density 0.100)
+   K=160: c64+CSR 96.45KB = 107.52 = 3.160x | c64+narrow 89.83KB =
+   100.13 = 2.943x | rp+CSR 56.15KB = 62.46 = 1.836x | rp+narrow
+   49.51KB = 55.08 = 1.619x  (nnz ~1576, sum(P) ~4892, density 0.062)
+   replay: 89.6KB at 0.9187 = 97.65 = 2.870x (33h's byte convention).
+
+RECOMMENDATION DELIVERED (section 5 of the report, verbatim in ROADMAP
+row 50): take branch (A) as the deployment persistence layout, with
+narrow CSR; keep complex128 compute width; real_phase stays default-OFF
+until the owner flips it; the T7.6 scoping note and the reversibility
+asymmetry travel with it. Harness section 19 pins the store-mode
+equivalence band and the price-ratio arithmetic at toy scale.
+
 RUN COMMANDS (each saves its own stdout; `report` needs the others' cache):
     python phase50_fork_ladder.py --run bar     > phase50_results_bar.txt
     python phase50_fork_ladder.py --run k112    > phase50_results_K112.txt
