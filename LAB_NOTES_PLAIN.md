@@ -630,6 +630,9 @@ Chapter 12 is a one-way door: take it and the system gets much cheaper and
 permanently loses a capability we have demonstrated but never yet used. We
 priced both sides carefully and deliberately did not choose. Everything that
 would be built on top of that decision is parked until it is made.
+*(Update 2026-08-14: the missing measurement has now been run — Chapter 20.
+The cheap store held up; a recommendation went up; the call is still the
+owner's and the parked work stays parked until it lands.)*
 
 ---
 
@@ -688,7 +691,7 @@ one where forgetting actually shows up, and forgetting is precisely what a
 lossier memory should damage first. So before choosing, we are running the
 cheap version through the test that would expose it. If it holds, we take
 the door; if old memories degrade, we keep the expensive memories and live
-with the cost.
+with the cost. *(That test has now been run — Chapter 20. It held.)*
 
 Two smaller things fell out of looking at it properly. The cost saving no
 longer decides anything important, because we just conceded that branch of
@@ -775,6 +778,68 @@ separated blocks. This whole study lives at that one setting. Everything
 above is "how to protect old memories *when the lessons are fully
 separated*" — it is not a general statement about memory, and the phase that
 varies that setting has not been run yet.
+
+---
+
+### Chapter 20 — The one-way door, measured before walking through it *(phase 50)*
+
+**Added 2026-08-14.** Chapter 12 found that half of every stored memory —
+the "timing" half of each complex number — is essentially empty, and that
+storing only the used half would nearly halve the price of memory. It also
+said, correctly, that taking that saving is a one-way door: do it and the
+system permanently gives up a capability we demonstrated once in a lab
+setting and have never used since. We priced both sides and refused to
+choose. The owner then refused to choose *blind*, and ordered the missing
+measurement instead: nobody had ever run the cheap store and the accuracy
+benchmark **in the same experiment**, and the old safety check had only
+looked at final accuracy — never at *forgetting*, which is exactly where a
+slightly-lossy memory should show damage first, and exactly the axis this
+project's remaining claims stand on.
+
+So this phase ran the full continual-learning benchmark twice at every
+setting — once with the normal store, once with the cheap one — at two
+memory sizes, ten runs each, half the runs held back so we could not fool
+ourselves, with the comparison baselines recomputed fresh on every run's
+own data split. We wrote down in advance the number that would kill the
+idea: if the cheap store costs 0.02 or more of forgetting, it is not worth
+taking at **any** price, because that would roughly double the forgetting
+the system actually shows.
+
+**The answer: the cheap store is indistinguishable from the full one.**
+Accuracy and forgetting both move by less than half a percent — within the
+noise, in both directions, at both sizes, on the held-back runs. The
+kill-number was never approached. And the discount is exactly what
+arithmetic said it would be: the cheap store costs about 0.58 of the full
+one wherever you measure it, because the saving lives entirely in the one
+term it halves. In plain terms: we get the memory system at 1.15× the cost
+of the simple supervised baseline, instead of 2.07×, for free — *on
+everything we currently measure*.
+
+Two honest footnotes, because this file is not the optimistic copy. First,
+the single most interesting-looking number in the early probe — at the
+larger memory size, one configuration appeared to beat experience replay,
+the method that tops our whole leaderboard — **evaporated on the held-back
+runs**, going the wrong way on all five. That is the third time this
+project has watched a one-run result die on reseeding, and it is why the
+held-back runs exist. Replay still beats us. Second, one sub-measurement
+did move in the worrying direction (forgetting, one decoder, one size, up
+by 0.003) — six times smaller than the kill-number, absent in every other
+slice, but written down as the number to watch rather than rounded away.
+
+**The recommendation we sent up, and what it actually gives up.** Take the
+cheap store — as the format the system *saves to disk in*, while computing
+at full width — but leave the switch off in the code until the owner flips
+it. The "permanent loss" turns out to be smaller than Chapter 12's framing
+suggested: two of the four planned future upgrades don't need the timing
+channel at all, and the two that do were already the weakest bets on the
+board — the system's own reading mechanism is blind to that channel below
+a measured threshold, and the capability it would carry collapses within
+dozens of steps by an older measurement. And the door is less one-way than
+it looks while the channel stays empty: you can always re-compress a full
+store into the cheap format later, whereas going back only loses what the
+empty channel had accumulated — which, measured, is nothing. The decision
+is still the owner's. What changed is that it is now a decision about
+measured numbers instead of feared ones.
 
 ---
 

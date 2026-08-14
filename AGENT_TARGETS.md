@@ -51,7 +51,10 @@ unblocked is not "released".
 (2) **T7.1's storage fork is to be measured, not chosen blind** — see
 **T7.7 (phase 50)**. The re-scope removed the fork's gate stakes, so it is
 now an architecture call on measured merit. **T7.6 and phase 48 remain
-untouched** until T7.7 reports.
+untouched** until T7.7 reports. *[Status 2026-08-14: T7.7 HAS REPORTED —
+the bound transfers, every prediction held, recommendation (A); ROADMAP
+row 50 is the decision artifact. The ruling is the owner's; phase 48 stays
+untouched until it lands.]*
 
 ---
 
@@ -1459,7 +1462,45 @@ T7.6 and NOT to be used until the fork is resolved).
   through frequency effects alone. The permutation null is the control;
   verify it is constructed to kill exactly that.
 
-### T7.7 — Fork decision measurement: the (A) store on the ladder (phase 50)  `[claimed: claude/t7-7-fork-ladder, 2026-08-13]`
+### T7.7 — Fork decision measurement: the (A) store on the ladder (phase 50)  `[DONE 2026-08-14: claude/t7-7-fork-ladder — the fork is measured, recommendation (A); see ROADMAP row 50]`
+- **RESULT (2026-08-14), misses and caveats first.** (1) **The probe's
+  seed-0 "K=160 organism above replay" observation DIED held-out** —
+  registered as an open question with the probe value disclosed (0.9301 vs
+  0.9100), it reversed on ALL FIVE held-out seeds (organism − replay mean
+  −0.0215); replay still tops the ladder at 0.9187/0.0834 held-out.
+  Selection, caught by the discipline that exists to catch it. (2) **The
+  largest fork delta is exactly where the charter said to look**: dFORG
+  argmax K=112 held-out +0.0034 [+0.0000, +0.0089] — rp forgets marginally
+  more, 6× inside the kill line, and it does NOT replicate at calib-b8
+  (−0.0006) or K=160 (−0.0050, rp better). The number to watch, not a
+  cost. (3) K=160 calib-b8 (held-out 0.8972) is not a better operating
+  point than K=112 (0.9029) — 33h's knee holds. **EVERY PRE-REGISTERED
+  PREDICTION HELD, and M1 — the named mundane account — IS the outcome:
+  phase 43's ≤0.005 bound TRANSFERS to the continual ladder** (worst
+  held-out mean dACC −0.0012 against the 0.005 band; worst dFORG +0.0034
+  against the 0.010 band; the pre-named kill line dFORG ≥ +0.020 / dACC ≤
+  −0.020 never approached — both K, both decoders, store mode, bootstrap
+  CIs). P1 anchors exact (bar 0.872/120/30720 B; K=160 argmax s0 0.9002;
+  K=112 floors 76.10 = 2.236× / 70.30 = 2.066× reproducing phase 44 to the
+  second decimal; rp 44.88 = 1.319× / 39.07 = 1.148× inside the registered
+  store-mode-vs-uncompressed attribution band). P3: the (A) discount is
+  K-independent — rp/c64 = 0.590 / 0.581 at K=112/160 vs the derived
+  0.58 ± 0.02. P4: replay reseeded held-out 0.9187 in band. K=160 cost for
+  the record: rp+narrow 55.08 KB/ACC-pt = 1.619× vs c64+narrow 100.13 =
+  2.943×. **RECOMMENDATION DELIVERED (the artifact is ROADMAP row 50):
+  take (A) — real_phase + narrow CSR as the deployment persistence layout
+  (39.07 KB/ACC-pt = 1.148× vs (B)'s 70.30 = 2.066×), compute width stays
+  complex128, `real_phase` stays default-OFF until the owner flips it** —
+  with the mandated scoping note: T7.6 (c)/(d) are fork-independent, so
+  (A) forfeits only arms (a)+(b), which carry the R ≈ 0.06 readout bar
+  and the 9–56-step collapse; the fork text overstates what (A) forfeits,
+  and (B)→(A) is a re-compression at any time while (A)→(B) loses only
+  what phase 43 measured to be empty. NOVELTY deliberately untouched (no
+  claim changes until the owner rules). Harness §19 (4 checks) pins the
+  store-mode equivalence bands and the byte-ratio arithmetic; 136/136
+  both backends. Runs preserved as `phase50_results_*.txt` +
+  `phase50_cells.json` in the working tree.
+- **Original target text below.**
 **Opened by the repo owner 2026-08-11 as the ruling on T7.1's fork: measure
 before choosing.** T7.1 priced the fork and correctly refused to choose it.
 The owner declines to choose it blind either — nobody has yet run the (A)
@@ -1504,7 +1545,7 @@ own rule is not to bank a number where it was not measured.
   ACC/FORG/cost table held out, ROADMAP row, harness section, and a
   recommendation the owner can act on in one reading.
 
-### T7.6 — Deep-architecture arms (phase 48)  `[BLOCKED: contingent on T7.1's fork — now measured by T7.7 (phase 50), still owner-decided]`
+### T7.6 — Deep-architecture arms (phase 48)  `[BLOCKED: T7.7 (phase 50) measured the fork 2026-08-14 — recommendation (A), ruling with the owner. Under (A) only arms (c)/(d) survive; (a)/(b) carry the R ≈ 0.06 readout bar and the 9–56-step collapse either way]`
 Do not start until the owner has resolved T7.1. Under branch (A) most of
 this is moot; under branch (B) it is the work that earns the width.
 Ordered by cost-to-information: (a) content-dependent phase — a per-item or
@@ -1554,14 +1595,17 @@ T7.1 fork ─► measure first (T7.7) ─► then choose ─► T7.6 unblocks
 ```
 
 **Phase-number ledger (check before reserving).** Used through 47.
-**48** reserved for T7.6 and deliberately unused until T7.7 reports.
-**39** USED by T6.2 (`phase39_retention_factors.py`, landed 2026-08-11), **49** reserved for T6.6, **50** for T7.7, **31** for T4.1.
+**48** reserved for T7.6 and deliberately unused until the owner rules on
+the measured fork (T7.7 reported 2026-08-14).
+**39** USED by T6.2 (`phase39_retention_factors.py`, landed 2026-08-11), **49** reserved for T6.6, **50** USED by T7.7 (`phase50_fork_ladder.py`, landed 2026-08-14), **31** for T4.1.
 Next free number for anything else: **51**.
 
 **Open, unclaimed and unblocked right now**: T6.6
-(phase 49), T7.7 (phase 50), T4.1 (phase 31), T3.2, T4.2, and — newly, by
+(phase 49), T4.1 (phase 31), T3.2, T4.2, and — newly, by
 the 2026-08-11 re-scope — T5.1 and T4.3. T6.2 (phase 39) closed 2026-08-11
 and its `p_decay` gap is an open follow-on: measuring transition decay as a
 retention factor needs a protocol whose metric consumes the transition
-graph, which the class-incremental readout does not. Still blocked: T2.4 (by T7.5's
-own pre-gate) and T7.6 (until T7.7 reports).
+graph, which the class-incremental readout does not. T7.7 (phase 50) closed
+2026-08-14 — the fork is measured, recommendation (A), ruling with the
+owner. Still blocked: T2.4 (by T7.5's
+own pre-gate) and T7.6 (until the owner rules on the measured fork).
