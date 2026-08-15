@@ -322,6 +322,19 @@ module — persistence is its defining feature, hence E3).
    certificate outright.
    **Nothing below the fork is built until T7.7 reports** — phase 48 stays
    reserved and unused.
+   **T7.7 REPORTED, 2026-08-14 (phase 50; ROADMAP row 50 is the decision
+   artifact).** The ≤0.005 bound TRANSFERS to the continual ladder — worst
+   held-out mean dACC −0.0012, dFORG +0.0034, both far inside their
+   pre-registered bands at K=112 and K=160, store mode, both decoders —
+   and the (A) discount is K-independent (0.59×/0.58× of (B)'s
+   KB/ACC-pt). Every pre-registered prediction held; the one probe
+   observation that looked like news (K=160 organism above replay at seed
+   0) died on held-out seeds 5/5. **Recommendation delivered: (A) —
+   real_phase + narrow CSR as the deployment persistence layout (1.148×
+   the bar vs (B)'s 2.066×), compute width complex128 unchanged,
+   `real_phase` default-OFF until the owner flips it.** The ruling is the
+   owner's; **phase 48 stays reserved and unused until it lands**, and
+   under (A) only arms (c)/(d) survive.
 
 10. **THE RELEASE HOLD IS LIFTED (owner ruling, 2026-08-11)** and this is
    now the first thing a cold start needs to know about claims. The gate

@@ -104,6 +104,22 @@ Sections (fast tier only; corpus-tier joins once E2/Numba makes it cheap):
      form pinned near zero on the same stream, and the clustering artifact
      (a RANDOM partition of a Zipfian stream scoring positive) pinned
      positive because it is what the category-level arm died on.
+ 18. eviction victim rule (T6.2, phase 39) -- which stale slot dies under
+     recruitment pressure. Pinned: argmin-count protects established core
+     memories where uniform-random eviction eats them (the load-bearing
+     sign), the stale pool has real establishedness spread (so the
+     comparison is not vacuous), and omitting `evict_victim` is bitwise
+     identical to passing the default.
+ 19. the (A) store on the ladder (T7.7, phase 50) -- store-mode fork
+     equivalence at toy scale. Pinned as bands: running the SAME
+     class-incremental mini-ladder with the store compressed and carried
+     forward at every task boundary under c64 vs real+phase moves ACC and
+     FORG by less than the claim threshold (phase 50 measured held-out
+     means within +-0.005 / +-0.010 at K=112/160), and the (A)/(B) store
+     byte ratio sits in the 0.58 +- band the layout arithmetic derives --
+     the discount lives in the xi term, so it cannot silently change
+     without this row noticing. The c64 arm's own ACC is pinned high so
+     the equivalence cannot pass vacuously on a dead readout.
 
 Run: `python regression_harness.py`. Exit code is nonzero if any check fails
 its tolerance. Each check prints its own measured value, tolerance band, and
@@ -1462,6 +1478,75 @@ def section_17_settling_and_chunks():
                "learns something' has to be re-earned against this row")
 
 
+# ========================== 19. the (A) store on the ladder (T7.7, phase 50)
+def section_19_fork_ladder():
+    print("\n(19) the (A) store on the ladder (T7.7, phase 50): store-mode "
+          "fork equivalence")
+    from label_readout import LabelEvidenceReadout
+    from organism_compress import CompressionSpec, compress
+
+    # A miniature of the 33c ladder: real-input class-incremental stream,
+    # two tasks of two classes, store COMPRESSED AND CARRIED FORWARD at
+    # every task boundary (the deployment path phase 50 measured). Toy
+    # scale on purpose -- the full-scale numbers live in phase 50's row;
+    # this row exists so the store-mode equivalence and the layout's price
+    # arithmetic cannot drift without a harness failure.
+    Nv, Kv, C = 32, 12, 4
+    NORMv = np.sqrt(Nv)
+    r0 = np.random.default_rng(19)
+    anchors = np.linalg.qr(r0.standard_normal((Nv, C)))[0].T * NORMv  # REAL
+    TASKS_ = [[0, 1], [2, 3]]
+
+    def sample(c, r):
+        v = anchors[c] + 0.30 * r.standard_normal(Nv)
+        return v / np.linalg.norm(v) * NORMv
+
+    re_ = np.random.default_rng(7)
+    Xe = np.array([sample(c, re_) for c in range(C) for _ in range(25)])
+    ye = np.repeat(np.arange(C), 25)
+
+    def run(spec):
+        r = np.random.default_rng(5)
+        o = Organism(N=Nv, K=Kv, omega=0.15, beta=10.0, seed=0)
+        ro = LabelEvidenceReadout(K=Kv, n_classes=C)
+        A = np.zeros((2, 2))
+        for ti, task in enumerate(TASKS_):
+            Xtr = np.array([sample(c, r) for _ in range(40) for c in task])
+            ytr = np.array([c for _ in range(40) for c in task])
+            seq = []
+            for i in r.permutation(len(Xtr)):
+                seq.extend([Xtr[i].astype(complex)] * 4)
+            o.perceive(seq, g_in=4.0, eta=0.02, recruit=0.6)
+            ro.observe(o, Xtr, ytr)
+            compress(o, spec=spec).apply(o)     # store mode: loss compounds
+            for tj, tk in enumerate(TASKS_):
+                m = np.isin(ye, tk)
+                A[ti, tj] = float((ro.predict(o, Xe[m]) == ye[m]).mean())
+        acc = float(np.mean(A[-1]))
+        forg = float(np.max(A[:, 0]) - A[1, 0])
+        return acc, forg, int(compress(o, spec=spec).nbytes)
+
+    acc_c, forg_c, b_c = run(CompressionSpec())              # (B): c64+CSR
+    acc_r, forg_r, b_r = run(CompressionSpec(real_phase=True))   # (A)
+
+    check("mini-ladder c64 arm final ACC", acc_c, 0.80, 1.01,
+          note="guards the equivalence rows against passing vacuously on a "
+               "dead readout")
+    check("store-mode fork delta |dACC| (real+phase vs c64)",
+          abs(acc_r - acc_c), 0.0, 0.02,
+          note="phase 50: held-out mean dACC within +-0.005 at K=112/160, "
+               "both decoders -- the band here is 33e's claim threshold, "
+               "the line phase 50 pre-registered as a REAL cost")
+    check("store-mode fork delta |dFORG| (real+phase vs c64)",
+          abs(forg_r - forg_c), 0.0, 0.02,
+          note="phase 50: held-out mean dFORG within +-0.010; the kill line "
+               "(+0.02, which resolves the fork to (B)) was never approached")
+    check("(A)/(B) store byte ratio, same live store", b_r / b_c, 0.48, 0.68,
+          note="phase 50 measured 0.590 (K=112) / 0.581 (K=160): the "
+               "discount lives entirely in the xi term, so it is "
+               "K-independent -- this row is the arithmetic's toy twin")
+
+
 def _trace_ref(nxt, a, b):
     """`organism._trace`, inlined so the check does not import a private."""
     from organism import _trace
@@ -1492,6 +1577,7 @@ if __name__ == "__main__":
     section_16_sparse_default()
     section_17_settling_and_chunks()
     section_18_victim_rule()
+    section_19_fork_ladder()
 
     dt = time.time() - t0
     print(f"\n{'='*70}")
