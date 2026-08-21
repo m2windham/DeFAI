@@ -282,7 +282,30 @@ module — persistence is its defining feature, hence E3).
    re-measure first. See ROADMAP rows 42 and E4.
 8. **In-flight PR #23**: demo/outreach track (D1-D4, phase 31 self-lesion
    protocol) + phases 32/33. Reconcile with it before touching those areas.
-9. **THE STORAGE FORK IS OPEN AND IT IS THE OWNER'S** (T7.1, phase 43;
+9. **THE STORAGE FORK IS CLOSED — RULED (A), 2026-08-14.** Read this
+   paragraph before the historical text below it, which is preserved for
+   provenance and is now superseded in two places.
+   **The ruling**: `real_phase` + narrow CSR is the **deployment
+   persistence encoding** (39.07 KB/ACC-pt = **1.148×** the bar vs (B)'s
+   70.30 = 2.066×); **complex128 remains the COMPUTE width** — E2's
+   contract is untouched. T7.7 (phase 50) measured the fork on the
+   continual ladder with FORG reported, the axis phase 43 could not see:
+   worst held-out dACC −0.0012 (band ±0.005), worst dFORG +0.0034 (band
+   ±0.010), kill line never approached. **Watch dFORG +0.0034 at
+   K=112/argmax** — 6× inside the kill line, non-replicating at calib-b8
+   and K=160, and the number any future persistence change re-measures.
+   **`real_phase` is still DEFAULT-OFF in code.** T7.8 lands the flip with
+   full anchor re-verification; until then 1.148× is *the ratified layout*,
+   never "the current default".
+   **Two corrections to the text below.** (i) "Permanently forfeits" was
+   wrong in both directions: (B)→(A) is a re-compression available at any
+   time, and (A)→(B) loses only what the imaginary channel accumulated,
+   which phase 43 measured as nothing at the committed parameters. (ii)
+   (A) forfeits only T7.6 arms (a)+(b) — (c) and (d) are fork-independent,
+   so the cheapest measured route to sequence memory survives intact.
+   **Historical text follows.**
+
+   **THE STORAGE FORK AS IT WAS POSED** (T7.1, phase 43;
    priced further by T7.2, phase 44). The cost floor's dominant term is
    that a field memory is a COMPLEX N-vector where the prototype bar's is
    REAL. Phase 43 measured the imaginary half **empty** — median residual
