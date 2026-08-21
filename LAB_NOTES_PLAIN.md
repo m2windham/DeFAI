@@ -841,6 +841,33 @@ empty channel had accumulated — which, measured, is nothing. The decision
 is still the owner's. What changed is that it is now a decision about
 measured numbers instead of feared ones.
 
+
+**The decision, 2026-08-14.** The owner took it: from now on the system
+**saves to disk in the cheap format**, while still *thinking* in the full
+one. The saving is real and the measured cost is indistinguishable from
+zero on everything we currently test.
+
+Three things are worth saying about *how* this got decided, because the
+process is the part worth copying. The measurement was **ordered before
+the choice**, not after it — the number that settled the question did not
+exist until someone insisted on having it. The run then **killed its own
+best headline**, and we kept the kill. And the one measurement that pointed
+the wrong way was **written down rather than rounded away**; it now sits on
+a watch-list that any future change to the storage format has to re-check.
+
+We also have to correct ourselves about the door. We called it one-way
+three times in this file, and that was wrong in both directions: going back
+is a re-conversion you can do whenever you like, and going forward gives up
+only what the unused channel had accumulated, which was measured to be
+nothing. It is a valve, not a door, and it only closes if that channel ever
+starts carrying something. What we are actually spending is an *option* —
+and that option already had two measured obstacles standing in front of it.
+
+One last piece of honesty: **the code does not do this yet.** Ratifying a
+format is not the same as changing the default, and this project pins
+changes like that rather than assuming them. Until that work lands, "1.15×"
+is the format we have chosen, not the thing running today.
+
 ---
 
 ## What people push back on, and the honest answer

@@ -48,13 +48,19 @@ reading before you write any release-facing artifact. It **concedes** the
 cost branch rather than passing it, and the "NOT SOTA / cost conceded"
 line travels with every capability claim. T5.1 and T4.3 are unblocked;
 unblocked is not "released".
-(2) **T7.1's storage fork is to be measured, not chosen blind** — see
-**T7.7 (phase 50)**. The re-scope removed the fork's gate stakes, so it is
-now an architecture call on measured merit. **T7.6 and phase 48 remain
-untouched** until T7.7 reports. *[Status 2026-08-14: T7.7 HAS REPORTED —
-the bound transfers, every prediction held, recommendation (A); ROADMAP
-row 50 is the decision artifact. The ruling is the owner's; phase 48 stays
-untouched until it lands.]*
+(2) **T7.1's storage fork was measured, not chosen blind** — T7.7 (phase
+50) reported 2026-08-14: the ≤0.005 bound transfers to the ladder, every
+prediction held, recommendation (A).
+(3) **RULED 2026-08-14 — the fork resolves to (A).** The `real_phase` +
+narrow-CSR layout is the **deployment persistence encoding** (1.148× the
+bar vs (B)'s 2.066×); **complex128 stays the compute width** and the E2
+contract is untouched. Decision record at the top of `ROADMAP.md`.
+**This ruling does not flip a default.** `real_phase` stays **default-OFF
+in code** until **T7.8** lands the flip with full anchor re-verification,
+and **until then no artifact may quote 1.148× as "the current default"** —
+only as *the ratified layout*. **T7.6 unblocks for arms (c)/(d) only**;
+arms (a)/(b) are closed by the ruling and phase 48 is released for the
+survivors.
 
 ---
 
@@ -1498,7 +1504,11 @@ T7.6 and NOT to be used until the fork is resolved).
   what phase 43 measured to be empty. NOVELTY deliberately untouched (no
   claim changes until the owner rules). Harness §19 (4 checks) pins the
   store-mode equivalence bands and the byte-ratio arithmetic; 136/136
-  both backends. Runs preserved as `phase50_results_*.txt` +
+  both backends. (Owner audit 2026-08-14: the run artifacts below were
+  never committed and the container was ephemeral, so they **no longer
+  exist** — the numbers survive in ROADMAP row 50 and
+  `phase50_fork_ladder.py` regenerates them. An outcome block may not cite
+  evidence that lives only in a working tree.) Runs were `phase50_results_*.txt` +
   `phase50_cells.json` in the working tree.
 - **Original target text below.**
 **Opened by the repo owner 2026-08-11 as the ruling on T7.1's fork: measure
@@ -1545,7 +1555,45 @@ own rule is not to bank a number where it was not measured.
   ACC/FORG/cost table held out, ROADMAP row, harness section, and a
   recommendation the owner can act on in one reading.
 
-### T7.6 — Deep-architecture arms (phase 48)  `[BLOCKED: T7.7 (phase 50) measured the fork 2026-08-14 — recommendation (A), ruling with the owner. Under (A) only arms (c)/(d) survive; (a)/(b) carry the R ≈ 0.06 readout bar and the 9–56-step collapse either way]`
+### T7.8 — Land the (A) persistence default (no new phase number)  `[claimed: —]`
+**Opened by the repo owner 2026-08-14 as the execution half of the (A)
+ruling.** The fork is decided; the code still does (B). This target closes
+that gap and nothing else — it is deliberately an **engineering** target
+with no new science, and it must not acquire any.
+- **Do**: flip `real_phase` from default-OFF to the default persistence
+  encoding, together with phase 44's narrow CSR. Compute width stays
+  **complex128** — if this target changes an arithmetic path, it has
+  exceeded its scope.
+- **Why it is not a one-line change**: a persistence default touches every
+  E3 round-trip, every byte number in the project, and the schema. Expect
+  a schema bump with **backward load for v1/v2/v3**, and expect the byte
+  accounting in phases 33g/33h/43/44/50 to need its convention restated
+  rather than its numbers changed.
+- **Bar for landing** (in addition to SOP section C): E3 round-trip green
+  for the new default **and** every prior schema; the phase-50 equivalence
+  bands re-measured on the default path, not just the opt-in path; and
+  **dFORG at K=112/argmax re-reported explicitly** — the ruling put that
+  number on a watch-list precisely so a format change re-checks it.
+- **Do NOT** quote 1.148× as "the current default" in any artifact until
+  this lands. Until then it is *the ratified layout*.
+- **Done when**: default flipped, harness pinning the new default's byte
+  arithmetic and equivalence, all five doc surfaces updated to say the code
+  now does what the ruling says, and the "ratified layout / not the current
+  default" caveat **removed** from NOVELTY, ROADMAP and FABLE_HANDOFF in the
+  same commit that makes it false.
+
+### T7.6 — Deep-architecture arms (phase 48)  `[UNBLOCKED 2026-08-14 for arms (c) and (d) ONLY — the owner ruled (A); arms (a) content-dependent phase and (b) phase-aware readout are CLOSED by that ruling]`
+**Read before starting.** The (A) ruling closed half of this target. Arms
+**(a)** and **(b)** are not "deferred", they are **closed**: the persistence
+layout no longer carries the channel they would write to, and both already
+had to clear phase 43's R ≈ 0.06 readout-blindness bar and phase 16's
+9–56-step collapse. Reopening them is a persistence-format change plus two
+measured obstacles, and is an owner decision, not an agent's.
+**Arms (c) and (d) are fork-independent and are what this target now is.**
+Take **(c) first** — it is the cheapest measured route to sequence memory
+and, per T8.1, it is also the first candidate mechanism for Category 8's
+Gate 0. **Coordinate with T8.1 before starting: if T8.1 is claimed, (c)
+belongs to it and this target is (d) alone.**
 Do not start until the owner has resolved T7.1. Under branch (A) most of
 this is moot; under branch (B) it is the work that earns the width.
 Ordered by cost-to-information: (a) content-dependent phase — a per-item or
@@ -1564,6 +1612,143 @@ third-order tensor at K=112 is ~1.4M entries and dead on arrival, so the
 affordable form is low-rank (R·3K) or T7.5's sparse chunk-node inventory,
 whose saturation curve caps the rank worth buying. Price both against
 T7.5's measured gain before building either.
+
+---
+
+## Category 8 — Agentic language model (opened by the repo owner, 2026-08-14)
+
+**Why this category exists, and read this before claiming anything in it.**
+The owner asked what it would take to turn this architecture into a true
+agentic language model. This category is the honest answer, decomposed into
+**gates with kill rules** rather than a build plan — because three of the
+relevant results are already measured, and they are negative.
+
+**The starting position, stated without flattery.** An agentic LM needs
+long-range context, compositional binding, word-level generation, goal
+conditioning, an action-conditioned world model, scale, and outcome-driven
+credit assignment. Of those, the architecture today has **one** in good
+shape (the action-conditioned world model and planning — phases 15/30/40),
+**one** measured weak (word-level generation — phase 41 measured splitting
+*hurting* word-level likelihood), **one** measured empty and now closed by
+ruling (phase-superposition binding — N8), and **one** that is a hard
+structural limit: the logic layer is a **first-order Markov model over slot
+indices**. Phase 40 established the binding constraint is graph **order**,
+not size, and that a dense third-order tensor at K=112 is ~1.4M entries and
+dead on arrival.
+
+**The number that should govern this category's ambition.** On the phase
+34/35 sequence-prediction protocol, a **bigram table** held ~0.85–0.87 flat
+at a small fraction of the compute while the organism fell 99% → 28% from 50
+to 800 words; two-stage hierarchical routing (phase 36) restored ~85%. A
+first-order transition model over discrete slots *is* approximately a bigram
+model, and language modelling is exactly where that ceiling binds hardest.
+**Any agent working here who finds themselves reporting that the system
+"does language" without having cleared Gate 0 has made an error.**
+
+**Owner's standing recommendation, recorded so it is argued with rather
+than rediscovered.** The measurements point at a **hybrid**, not a
+replacement: every axis this architecture is differentiated on is one
+conventional LMs are worst at, and every axis it is weak on is one they are
+best at. That complementarity is four measurement campaigns' worth of
+evidence, not a hunch. **T8.6 is the recommended path and clears no research
+gates at all.** T8.1 is the honest test of whether the pure path exists.
+Both are worth having; only one of them is likely to ship.
+
+Phase numbers reserved by this category: **51, 52, 53, 54, 55**.
+
+Standing additions for every target here, on top of the SOP and Category
+7's: **pre-register a kill rule, not just a prediction** — a gate you
+cannot fail is not a gate; and **name the conventional baseline you are
+measured against before you run**, because "better than our previous
+version" is not evidence of language capability.
+
+### T8.1 — GATE 0: context depth beyond first order (phase 51)  `[claimed: —]`
+**The make-or-break, and the only target in this category worth running
+before the others.** Everything downstream assumes it clears.
+- **Question**: can the state carry usable context beyond one step, above a
+  measured permutation null? Not "is there a mechanism that could" — phase
+  43 already established that `perceive` computes a phasor sum and is
+  *capable* of order sensitivity. The question is whether any of that
+  reaches a consumer.
+- **Do (a) FIRST and stop if it clears or clearly fails**: **the dual time
+  constant** — a second field state at a slower `g_in`, O(N), ~0.001× of the
+  K×N store, **fork-independent** (T7.6(c); coordinate with T7.6, this arm
+  belongs to whichever target claims first). Measure effective context depth
+  against a permutation null over shuffled histories, and report it as a
+  **curve over depth**, not a single number.
+- **Then (b) if and only if (a) is ambiguous**: the low-rank or sparse
+  higher-order graph. Note before you spend anything: T7.5 already measured
+  the chunk route's category level **failing its label-permutation null**,
+  so that path is wounded before you start, and phase 40 priced the dense
+  form as dead on arrival.
+- **CLOSED, do not attempt**: content-dependent phase and the phase-aware
+  readout. The 2026-08-14 ruling closed them; reopening is the owner's.
+- **KILL RULE, pre-register it verbatim**: if effective context depth does
+  not exceed **2–3 tokens above the permutation null** on any surviving
+  mechanism, **the architecture is not a language model**, this category
+  stops at T8.6, and that is a genuine and publishable result rather than a
+  failure. Write down before running what "effective context depth" means
+  operationally and what number would falsify a depth claim.
+- **Mundane account to name**: any depth signal is carried by unigram
+  frequency structure rather than order, and a shuffled-history control at
+  matched marginals removes it. Build that control **into** the first run.
+- **Done when**: `phase51_*.py`, the depth curve with its null, the kill
+  rule adjudicated **out loud**, ROADMAP row, harness section.
+
+### T8.2 — GATE 1: compositional binding (phase 52)  `[BLOCKED on T8.1]`
+Do not start until Gate 0 has been adjudicated. Representing "X did Y to Z"
+is required by both language and agency, and the architecture's own binding
+mechanism (N8) is measured empty, closed by ruling, and carries a
+**9–56-step collapse** — lifetime, not accuracy, is the binding risk. Any
+proposal here must say in advance what it does about lifetime, and must be
+measured against a conventional baseline (a slot-filling or
+role-labelling baseline), not against the project's own earlier attempts.
+
+### T8.3 — GATE 2: word-level generation (phase 53)  `[BLOCKED on T8.1 + T8.2]`
+The weakest measured axis. **Do not attempt first** — phase 41 already
+measured detection-driven splitting improving next-*category* prediction
+while making word-level likelihood **worse than not splitting** (−0.081
+nats/token), and generation not improving at all on either metric. Starting
+here re-derives that negative at full cost. Scored against a conventional
+LM baseline at matched compute, with perplexity reported, or it does not
+count.
+
+### T8.4 — GATE 3: vocabulary scale (phase 54)  `[claimed: —]`
+10³ → 10⁵ vocabulary is two orders of magnitude past anything measured.
+Attractor Crowding Collapse (N3) is named and fixed label-free, and
+hierarchical routing (phase 36) holds ~85% to 800 items — **whether that
+survives 100× is unknown, and it is a research question rather than an
+engineering one.** Independent of Gates 0–2, so it can run in parallel;
+its result is informative whichever way Gate 0 goes.
+
+### T8.5 — GATE 4: agency proper (phase 55)  `[claimed: —]`
+**The architecture's most natural extension, and it is independent of Gates
+0–3.** Model-based planning over a learned transition graph is standard
+model-based RL, and the pieces exist: `phase15_action_conditioned.py`, plus
+phases 30/40's `kstep`/`rollout`/`plan`/`plan_reliable`/`plan_visit`. What
+is missing is **goal conditioning** and **outcome-driven credit assignment**
+— the agent currently plans but never learns from whether the plan worked.
+Add those, measure against a tabular model-based RL baseline on a task with
+a real reward signal, and report regret, not just success rate. This is the
+target most likely to produce something that works, and it should probably
+run **before** T8.2/T8.3 regardless of Gate 0's outcome.
+
+### T8.6 — The hybrid: episodic-memory substrate for an external agent  `[claimed: —]`
+**The owner's recommended path, and it clears no research gates.** Expose
+the organism as the **persistent episodic memory and world model** for an
+agent whose language faculty is a conventional LM: the LM generates and
+follows instructions; the field does what it is measured to do — continuous
+unlabelled experience, retention without task boundaries or replay buffers,
+exact resume, and a queryable transition graph over the agent's own history.
+- This is **already what T5.1 names** (the episodic-memory product fork),
+  and T5.1 is unblocked as of the 2026-08-11 re-scope. Coordinate rather
+  than duplicating: if T5.1 is claimed, this is its engineering half.
+- **The honest framing to keep**: this is a memory substrate, not a language
+  model. Every claim it makes is a claim about memory, retention and
+  persistence — the axes with evidence — and none about generation.
+- **Bar**: an integration where the memory's contribution is *measured*
+  (ablate it and show the agent degrades), not merely present. An
+  unablated integration is a demo, not a result.
 
 ---
 
@@ -1592,20 +1777,51 @@ T7.5 macro-recruit pre-gates ─► T2.4 (phase 29) if the category arm survives
 Owner rulings 2026-08-11:
 gate RE-SCOPED to capability axes ─► RELEASE HOLD LIFTED ─► T5.1, T4.3 open
 T7.1 fork ─► measure first (T7.7) ─► then choose ─► T7.6 unblocks
+
+Owner ruling 2026-08-14 (fork resolved to (A)):
+T7.7 measured ─► RULED (A) ─┬─► T7.8 land the default (code still does (B))
+                            ├─► T7.6 arms (c)/(d) only; (a)/(b) CLOSED
+                            └─► N8 edited down (deferred, not deleted)
+
+Category 8 (agentic LM, opened 2026-08-14) — GATED, not a build plan:
+T8.1 GATE 0 context depth ─► if it fails, the category stops at T8.6
+     └─ shares arm (c) with T7.6 — coordinate before claiming
+T8.2 GATE 1 binding [blocked on T8.1] ─► T8.3 GATE 2 generation [blocked]
+T8.4 GATE 3 scale        ─┐ independent of Gates 0-2, run any time
+T8.5 GATE 4 agency       ─┘ closest to working; run before T8.2/T8.3
+T8.6 HYBRID substrate ─► the recommended path; clears no research gates
+     └─ overlaps T5.1's product fork — coordinate, do not duplicate
 ```
 
-**Phase-number ledger (check before reserving).** Used through 47.
-**48** reserved for T7.6 and deliberately unused until the owner rules on
-the measured fork (T7.7 reported 2026-08-14).
-**39** USED by T6.2 (`phase39_retention_factors.py`, landed 2026-08-11), **49** reserved for T6.6, **50** USED by T7.7 (`phase50_fork_ladder.py`, landed 2026-08-14), **31** for T4.1.
-Next free number for anything else: **51**.
+**Phase-number ledger (check before reserving).** Used through **50**.
+**39** USED by T6.2 (`phase39_retention_factors.py`, landed 2026-08-11);
+**50** USED by T7.7 (`phase50_fork_ladder.py`, landed 2026-08-14).
+**48** reserved for T7.6 — **released 2026-08-14 for arms (c)/(d) only**,
+arms (a)/(b) closed by the fork ruling. **49** reserved for T6.6, **31**
+for T4.1. **51–55** reserved for Category 8 (T8.1–T8.5, in that order).
+**T7.8 needs no phase number** — it is an engineering change.
+Next free number for anything else: **56**.
 
-**Open, unclaimed and unblocked right now**: T6.6
-(phase 49), T4.1 (phase 31), T3.2, T4.2, and — newly, by
-the 2026-08-11 re-scope — T5.1 and T4.3. T6.2 (phase 39) closed 2026-08-11
-and its `p_decay` gap is an open follow-on: measuring transition decay as a
-retention factor needs a protocol whose metric consumes the transition
-graph, which the class-incremental readout does not. T7.7 (phase 50) closed
-2026-08-14 — the fork is measured, recommendation (A), ruling with the
-owner. Still blocked: T2.4 (by T7.5's
-own pre-gate) and T7.6 (until the owner rules on the measured fork).
+**Open, unclaimed and unblocked right now** (as of 2026-08-14):
+**T7.8** — land the (A) persistence default; the ruling's execution half,
+and the code still does (B) until it lands.
+**T8.1** — Category 8's Gate 0, the make-or-break for the agentic-LM
+question. **T8.5** — Gate 4 (agency), the closest thing to working.
+**T8.6** — the hybrid substrate, the owner's recommended path.
+Also: **T8.4**, **T7.6 arms (c)/(d)** (phase 48), T6.6 (phase 49),
+T4.1 (phase 31), T3.1, T3.2, T4.2, and — by the 2026-08-11 re-scope —
+T5.1 and T4.3.
+
+**Closed recently**: T6.2 (phase 39, 2026-08-11) — its `p_decay` gap is an
+open follow-on, since measuring transition decay as a retention factor
+needs a protocol whose metric consumes the transition graph, which the
+class-incremental readout does not. T7.7 (phase 50, 2026-08-14) — the fork
+was measured and **ruled (A) on 2026-08-14**.
+
+**Blocked**: T2.4 (by T7.5's own pre-gate); T8.2 and T8.3 (by T8.1's gate);
+T7.6 arms (a)/(b) (**closed**, not blocked — reopening is the owner's).
+
+**Coordination hazards, check before claiming**: T7.6(c) and T8.1's first
+arm are the **same dual-time-constant experiment** — claim one, not both.
+T8.6 and T5.1 overlap on the episodic-memory product — coordinate rather
+than duplicating. This project has built the same thing twice before.

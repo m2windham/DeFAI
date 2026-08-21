@@ -23,7 +23,13 @@ launch essay, so marketing never outruns the harness.
 > on class-incremental accuracy (0.712 vs the 0.872 prototype bar; replay
 > tops the ladder at 0.913/0.105), **cost parity and the ≤2× fallback both
 > missed** at a measured 2.24× (2.07× narrowed), equal-accuracy
-> cost-effectiveness **not claimable**. Every claim below is quoted with
+> cost-effectiveness **not claimable**. *(Those are the numbers the gate
+> was conceded on, and they stay on the record as such. Separately, on
+> 2026-08-14 the owner ratified the (A) persistence layout, measured at
+> **1.148×** — see ROADMAP row 50. It is **the ratified layout, not the
+> current default**: `real_phase` stays default-OFF until T7.8 lands the
+> flip, and until then no artifact may quote 1.148× as what the code does
+> today.)* Every claim below is quoted with
 > that line in the same breath — including in the D2 essay. A capability
 > claim published without it misrepresents the decision that authorized it.
 
@@ -42,7 +48,7 @@ ROADMAP row they cite. If a claim is weakened by a later run, it is
 | N5 | Category validity without geometry | **Solid** | k-selection at scale (phase 27 residual) |
 | N6 | Bitwise persistence + stable symbol identity | **Solid (engineering)** | T4.1 — survive a lesion |
 | N7 | Eviction under recruitment pressure | **Narrow but crisp** (factorized; the law now has two clauses — T6.2 done) | self-calibrate **both** knobs from online statistics (N7 step 3) |
-| N8 | Phase-superposition binding | **Partial — unsolved** | protection mechanism |
+| N8 | Phase-superposition binding | **Partial — unsolved, and now DEFERRED by ruling** (2026-08-14: the persistence layout no longer stores the channel) | none pending; reopening costs the R ≈ 0.06 readout bar + the 9–56-step collapse *and* a persistence-format change |
 | N9 | The measurement discipline itself | **Underrated** | codify as a harness tier |
 
 ---
@@ -597,6 +603,19 @@ for it; this is a gap, not a null result.
 > a flaw in the design; it is a consequence of two dials being set the way
 > they are, and we now know which dials and roughly what turning them
 > would cost.
+>
+> **Added 2026-08-14 — the owner has now ruled, and this claim is edited
+> down rather than deleted.** Since the channel was measured empty and
+> nothing downstream reads it, the project has decided to **stop saving it
+> to disk**, which nearly halves the cost of stored memory. So this
+> capability is now **deferred, not merely unsolved**: it is no longer
+> something the system is quietly carrying and might one day switch on. To
+> revive it you would have to clear the two obstacles already measured —
+> the readout cannot see the channel until it is ~230× stronger than it is,
+> and the chord collapses within a few dozen steps — *and* change the
+> storage format back. That last part is genuinely reversible, so nothing
+> is destroyed; it is simply no longer free. **The system still computes in
+> full complex numbers.** What changed is only what gets written down.
 
 
 **Claim, scoped down.** Relative phase is a real binding code — perfect
