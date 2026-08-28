@@ -1118,6 +1118,7 @@ class Organism:
     def _perceive(self, stream, g_in=4.0, dt=0.05, eta=0.02, recruit=0.55, p_decay=0.0,
                   confirm=0, probation=6000, pool=False, active_bar=0.6, s_hat=0.0,
                   amb=0.0, fuse_bar=0.7, evict=0, evict_victim='count',
+                  recruit_mode='appearance', ctx_min_count=40, ctx_tv=0.35,
                   evict_debug=None):
         """p_decay: exponential forgetting of transition counts, applied once
         per observed transition (synaptic decay). 0.0 = original behavior
@@ -1339,13 +1340,64 @@ class Organism:
             raise ValueError(
                 f"unknown evict_victim {evict_victim!r}; "
                 f"expected one of {sorted(_EVICT_VICTIMS)}") from None
-        if self._use_fastpath():
+        if recruit_mode not in ('appearance', 'predictive'):
+            raise ValueError(
+                f"unknown recruit_mode {recruit_mode!r}; "
+                "expected 'appearance' or 'predictive'")
+        predictive = (recruit_mode == 'predictive')
+        if predictive and pool:
+            raise ValueError("recruit_mode='predictive' is not implemented for "
+                             "pool mode; do not silently fall back")
+        if self._use_fastpath() and not predictive:
             return fastpath.perceive_fast(
                 self, stream, g_in=g_in, dt=dt, eta=eta, recruit=recruit,
                 p_decay=p_decay, confirm=confirm, probation=probation,
                 pool=pool, active_bar=active_bar, s_hat=s_hat, amb=amb,
                 fuse_bar=fuse_bar, evict=evict, evict_victim=evict_victim,
                 evict_debug=evict_debug)
+        # T8.1 (phase 52), default OFF: the causal-state criterion at the
+        # recruit site. `recruit` groups by APPEARANCE -- a similarity floor.
+        # Causal states group by PREDICTED FUTURE. Phase 51 measured that the
+        # second partition is the better sufficient statistic when the two
+        # differ; this is the online, gradient-free, label-free form of it.
+        #
+        # Bookkeeping is SPARSE by construction, which is what keeps this off
+        # phase 40's O(K^3) rock: `ctx_succ[(prev, k)]` and `pooled_succ[k]`
+        # are dicts over PAIRS THAT ACTUALLY OCCUR, not a dense K x K x K
+        # tensor. A slot is split on a context only after ctx_min_count
+        # observations of that context AND a total-variation divergence above
+        # ctx_tv between P(next | k, prev) and P(next | k).
+        if predictive:
+            if not hasattr(self, 'ctx_succ'):
+                self.ctx_succ, self.pooled_succ = {}, {}
+                self.ctx_split = {}        # (prev, k) -> dedicated slot
+            ctx_succ, pooled_succ, ctx_split = (
+                self.ctx_succ, self.pooled_succ, self.ctx_split)
+            prev_commit = [-1]             # last committed slot, for context
+            last_commit = [-1]             # the one before it
+
+            def _tv(a, b):
+                sa, sb = a.sum(), b.sum()
+                if sa <= 0 or sb <= 0:
+                    return 0.0
+                return 0.5 * float(np.abs(a / sa - b / sb).sum())
+
+            def _note(prev_k, k, nxt):
+                if prev_k < 0 or nxt < 0:
+                    return
+                key = (prev_k, k)
+                ctx_succ.setdefault(key, np.zeros(self.K))[nxt] += 1.0
+                pooled_succ.setdefault(k, np.zeros(self.K))[nxt] += 1.0
+
+            def _wants_split(prev_k, k):
+                key = (prev_k, k)
+                c = ctx_succ.get(key)
+                if c is None or c.sum() < ctx_min_count:
+                    return False
+                pooled = pooled_succ.get(k)
+                if pooled is None or pooled.sum() < 2 * ctx_min_count:
+                    return False
+                return _tv(c, pooled) >= ctx_tv
         if victim == _VICTIM_RANDOM and evict > 0:
             # one draw per frame, from a generator that is NOT self.rng, so
             # recall's stochastic stream is unchanged by the control arm; the
@@ -1469,7 +1521,28 @@ class Organism:
                     # throttle, demand at recruit-spacing flushes the whole
                     # bank every regime change (measured, phase 33b).
                     evict_one()
-                if m[k] < recruit and not self.used.all():  # novel -> recruit a free slot
+                split_here = False
+                if predictive and m[k] >= recruit:
+                    # APPEARANCE says refine slot k. Ask the causal-state
+                    # question instead: given this context, does k predict a
+                    # different future than k does on average? If so, this is
+                    # a DIFFERENT causal state wearing the same appearance --
+                    # the aliasing case phase 51 measured -- and it earns its
+                    # own slot.
+                    pk = prev_commit[0]
+                    key = (pk, k)
+                    if key in ctx_split and self.used[ctx_split[key]]:
+                        k = ctx_split[key]                 # already split: route
+                    elif _wants_split(pk, k) and not self.used.all():
+                        f = int(np.argmin(self.used.astype(float)))
+                        self.xi[f] = normalize(z, self.norm); self.used[f] = True
+                        age[f] = 0; self.tenure[f] = 0
+                        if confirm > 0:
+                            prov[f] = True; hits[f] = 0
+                        ctx_split[key] = f; k = f; split_here = True
+                if split_here:
+                    pass                                   # freshly split: nothing to refine
+                elif m[k] < recruit and not self.used.all():  # novel -> recruit a free slot
                     f = int(np.argmin(self.used.astype(float)))
                     self.xi[f] = normalize(z, self.norm); self.used[f] = True; k = f
                     age[f] = 0
@@ -1514,6 +1587,12 @@ class Organism:
                     if evict > 0 and not pool:             # confident use resets the budget
                         age[k] = 0                         # clock (pool: acceptance owns it)
                     boundary.commit(k)                     # recognitions cross into logic
+                    if predictive and k != prev_commit[0]:
+                        # a transition just became observable: credit it to the
+                        # (predecessor, slot) context that produced it, then
+                        # advance the context anchor
+                        _note(prev_commit[0], last_commit[0], k)
+                        last_commit[0], prev_commit[0] = prev_commit[0], k
             last_k = k
         if confirm > 0:                                    # purge still-unconfirmed slots
             if self.registry is not None:
