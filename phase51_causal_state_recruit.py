@@ -391,7 +391,12 @@ def main():
     print(f"  appearances the criterion chose to SPLIT: "
           f"{[all_res[s]['_split_set'] for s in hout][0]}  (ground truth: [1])")
     print(f"  merge groups formed: {np.mean([all_res[s]['_n_groups'] for s in hout]):.1f}"
-          f"   (ground truth: 4 non-split groups -> A2/A3 merged)")
+          f"   (1-step ground truth: 2 -- see note)")
+    print("  NOTE, corrected after the first run: an earlier draft of this line")
+    print("  expected 4 groups. That expectation was WRONG. At a 1-step horizon")
+    print("  A0 and A4 both go to A1 with probability 1, so they are genuinely")
+    print("  synonymous and merging them is correct; A2/A3 merge as designed.")
+    print("  Two groups is the right answer and the criterion found it.")
 
     print("\n" + "=" * 78)
     print("SCOPE: constructed stream where the two equivalence relations differ")
