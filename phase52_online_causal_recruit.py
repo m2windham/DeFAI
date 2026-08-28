@@ -24,7 +24,55 @@ actually occur, never a dense K^3 tensor. That is what keeps this off phase
 K=112 and called it dead on arrival. It was right about the dense form.
 
 =============================================================================
-PRE-REGISTERED PREDICTIONS
+OUTCOME 2026-08-28: **VOID ON ITS OWN PRECONDITION.** Read before the
+predictions below; they were never adjudicable.
+=============================================================================
+The phase does not report a result because its substrate precondition fails,
+and the failure is informative.
+
+P0 (added after the first runs, and it should have been here from the start):
+the organism must form ONE SLOT PER APPEARANCE before a context-conditioned
+split of those slots can mean anything. It does not.
+
+Measured, K=24, orthogonal codebook (Gram matrix exactly the identity):
+  A0 -> s3 0.602 | s2 0.560 | s1 0.521      <- no slot of its own
+  A1 -> s1 0.828     A2 -> s2 0.697
+  A3 -> s3 0.664     A4 -> s4 0.695
+A0 is SMEARED across three slots. The collision persists at K=12, 16 and 24,
+so it is not capacity.
+
+WHY, and this is the finding: A0 is the one symbol that is always in transit.
+It has three predecessors and a deterministic successor, so its frame blocks
+are always entered from a different symbol. The field carries a^hold = 0.168
+of the previous symbol into every block, so A0's settled state is a different
+blend every time and never condenses into an attractor. **This is the settling
+problem appearing as a missing memory** -- not an abstraction about phase, an
+absent slot for a symbol that occurs 1404 times.
+
+TWO ERRORS OF MINE, both recorded rather than quietly fixed:
+ (1) The first run reported 0 splits because `_note` was called with the
+     predecessor and slot arguments swapped, so the table was keyed backwards
+     from the lookup and no split could fire. Fixed; it was not the only
+     problem, and the run was void either way.
+ (2) I set K_BASE=12 "deliberately tight" and dropped phase 51's P4 guard,
+     which existed to catch exactly this class of failure.
+
+**CORRECTION TO PHASE 51, which is the part that travels.** Phase 51's P4
+reported "slot-argmax agreement with appearance labels: 1.0000" and I read it
+as the organism having recovered the appearance partition. **It measures
+PURITY, not INJECTIVITY.** If two appearances map to one slot, every probe of
+each is still assigned consistently, so purity is 1.0 while the partition has
+silently merged two symbols. P4 cannot detect a merge and did not.
+
+Phase 51's headline SURVIVES, because its APPEARANCE arm used ground-truth
+appearance ids rather than the organism's slots, so what it compared was the
+idealized appearance partition against the causal one. But phase 51 therefore
+never tested the organism's REAL partition, P4 was the check that was supposed
+to bridge that gap, and it does not. Any future use of that agreement number
+must check injectivity as well.
+
+=============================================================================
+PRE-REGISTERED PREDICTIONS (never adjudicated -- P0 failed first)
 =============================================================================
 P1  ONLINE beats APPEARANCE on held-out predictive information, on every
     paired seed, margin >= 0.20 bits. Weaker than phase 51's >= 0.30 because
@@ -135,12 +183,44 @@ def run_seed(seed):
     return out
 
 
+def injectivity(org, code):
+    """P0: distinct appearances must land on DISTINCT slots. Phase 51's P4
+    measured purity, which is 1.0 even when two appearances share a slot."""
+    live = np.flatnonzero(org.used)
+    o = np.abs(np.asarray([code[a] for a in range(N_APPEARANCE)])
+               @ org.xi[live].conj().T) / N_DIM
+    m = {a: int(live[np.argmax(o[a])]) for a in range(N_APPEARANCE)}
+    return len(set(m.values())), m
+
+
 def main():
     print("=" * 78)
     print("PHASE 52 (T8.1) -- the causal-state criterion INSIDE recruit, online")
     print(f"backend=numpy (predictive mode is numpy-only by design)  "
           f"N={N_DIM} K_base={K_BASE}")
     print("=" * 78)
+    # ---- P0 FIRST. If the substrate does not represent the stream, nothing
+    # downstream is adjudicable and this phase must refuse to print a verdict.
+    from organism import Organism
+    rng0 = np.random.default_rng(90210 + 5)
+    code0 = appearance_codebook(np.random.default_rng(90210 + 7005))
+    st0 = hidden_walk(N_SYMBOLS_TRAIN, rng0)
+    fr0, _ = emit(st0, code0, rng0)
+    probe = Organism(N=N_DIM, K=24, seed=5, backend="numpy")
+    probe.perceive(fr0)
+    n_distinct, mapping = injectivity(probe, code0)
+    print(f"\nP0 PRECONDITION -- one slot per appearance (K=24)")
+    print(f"  appearance -> slot: {mapping}")
+    print(f"  distinct slots: {n_distinct}/{N_APPEARANCE}")
+    if n_distinct < N_APPEARANCE:
+        print("  P0 FAILED -> PHASE VOID. The organism does not form one slot")
+        print("  per appearance, so a context-conditioned split of its slots")
+        print("  cannot be interpreted. See the OUTCOME block in this file's")
+        print("  docstring: A0 is always in transit and never condenses.")
+        print("  Reporting no verdict on P1/P2 or the kill rule -- a void is")
+        print("  not a negative result and must not be recorded as one.")
+        print("=" * 78)
+        return
     sel, hout = range(0, 5), range(5, 10)
     R = {s: run_seed(s) for s in list(sel) + list(hout)}
     arms = ("APPEARANCE", "ONLINE", "APPEARANCE+K", "TRUE-CAUSAL (oracle)")

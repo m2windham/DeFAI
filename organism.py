@@ -1591,7 +1591,13 @@ class Organism:
                         # a transition just became observable: credit it to the
                         # (predecessor, slot) context that produced it, then
                         # advance the context anchor
-                        _note(prev_commit[0], last_commit[0], k)
+                        # commits run ... p, s, n ...: last_commit is p,
+                        # prev_commit is s, and k is n. The table is keyed
+                        # (predecessor, slot) so it matches _wants_split's
+                        # lookup -- passing these the other way round keys the
+                        # table backwards from the lookup and no split can ever
+                        # fire, which is exactly what the first run measured.
+                        _note(last_commit[0], prev_commit[0], k)
                         last_commit[0], prev_commit[0] = prev_commit[0], k
             last_k = k
         if confirm > 0:                                    # purge still-unconfirmed slots
