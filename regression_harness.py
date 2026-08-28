@@ -1528,6 +1528,30 @@ def section_20_compressed_persistence():
           note="p_narrow round-tripped by accident before this, reporting False")
     check("c_spec records p_narrow", float(bool(rec.get('p_narrow'))), 1.0, 1.0)
 
+    # the RATIFIED (A) layout, as a named spec rather than a changed default:
+    # CompressionSpec() is the measurement baseline (this file uses it as the
+    # c64 arm of the fork comparison in section 15), so the ruling is honored
+    # by naming the layout, not by redefining what every anchor is quoted
+    # against. See organism_compress.deployment_spec.
+    from organism_compress import deployment_spec
+    dep = deployment_spec()
+    dpath = _os.path.join(tempfile.gettempdir(), "e3_deployment.npz")
+    save_state(org, dpath, compress_spec=dep)
+    dback = load_state(dpath, cls=Organism)
+    dref = compress(org, spec=dep)
+    check("deployment_spec E3 round-trip: max|dxi| vs its own encoding",
+          float(np.abs(dref.xi_full() - dback.xi).max()), 0.0, 0.0,
+          note="the ratified (A) layout must survive save/load -- it could not "
+               "before 2026-08-28")
+    check("deployment_spec E3 round-trip: max|dP|",
+          float(np.abs(org.P - dback.P).max()), 0.0, 0.0)
+    check("deployment_spec is real_phase + p_narrow",
+          float(bool(dep.real_phase) and bool(dep.p_narrow)), 1.0, 1.0)
+    check("CompressionSpec() baseline is NOT the deployment layout",
+          float(bool(CompressionSpec().real_phase)), 0.0, 0.0,
+          note="section 15 uses the bare spec as its c64 arm; flipping the "
+               "default would turn that A-vs-B test into A-vs-A")
+
 
 def section_19_fork_ladder():
     print("\n(19) the (A) store on the ladder (T7.7, phase 50): store-mode "

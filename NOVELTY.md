@@ -27,9 +27,15 @@ launch essay, so marketing never outruns the harness.
 > was conceded on, and they stay on the record as such. Separately, on
 > 2026-08-14 the owner ratified the (A) persistence layout, measured at
 > **1.148×** — see ROADMAP row 50. It is **the ratified layout, not the
-> current default**: `real_phase` stays default-OFF until T7.8 lands the
-> flip, and until then no artifact may quote 1.148× as what the code does
-> today.)* Every claim below is quoted with
+> current default**. T7.8 was amended on 2026-08-28: the layout is now a
+> NAMED spec, `organism_compress.deployment_spec()`, rather than a changed
+> `CompressionSpec` default — because the bare spec is the measurement
+> baseline the harness uses as the c64 arm of its own fork comparison, so
+> flipping it would have turned that A-vs-B test into A-vs-A. The layout is
+> persistable and pinned (harness §20); what is still open is T7.8's own
+> bar, phase 50 re-measured on the deployment path with dFORG at K=112
+> re-reported, which needs torch. **Until that runs, no artifact may quote
+> 1.148× as what the code does today.**)* Every claim below is quoted with
 > that line in the same breath — including in the D2 essay. A capability
 > claim published without it misrepresents the decision that authorized it.
 
@@ -42,7 +48,7 @@ ROADMAP row they cite. If a claim is weakened by a later run, it is
 | # | Novelty | Strength | Next step |
 |---|---|---|---|
 | N1 | Predictive (Myhill–Nerode) polysemy detection | **Strongest** | sense *counts*, then real text (T6.4 done) |
-| N2 | Field-free logic layer that does real work | **Strong** | T6.3 — reasoning depth |
+| N2 | Field-free logic layer that does real work | **Strong**, with a measured qualifier: the GENERATIVE half of it is evidence-blind (phase 53) | wire `confidence` past the planners, as its own target with the semantics decision made explicitly |
 | N3 | Attractor Crowding Collapse, named and fixed label-free | **Strong** | real-text impurity test |
 | N4 | Gradient-free continual learning | **Solid** | T6.1/T6.2 — boundary-free + retention |
 | N5 | Category validity without geometry | **Solid** | k-selection at scale (phase 27 residual) |
