@@ -67,7 +67,9 @@ survivors.
 ## Standing operating protocol (every target, every session)
 
 This is the professional baseline. Individual targets add requirements;
-none of them relax these. Every line below exists because this project paid
+none of them relax these. (Rule **9b** is numbered that way on purpose:
+phase scripts cite these rules by number — `phase52` and `phase53` both say
+"SOP rule 6" — so the list is appended to, never renumbered.) Every line below exists because this project paid
 for it — E2 was built twice, a shared checkout corrupted its git index mid-
 merge, two agents both named a script `phase33e`, and three separate
 positive results evaporated under reseeding.
@@ -102,6 +104,32 @@ positive results evaporated under reseeding.
    a change in a shared file (`organism.py`, `fastpath.py`,
    `regression_harness.py`), check the claim slots first and keep the edit
    minimal, additive, and behind a default-off flag where possible.
+9b. **A default that a committed script relies on is an ANCHOR, not a
+    preference. Audit the call sites before you change one — always, even
+    when a measurement says the new value is better.** Added 2026-08-28
+    after this failure mode appeared three times in three days, each time
+    presented as a cheap one-line improvement and each time actually a
+    silent redefinition of a measurement baseline:
+    - `LabelEvidenceReadout`'s `decoder="argmax"`. A compute-and-use audit
+      ranked flipping it to `calib-b8` its **highest-value** item, on 33h's
+      measured +0.026 held-out. **Eight committed phase scripts plus
+      `regression_harness.py` call `predict(org, Xe)` with no decoder
+      argument**, among them `phase33c`, which produces the 0.665 and 0.712
+      anchors the gate decision rests on. Refused; recorded as T7.9.
+    - `CompressionSpec()`'s defaults. T7.8 said "flip `real_phase` to the
+      default". The harness uses the bare spec as **the c64 arm of its own
+      fork comparison** — the flip would have turned an A-vs-B test into
+      A-vs-A while still printing a number. Amended to name the layout
+      (`deployment_spec()`) instead of redefining the baseline.
+    - Phase 43's "content-dependent phase is a parameter setting". True of
+      the within-slot channel only; the per-slot channel is gauge-fixed by a
+      de-rotation in the write path, so no parameter reaches it at all.
+    **The procedure**: `grep` every call site before touching a default.
+    A default with callers that omit the argument is load-bearing, and the
+    numbers those callers produced were produced *with it*. Changing it is
+    then a phase — re-derive every affected number and republish them
+    together — not an edit. **A measured improvement and a safe default are
+    different claims**; establishing the first says nothing about the second.
 10. **Do not re-open closed negatives.** Phase 9 re-attribution, low-rank
     compression (33g), the count-normalized victim rule (33f), gradient-era
     machinery (ROADMAP's dropped list). If you believe one deserves
@@ -1591,7 +1619,10 @@ served by a decoder whose advantage was measured at K=112.
 
 **Standing lesson, and the reason this target exists at all**: a measured
 improvement and a safe default are different claims. This one has the first
-and not the second.
+and not the second. **Now generalized into the SOP as rule 9b**, after the
+same failure mode appeared twice more within three days — T7.8's
+`CompressionSpec` defaults and phase 43's gauge attribution. This target is
+the first piece of that case law; read 9b before touching any default.
 
 ### T7.8 — Land the (A) persistence layout (no new phase number)  `[PARTIALLY LANDED 2026-08-28: claude/repo-owner-26nu39 — the layout is named, persistable and pinned; the phase-50 re-measurement bar is NOT met and the target stays open]`
 **Status, owner 2026-08-28.** Three things happened; read all three before
