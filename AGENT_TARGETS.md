@@ -1555,6 +1555,44 @@ own rule is not to bank a number where it was not measured.
   ACC/FORG/cost table held out, ROADMAP row, harness section, and a
   recommendation the owner can act on in one reading.
 
+### T7.9 — Readout default: measured signal, load-bearing default  `[claimed: —]`
+**Opened by the repo owner 2026-08-28 out of the compute-and-use audit, and
+opened specifically to STOP the obvious change rather than to make it.**
+
+The audit ranked "flip `LabelEvidenceReadout`'s default decoder from
+`argmax` to `calib-b8`" as its #1 item — highest information recovered per
+unit cost — on the grounds that 33h measured **+0.026 held-out, positive on
+every held-out seed at K=112**, and the default was simply never moved.
+The measured signal is real. **The cost estimate was wrong, and the owner
+refused the change.**
+
+**Why.** `predict()`'s default is load-bearing. Eight committed phase
+scripts plus `regression_harness.py` call `readout.predict(org, Xe)` with
+**no decoder argument**: phases 33, 33c, 33d, 33f, 33g, 38, 39, and
+`label_readout.py`'s own demo. Among them `phase33c_gate_retest.py`
+produces **0.665 (evict=0) and 0.712 (ORGANISM+B)** — the anchors the
+entire gate decision rests on — and 33d produces the ladder
+0.712/0.837/0.854/0.900. `test_label_readout.py` pins "argmax reproduces
+the committed evict=0 anchor ACC 0.665". Flipping the default silently
+re-defines what all of those scripts compute.
+
+**So this is not a default that was forgotten. It is an anchor.**
+
+**What the target is, if anyone takes it.** Not "flip the default". Either:
+(a) leave it and make the reasoning explicit at the call sites, so the next
+audit does not re-raise it; or (b) if `calib-b8` is wanted in production,
+run it as a phase that re-derives **every** committed number above under
+the new decoder and restates them together — the anchors do not silently
+move, they get re-measured and republished with the change that moved them.
+33h's own scope applies: the gain comes from per-slot label DISTRIBUTIONS
+having mass to recover, so it appears at K=112 and vanishes at low capacity
+(K=24: nothing survives). A default serving callers at K=40 is not obviously
+served by a decoder whose advantage was measured at K=112.
+
+**Standing lesson, and the reason this target exists at all**: a measured
+improvement and a safe default are different claims. This one has the first
+and not the second.
+
 ### T7.8 — Land the (A) persistence default (no new phase number)  `[claimed: —]`
 **Opened by the repo owner 2026-08-14 as the execution half of the (A)
 ruling.** The fork is decided; the code still does (B). This target closes

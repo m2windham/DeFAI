@@ -1479,6 +1479,56 @@ def section_17_settling_and_chunks():
 
 
 # ========================== 19. the (A) store on the ladder (T7.7, phase 50)
+def section_20_compressed_persistence():
+    print("\n(20) compressed-state persistence for every CompressionSpec lever "
+          "(owner audit, 2026-08-28)")
+    import os as _os, tempfile
+    from organism_state import save_state, load_state
+    from organism_compress import CompressionSpec, compress
+
+    # WHY THIS SECTION EXISTS. A compute-and-use audit found that
+    # save_state(..., CompressionSpec(real_phase=True)) wrote a file that
+    # load_state then REFUSED: the compressor puts the store in st.polar and
+    # leaves st.xi = None, and _save_compressed wrote arrays['xi'] = st.xi
+    # regardless, producing a 0-d object array that fails under
+    # allow_pickle=False. So the T7.1 branch-(A) layout -- the arm the owner
+    # RATIFIED on 2026-08-14, whose entire value proposition is persistence --
+    # could not survive a round trip. Sections 8 and 10 both missed it because
+    # neither exercised these two levers. Every lever gets a round trip here.
+    rg = np.random.default_rng(4)
+    Nv, Kv = 32, 8
+    S = [(lambda v: v / np.linalg.norm(v) * np.sqrt(Nv))(
+         rg.standard_normal(Nv) + 1j * rg.standard_normal(Nv)) for _ in range(600)]
+    org = Organism(N=Nv, K=Kv, seed=0)
+    org.perceive(S)
+
+    specs = (("plain", CompressionSpec()),
+             ("real_phase", CompressionSpec(real_phase=True)),
+             ("p_narrow", CompressionSpec(p_narrow=True)),
+             ("real_phase+p_narrow", CompressionSpec(real_phase=True, p_narrow=True)))
+    for name, spec in specs:
+        path = _os.path.join(tempfile.gettempdir(), f"e3_cspec_{name}.npz")
+        save_state(org, path, compress_spec=spec)
+        back = load_state(path, cls=Organism)
+        ref = compress(org, spec=spec).xi_full()      # the encoding's OWN target,
+        d_xi = float(np.abs(ref - back.xi).max())     # not the uncompressed store
+        d_P = float(np.abs(org.P - back.P).max())
+        check(f"E3 round-trip '{name}': max|dxi| vs its own encoding",
+              d_xi, 0.0, 0.0,
+              note="EXACT: a lever that cannot round-trip is not a lever")
+        check(f"E3 round-trip '{name}': max|dP|", d_P, 0.0, 0.0)
+
+    # the spec must come BACK, or byte accounting from a loaded state is wrong
+    path = _os.path.join(tempfile.gettempdir(), "e3_cspec_flags.npz")
+    save_state(org, path, compress_spec=CompressionSpec(real_phase=True, p_narrow=True))
+    import json as _json
+    with np.load(path, allow_pickle=False) as f:
+        rec = _json.loads(bytes(f['c_spec']).decode())
+    check("c_spec records real_phase", float(bool(rec.get('real_phase'))), 1.0, 1.0,
+          note="p_narrow round-tripped by accident before this, reporting False")
+    check("c_spec records p_narrow", float(bool(rec.get('p_narrow'))), 1.0, 1.0)
+
+
 def section_19_fork_ladder():
     print("\n(19) the (A) store on the ladder (T7.7, phase 50): store-mode "
           "fork equivalence")
@@ -1578,6 +1628,7 @@ if __name__ == "__main__":
     section_17_settling_and_chunks()
     section_18_victim_rule()
     section_19_fork_ladder()
+    section_20_compressed_persistence()
 
     dt = time.time() - t0
     print(f"\n{'='*70}")
