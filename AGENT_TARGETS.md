@@ -1662,7 +1662,49 @@ cannot fail is not a gate; and **name the conventional baseline you are
 measured against before you run**, because "better than our previous
 version" is not evidence of language capability.
 
-### T8.1 — GATE 0: context depth beyond first order (phase 51)  `[claimed: —]`
+### T8.1 — GATE 0: context depth beyond first order (phase 51)  `[claimed: claude/repo-owner-26nu39, 2026-08-28 — phase 51 reserved. RE-SCOPED on the 2026-08-28 literature pass: see the causal-state reframe below]`
+
+**RE-SCOPE, repo owner, 2026-08-28 — read this before the original text.**
+A literature pass changed what this gate should test, in two ways.
+
+**(i) The dual-time-constant arm is published work, not discovery.** The
+memory–nonlinearity trade-off is a known and general result in reservoir
+computing: nonlinear dynamics degrade stored memory regardless of the form
+of the nonlinearity (Inubushi & Yoshimura, *Sci. Rep.* 2017), and the
+remedy that paper proposes is a **mixture reservoir carrying both linear
+and nonlinear dynamics** — which is what T7.6(c) is. It should be run as
+engineering and **must not be claimed as novel**. DeFAI's settling is its
+nonlinearity; the memory loss is the theorem's prediction, not a tuning
+failure.
+
+**(ii) The sharper question is the equivalence relation, not the depth.**
+Computational mechanics (Crutchfield/Shalizi) defines **causal states**:
+the equivalence classes of pasts that induce identical conditional
+distributions over futures — the coarsest partition retaining full
+predictive power, with optimality theorems for prediction, minimality and
+uniqueness. That is the minimal sufficient statistic, constructively
+defined. Now compare what the organism does:
+
+- **`recruit` partitions on APPEARANCE** — a similarity floor on overlap.
+- **N1 partitions on PREDICTED FUTURE** — the Myhill–Nerode criterion, and
+  causal states are exactly its generalization from deterministic automata
+  to stochastic processes.
+
+**This project already found the right equivalence relation and used it
+only as a detector.** N1 is the strongest, most-replicated claim in the
+register; it is also the one place the correct criterion is applied. The
+hypothesis this target now tests is that the criterion belongs in
+`recruit`, not bolted on afterward — and that a first-order graph over
+*causal* states is maximally predictive by construction (the ε-machine
+optimality theorem), which would mean phase 40's "the constraint is graph
+ORDER" was measuring the wrong nodes rather than the wrong order.
+
+**Phase 51 is the cheapest possible test of that**, and it is
+protocol-level: no change to `organism.py`. Run the real organism, take its
+real recruited partition, build the causal-state partition on the same
+observation sequence, and compare **predictive information at matched
+cardinality on held-out data**.
+
 **The make-or-break, and the only target in this category worth running
 before the others.** Everything downstream assumes it clears.
 - **Question**: can the state carry usable context beyond one step, above a
