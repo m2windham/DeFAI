@@ -868,6 +868,58 @@ format is not the same as changing the default, and this project pins
 changes like that rather than assuming them. Until that work lands, "1.15×"
 is the format we have chosen, not the thing running today.
 
+### Chapter 21 — We found the right question, and then found we cannot ask it yet *(phases 51-53)*
+
+**Added 2026-08-28.** Three experiments, and the most useful one failed.
+
+**The idea.** The system decides that two things are "the same memory" by
+asking whether they *look* alike. There is an older idea in physics and
+computer science that says the right question is different: two situations
+are the same if they imply the same *future*. Our strongest result — the one
+about words with two jobs — already uses that second question. It just uses
+it as a detector, bolted on after the memories have already been formed the
+first way. So we asked whether it belongs in the memory-forming rule itself.
+
+**It does, on paper.** On a stream built so the two questions genuinely
+disagree, grouping by predicted-future is measurably better: it captures more
+of what is predictable, using *fewer* memories than the ideal answer needs.
+And the gain is not spread thinly — it sits entirely on the one symbol we
+deliberately made ambiguous, and is exactly zero everywhere else. That is
+what a real mechanism looks like as opposed to a statistical accident.
+
+**Then we tried to make it run live, and it would not.** Not because the idea
+failed, but because the system could not hold the stream steady enough to
+test it. One of the five symbols never gets a memory of its own at all. It is
+smeared across three. We checked whether it was a space problem; it is not,
+at any size we tried.
+
+The reason is the thing this project has been circling for weeks. That
+particular symbol is always *in transit* — it only ever appears between other
+symbols, and the system carries a fraction of whatever came before into
+whatever comes next. So it settles somewhere slightly different every time
+and never becomes a stable thing. **A symbol that occurred fourteen hundred
+times has no memory.** That is the settling problem, no longer as an
+abstraction but as a missing file in the cabinet.
+
+**Two mistakes of ours, recorded because that is the rule here.** The first
+run of the live test reported "no effect" — but only because we had wired two
+values in the wrong order, so the mechanism could never fire at all. And we
+had quietly dropped a safety check from the earlier experiment. Worse, when
+we went back to that safety check we found it was never strong enough: it
+confirmed the system was *consistent* about which memory it used, which stays
+true even when two different things share one memory. It could not detect a
+collision, and it did not.
+
+**A third result, small and clean.** An audit found that the half of the
+system that *generates* — imagining what comes next — ignores how much
+evidence stands behind each of its beliefs, while the half that *plans* does
+not. We measured it: a connection seen three times, all agreeing, is followed
+40% more often than it should be. The fix exists in the code already and is
+simply not connected to that half. We have not connected it, because doing so
+changes what the numbers mean and that deserves its own decision.
+
+---
+
 ---
 
 ## What people push back on, and the honest answer

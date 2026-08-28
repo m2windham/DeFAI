@@ -42,7 +42,7 @@ ROADMAP row they cite. If a claim is weakened by a later run, it is
 | # | Novelty | Strength | Next step |
 |---|---|---|---|
 | N1 | Predictive (Myhill–Nerode) polysemy detection | **Strongest** | sense *counts*, then real text (T6.4 done) |
-| N2 | Field-free logic layer that does real work | **Strong** | T6.3 — reasoning depth |
+| N2 | Field-free logic layer that does real work | **Strong**, with a measured qualifier: the GENERATIVE half of it is evidence-blind (phase 53) | wire `confidence` past the planners, as its own target with the semantics decision made explicitly |
 | N3 | Attractor Crowding Collapse, named and fixed label-free | **Strong** | real-text impurity test |
 | N4 | Gradient-free continual learning | **Solid** | T6.1/T6.2 — boundary-free + retention |
 | N5 | Category validity without geometry | **Solid** | k-selection at scale (phase 27 residual) |

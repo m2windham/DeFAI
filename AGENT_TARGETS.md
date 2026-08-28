@@ -1737,7 +1737,29 @@ cannot fail is not a gate; and **name the conventional baseline you are
 measured against before you run**, because "better than our previous
 version" is not evidence of language capability.
 
-### T8.1 — GATE 0: context depth beyond first order (phase 51)  `[claimed: claude/repo-owner-26nu39, 2026-08-28 — phase 51 reserved. RE-SCOPED on the 2026-08-28 literature pass: see the causal-state reframe below]`
+### T8.1 — GATE 0: context depth beyond first order (phases 51, 52)  `[PARTIAL 2026-08-28: claude/repo-owner-26nu39 — phase 51 CONFIRMS the criterion batch; phase 52 is VOID on a substrate precondition. Gate 0 NOT adjudicated]`
+**Where this stands, and it is deliberately not called done.**
+- **Phase 51 (batch): the criterion works.** Causal partition beats
+  appearance by **+0.372 bits held-out, 5/5 seeds**, with the loss **exactly
+  localized** to the aliased symbol (delta 0.9693 there, exactly 0.0000
+  everywhere else), matching the oracle's predictive information with one
+  fewer state. ROADMAP row 51.
+- **Phase 52 (online): VOID, not negative.** The organism does not form one
+  slot per appearance — A0 is smeared across three slots at every K tried —
+  so a context-conditioned split of its slots is uninterpretable. **The
+  reason is the settling problem itself**: A0 is always in transit, so the
+  0.168 of the previous symbol the field carries in makes it settle to a
+  different blend every time. ROADMAP row 52.
+- **Therefore Gate 0's kill rule has NOT been adjudicated.** Nobody may
+  record this target as passing or failing. What phase 52 established is a
+  *prior* obstacle: **the substrate cannot represent a symbol that is always
+  in transit**, and that has to be addressed before the equivalence question
+  can be asked online at all.
+- **Correction that binds any future use**: phase 51's P4 measures purity,
+  not injectivity, and cannot detect two appearances sharing a slot. Check
+  injectivity, as phase 52 now does.
+- Original re-scope and the literature pass follow.
+
 
 **RE-SCOPE, repo owner, 2026-08-28 — read this before the original text.**
 A literature pass changed what this gate should test, in two ways.
