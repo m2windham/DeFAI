@@ -29,6 +29,31 @@ No organism is involved: this is a property of the REPRESENTATION, and
 pinning it to the mechanism would confound the question.
 
 =============================================================================
+FIRST RUN VOID, 2026-08-28 -- design error, corrected below before the
+committed run. Recorded rather than quietly fixed.
+=============================================================================
+The first design used an EXACTLY ORTHONORMAL codebook, on the reasoning that
+it removes chance orthogonality (M1). That reasoning was wrong twice:
+
+ (1) **It caps the answer by construction.** At most N mutually orthonormal
+     vectors exist in N dimensions, so the codebook -- and therefore m* --
+     could never exceed N. The measured m* then saturated against the grid
+     ceiling (128) rather than against any capacity, and reported "capacity
+     is FLAT in N" as a KILL. That verdict was an artifact of my own limits
+     and is withdrawn.
+ (2) **It removes the mechanism, not a confound.** Quasi-orthogonality of
+     random high-dimensional vectors IS what VSA capacity rests on. Testing
+     it with an orthonormal basis tests something else.
+
+P2 caught this, which is what P2 was for: m*(64) came out at 50 against
+phase 16's ~5, i.e. the protocol was not measuring phase 16's quantity.
+
+CORRECTED DESIGN: random unit-norm complex codebook (quasi-orthogonal, as
+VSA specifies), of a size held FIXED across N -- which is the right control
+for "did capacity rise, or did the task get easier" -- and a grid extended
+far enough to find the ceiling rather than hit mine.
+
+=============================================================================
 PRE-REGISTERED PREDICTIONS
 =============================================================================
 P1  m* grows with N, and grows APPROXIMATELY LINEARLY. Concretely: m*(512)
@@ -57,21 +82,26 @@ already recorded.
 """
 import numpy as np
 
-DIMS = (32, 64, 128, 256, 512, 1024)
-MS = (2, 3, 5, 8, 12, 20, 32, 50, 80, 128)
+DIMS = (32, 64, 128, 256, 512, 1024, 2048)
+MS = (2, 3, 5, 8, 12, 20, 32, 50, 80, 128, 200, 320, 500)
 N_TRIALS = 200
-CODEBOOK = 256          # items available to superpose from
+CODEBOOK = 512          # FIXED across N: the control for "did the task get
+                        # easier". Quasi-orthogonal random vectors, which is
+                        # what VSA capacity actually rests on -- an
+                        # orthonormal basis would cap the codebook at N and
+                        # cap the answer with it (see the VOID note above).
 
 
-def codebook(N, rng, orthonormal=True):
-    M = rng.standard_normal((min(CODEBOOK, N), N)) + 1j * rng.standard_normal((min(CODEBOOK, N), N))
-    if orthonormal:
-        Q, _ = np.linalg.qr(M.T)
+def codebook(N, rng, orthonormal=False):
+    M = (rng.standard_normal((CODEBOOK, N))
+         + 1j * rng.standard_normal((CODEBOOK, N)))
+    if orthonormal:                      # kept only for the reported contrast
+        Q, _ = np.linalg.qr(M[:min(CODEBOOK, N)].T)
         return Q.T * np.sqrt(N)
     return M / np.linalg.norm(M, axis=1, keepdims=True) * np.sqrt(N)
 
 
-def recovery(N, m, seed, orthonormal=True):
+def recovery(N, m, seed, orthonormal=False):
     """Superpose m items; fraction recovered by nearest-neighbour."""
     rng = np.random.default_rng(70000 + seed * 97 + N)
     C = codebook(N, rng, orthonormal)
@@ -88,7 +118,7 @@ def recovery(N, m, seed, orthonormal=True):
     return hit / tot
 
 
-def capacity(N, seed, orthonormal=True, bar=0.95):
+def capacity(N, seed, orthonormal=False, bar=0.95):
     """Largest m whose recovery is still >= bar."""
     best = 0
     for m in MS:
@@ -105,7 +135,7 @@ def capacity(N, seed, orthonormal=True, bar=0.95):
 def main():
     print("=" * 78)
     print("PHASE 55 -- binding ceiling: mechanism limit or dimension limit?")
-    print("DECISION EXPERIMENT 2 of 3   (recovery bar 0.95, orthonormal codebook)")
+    print(f"DECISION EXPERIMENT 2 of 3   (bar 0.95, quasi-orthogonal codebook of {CODEBOOK}, fixed across N)")
     print("=" * 78)
     seeds = range(0, 5)
 
@@ -129,12 +159,13 @@ def main():
     print(f"  m*(64) = {caps[64].mean():.1f}  (phase 16 measured ~5)")
     print(f"  P2 (3-10): {'HELD -- same quantity' if ok2 else 'FAILED -- this may not be what phase 16 measured'}")
 
-    print("\n--- M1: is the scaling just chance orthogonality? " + "-" * 26)
-    print("  (codebook above is EXACTLY orthonormal by QR, so chance is removed)")
-    rand = np.array([capacity(512, s, orthonormal=False) for s in seeds])
-    print(f"  m*(512) orthonormal {caps[512].mean():.1f}   random-unit {rand.mean():.1f}")
-    print("  M1 is rejected by construction: the main sweep never used chance")
-    print("  orthogonality. The random row is reported for completeness only.")
+    print("\n--- M1: did capacity rise, or did the task get easier? " + "-" * 21)
+    print(f"  The codebook is held FIXED at {CODEBOOK} items across every N, so")
+    print("  the retrieval problem is identical at each dimension and only the")
+    print("  representation width changes. M1 is controlled by construction.")
+    orth = np.array([capacity(512, s, orthonormal=True) for s in seeds])
+    print(f"  reported contrast, orthonormal basis at N=512: m* = {orth.mean():.1f}")
+    print("  (that arm is capped at N by construction -- see the VOID note)")
 
     print("\n--- KILL RULE " + "-" * 58)
     if not p1:

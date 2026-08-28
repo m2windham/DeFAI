@@ -36,6 +36,31 @@ R is reported at every omega from `real_phase_residual`, so the readout
 result is anchored to the channel's measured occupancy rather than assumed.
 
 =============================================================================
+FIRST RUN VOID on P3, 2026-08-28 -- setup error, corrected before the
+committed run. Recorded rather than quietly fixed.
+=============================================================================
+The first run reported median R = 4.4e-01 at EVERY omega including 0.15 --
+flat, and three orders of magnitude above phase 43's measured 2.55e-04 at
+the committed omega. P3 exists to catch exactly that and did.
+
+The cause: the phase 51/52 codebook is COMPLEX-VALUED (standard_normal +
+1j*standard_normal). Phase 43's 54-file census established that no committed
+pipeline in this repo builds a complex stream -- every one casts real
+embeddings -- so a complex-input stream fills the imaginary channel at the
+input and the omega sweep then tests nothing about channel occupancy. The
+kill rule fired on an invalid setup and that verdict is withdrawn.
+
+CORRECTED: REAL-valued codebook cast to complex, which is what every
+committed pipeline actually feeds. R then starts near zero and the sweep
+measures what it was meant to measure.
+
+SCOPE NOTE THAT NOW TRAVELS TO PHASES 51/52/56: those three used the complex
+codebook too. Phase 51's headline is unaffected -- its APPEARANCE arm used
+ground-truth appearance ids, so the input class does not enter the partition
+comparison. Phases 52 and 56 measured slot INJECTIVITY on the complex stream,
+and that caveat is now on the record for both.
+
+=============================================================================
 PRE-REGISTERED PREDICTIONS
 =============================================================================
 P1  At the COMMITTED omega (0.15), FHRR does NOT beat MAGNITUDE. The channel
@@ -66,13 +91,22 @@ If P2 fails, this arm is finished: the imaginary channel is not worth the
 phase-carrying mechanism without first clearing this bar.
 """
 import numpy as np
-from phase51_causal_state_recruit import (N_DIM, hidden_walk, appearance_codebook,
-                                          emit, STATE_APPEARANCE, N_APPEARANCE)
+from phase51_causal_state_recruit import (N_DIM, hidden_walk, emit,
+                                          STATE_APPEARANCE, N_APPEARANCE)
 from organism_compress import real_phase_residual
 
 OMEGAS = (0.15, 0.5, 1.0, 4.0, 8.0)
 K = 24
 N_TRAIN, N_TEST = 4000, 4000
+
+
+def real_codebook(rng):
+    """REAL directions cast to complex -- what every committed pipeline
+    feeds (phase 43's 54-file census). A complex codebook fills the
+    imaginary channel at the input and voids the omega sweep."""
+    M = rng.standard_normal((N_APPEARANCE, N_DIM))
+    Q, _ = np.linalg.qr(M.T)
+    return (Q.T[:N_APPEARANCE] * np.sqrt(N_DIM)).astype(complex)
 
 
 def _fhrr_sim(xi_live, q):
@@ -90,7 +124,7 @@ def _mag_sim(xi_live, q):
 def run_seed(seed, omega):
     from organism import Organism
     rng = np.random.default_rng(4242 + seed)
-    code = appearance_codebook(np.random.default_rng(4242 + 900 + seed))
+    code = real_codebook(np.random.default_rng(4242 + 900 + seed))
     tr = hidden_walk(N_TRAIN, rng); te = hidden_walk(N_TEST, rng)
     tr_f, tr_a = emit(tr, code, rng); te_f, te_a = emit(te, code, rng)
 
