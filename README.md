@@ -349,6 +349,19 @@ The project's standing goal: one continuously-running oscillator field
 that perceives, remembers, learns world structure, and generates — now
 validated on synthetic worlds (core track, phases 1–18) with first
 footholds on real language (language track, through its phase 21).
+**PATH A IS RETIRED (owner ruling, 2026-08-28).** Three decision
+experiments ran against a criterion fixed beforehand; the two named as
+triggers both failed on valid setups. A phase-aware readout does not beat a
+magnitude one *even where the channel is full* (phase 54), and a linear
+companion state does not fix the substrate's inability to hold a symbol that
+is always in transit (phase 56) — so the published remedy for the
+memory–nonlinearity trade-off does not apply here. **The architecture is not
+a path to language or agency**, and that is now measured rather than argued.
+What survives is Path B: this system as a persistent episodic-memory and
+world-model substrate, which needs none of those gaps to close. Full terminal
+record at the top of `ROADMAP.md`. Retiring is not deleting — the tree stays
+green and the negatives are the deliverable.
+
 **The Path B release hold (ROADMAP, 2026-07-15) was LIFTED on 2026-08-11**
 — by an owner re-scope of the gate to the capability axes, **not** by the
 phase-33 gate passing, which it did not. The tag and product fork are

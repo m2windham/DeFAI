@@ -39,6 +39,29 @@ launch essay, so marketing never outruns the harness.
 > that line in the same breath — including in the D2 essay. A capability
 > claim published without it misrepresents the decision that authorized it.
 
+> # CLOSED REGISTER — Path A retired 2026-08-28
+>
+> This register is **closed for new Path A claims**. See the terminal
+> decision record at the top of `ROADMAP.md`. The mini-roadmaps below are
+> **historical**: they describe what each claim would have needed, not work
+> that is pending. Do not read an open "next step" as a live plan.
+>
+> Two edits the 2026-08-28 experiments force, both recorded rather than
+> deleted:
+> - **N8's stated reason is wrong.** Phase 55 measured superposition capacity
+>   scaling linearly with dimension (m\*/N ≈ 0.07 flat; m\*(64) = 5.0 exactly,
+>   matching phase 16). The "about five items" ceiling is an **artifact of
+>   N=64**, not a property of the mechanism. What is NOT rescued is
+>   **lifetime** — phase 16's 9–56-step collapse under attractor pull is a
+>   dynamics property phase 55 does not address, and it is why N8 stays
+>   unsolved.
+> - **The complex representation is now unjustified on BOTH axes.** The cost
+>   axis was conceded 2026-08-11; phase 54 closed the capability axis by
+>   measuring the phase channel unreadable *even when full*.
+>
+> **N1 is unaffected**, and phase 51's causal-state result stands as the
+> strongest finding of the closing line.
+
 **Rules for editing.** A claim enters this file only with (a) a phase
 script, (b) measured numbers against a null or baseline, (c) a scope
 caveat written by the person who ran it. Numbers here must match the
@@ -54,7 +77,7 @@ ROADMAP row they cite. If a claim is weakened by a later run, it is
 | N5 | Category validity without geometry | **Solid** | k-selection at scale (phase 27 residual) |
 | N6 | Bitwise persistence + stable symbol identity | **Solid (engineering)** | T4.1 — survive a lesion |
 | N7 | Eviction under recruitment pressure | **Narrow but crisp** (factorized; the law now has two clauses — T6.2 done) | self-calibrate **both** knobs from online statistics (N7 step 3) |
-| N8 | Phase-superposition binding | **Partial — unsolved, and now DEFERRED by ruling** (2026-08-14: the persistence layout no longer stores the channel) | none pending; reopening costs the R ≈ 0.06 readout bar + the 9–56-step collapse *and* a persistence-format change |
+| N8 | Phase-superposition binding | **Unsolved — and the reason is now CORRECTED.** Capacity was never the limit: phase 55 measured m\*/N ≈ 0.07 flat, so "~5 items" is an artifact of N=64. **LIFETIME is the limit** (phase 16: 9–56-step collapse). Phase 54 then closed the channel on capability grounds too — unreadable even when full | RETIRED. Reopening must first clear phase 54's bar |
 | N9 | The measurement discipline itself | **Underrated** | codify as a harness tier |
 
 ---

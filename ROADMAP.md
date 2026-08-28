@@ -9,6 +9,102 @@ is deliberately absent. Full reasoning lives in the session notes and the
 review discussion; the standing rules of engagement in `FABLE_HANDOFF.md`
 still bind everything here.
 
+## OWNER DECISION RECORD — 2026-08-28: the Path A research programme is RETIRED
+
+**Decided by the repo owner, 2026-08-28, against a criterion fixed before
+the experiments ran.** Three decision experiments were specified, with two
+of them named in advance as the ones whose movement would justify a rebuild.
+**Neither moved.** This record is the terminal entry for the Path A research
+line. It is first in this file because every other row must now be read
+through it.
+
+### What was tested, and what the bars were
+
+| | Question | Bar, fixed before the run | Outcome |
+|---|---|---|---|
+| **54** | Can a phase-aware (FHRR) readout read what `np.abs` cannot? | FHRR beats magnitude by ≥0.02, all 5 held-out seeds, at ω where R clears the 0.06 floor | **FAILED** — +0.0029 (2/5) at ω=4, +0.0359 (3/5) at ω=8 |
+| **55** | Is the binding ceiling mechanism or dimension? | m\*(512) ≥ 4× m\*(64) | **HELD** — 6.40×, 5/5. Not a trigger experiment |
+| **56** | Does a slow companion state fix the transit problem? | injectivity restored, all 5 seeds | **FAILED** — 3.6/5, *worse* than the 4.0/5 baseline |
+
+**54 and 56 were the triggers. Both failed, on valid setups, against bars
+that existed before the numbers did.**
+
+### Why the failures are believable
+
+Each ran a precondition that had to hold before the verdict counted, and
+each precondition held on the committed run:
+- **54's P3 reproduces phase 43 exactly** — R rises as ω² through 1.38e-03 /
+  5.15e-03 / 1.78e-02 / 2.78e-01 / 2.89e-01, crossing the 0.06 readout floor
+  between ω=1 and 4. The sweep measured what it claimed to.
+- **54's M1 does not rescue it**: magnitude does not collapse at high ω, it
+  *improves* (0.6824 at ω=4 vs 0.5239 at 0.15). FHRR simply does not win.
+- **56's P3 reproduces phase 52's failure exactly** (4/5 distinct, every
+  seed), and its M1 is rejected — a width-matched control at the same 2N also
+  gives 4.0, so the mixture's loss is not a width artifact.
+
+**Stated plainly because it bears on trust in these numbers:** two of the
+three had first runs voided by design errors of the running session — an
+orthonormal codebook that capped the answer by construction (55), and a
+complex-valued input stream that filled the channel at the input and voided
+the ω sweep (54). Both were caught by their own pre-registered
+preconditions, corrected, and recorded rather than quietly fixed. The
+decisive negatives rest on the corrected runs, whose validity is evidenced
+by the preconditions above holding.
+
+### What this closes
+
+**The architecture is not a path to language or agency, and the reason is
+now measured rather than argued.** In one place:
+
+- The state settles to a statistic of *the present*, and the
+  memory–nonlinearity trade-off says that is a theorem, not a tuning miss —
+  DeFAI's settling **is** its nonlinearity.
+- **The published remedy does not work here** (56). A linear companion made
+  injectivity worse.
+- **The complex representation cannot be justified on capability grounds**
+  (54). The phase channel is not usefully readable *even when full* — so the
+  2.03× it costs buys nothing, on either the cost axis (conceded 2026-08-11)
+  or the capability axis.
+- **The substrate cannot hold a symbol that is always in transit** (52). A0
+  occurs 1404 times and never gets a memory. In language that describes most
+  function words.
+
+### What this does NOT claim, and what survives
+
+- **Phase 51 stands.** Causal-state equivalence beat appearance by +0.372
+  bits held-out, 5/5, with the loss exactly localized and the oracle matched
+  using one fewer state. The *criterion* is sound; the *substrate* could not
+  carry it online. That is a real result about the mathematics, and it is
+  the strongest single finding of this line.
+- **Phase 55 stands**: binding capacity is dimensional, m\*/N ≈ 0.07 flat, so
+  phase 16's "five items" is an artifact of N=64. **N8's recorded reason is
+  edited accordingly** — but capacity is not lifetime, and the 9–56-step
+  collapse is untouched.
+- **N1 stands** and is unaffected by any of this.
+- **The engineering spine stands**: 150 pinned checks, two backends agreeing
+  bitwise, exact persistence, stable symbol identity.
+- **The measurement discipline (N9) is the most transferable asset here**,
+  and this record is itself an instance of it.
+
+### Disposition
+
+**Path A (the research line) is retired.** No new phase numbers are to be
+opened against it. Every target below carries an explicit disposition.
+
+**Path B survives and is where the remaining value is**: T8.6 / T5.1 — this
+architecture as a persistent episodic-memory and world-model substrate for
+an agent whose language faculty is conventional. It requires **none** of the
+four gaps to close, plays to every axis with evidence (continual retention
+without replay or boundaries, exact resume, a queryable transition graph over
+an agent's own history), and avoids every axis measured weak.
+
+**Retiring is not deleting.** The tree stays green and reproducible; the
+negatives are the deliverable. Anyone reopening Path A must first clear
+54's bar — a phase-carrying mechanism that moves a readout past R ≈ 0.06
+*and wins* — because that is now measured, not assumed.
+
+---
+
 ## OWNER DECISION RECORD — 2026-08-11: the gate is re-scoped, the RELEASE HOLD lifts
 
 **Decided by the repo owner, 2026-08-11.** The gate adopted 2026-07-14 —
@@ -368,6 +464,19 @@ every arm **and** hold out fresh seeds for any grid-selected claim; reseed
 the baseline on the same split.
 
 ## Verification log
+
+- **2026-08-28 (repo owner, terminal verification for the Path A
+  retirement; remote host, Python 3.11, numpy 2.4.6 / numba 0.66.0 / scipy
+  1.17.1 / sklearn 1.9.0, **no torch**)**: the tree is left **GREEN and
+  reproducible** — `regression_harness.py` **150/150 both backends**
+  (numpy 142.7s, numba 43.2s). Phases 54/55/56 are protocol-level and
+  touch no library file, so no anchor can have moved; the harness run is
+  the evidence for that rather than an assumption. **This is the closing
+  entry for Path A.** The retirement is a records decision: nothing is
+  deleted, every phase script still runs, and the negatives are the
+  deliverable. What remains unverifiable on this host is unchanged — every
+  torch arm on record is a committed number, and T7.8's dFORG
+  re-measurement was never run.
 
 - **2026-08-28 (repo owner; T8.1 phases 51/52, phase 53, and the
   compute-and-use audit follow-through; remote host, Python 3.11, numpy

@@ -41,6 +41,30 @@ longer resting on committed values alone. The Category 7 host and this
 one have **no torch**. State which you have rather than assuming this
 one's state. See ROADMAP "Verification log".
 
+> # PATH A IS RETIRED — owner ruling, 2026-08-28
+>
+> Read the terminal decision record at the **top of `ROADMAP.md`** before
+> claiming anything in this file. Three decision experiments ran against a
+> criterion fixed beforehand; the two named as triggers (phases 54 and 56)
+> **both failed on valid setups**. The architecture is not a path to language
+> or agency, and the reason is measured rather than argued.
+>
+> **Do not open new phase numbers against Path A.** Every target below now
+> carries a disposition:
+> - **RETIRED** — closed by the 2026-08-28 ruling. Reopening requires first
+>   clearing phase 54's bar: a phase-carrying mechanism that moves a readout
+>   past R ≈ 0.06 **and wins**.
+> - **CARRIED TO PATH B** — still live, under T8.6 / T5.1.
+> - **STANDS** — a completed result the ruling does not disturb.
+>
+> **Path B is where the remaining value is**: T8.6 / T5.1, this architecture
+> as a persistent episodic-memory and world-model substrate for an agent
+> whose language faculty is conventional. It needs none of the four gaps to
+> close.
+>
+> Retiring is not deleting. The tree stays green and reproducible; the
+> negatives are the deliverable.
+
 **Both owner decisions were ruled on 2026-08-11.**
 (1) **The gate is re-scoped to the capability axes and the RELEASE HOLD is
 LIFTED** — full decision record at the top of `ROADMAP.md`, required
@@ -1170,7 +1194,7 @@ total, both backends).
     **18.2× smaller, lossless**; full store 15.43× in 20 ms. CSR is
     **storage only** — perceive writes P in place, so the kernel needs dense.
 
-### T6.6 — The blocking sweep (phase 49)  `[claimed: —]`
+### T6.6 — The blocking sweep (phase 49)  `[claimed: —]`  `[RETIRED 2026-08-28]`
 **Opened by the repo owner 2026-08-11.** T6.1 ended by exposing a
 follow-on and deliberately refusing to smuggle it in; it was left with no
 home for three merges. This is that home. Read T6.1's RESULT block first —
@@ -1688,7 +1712,7 @@ with no new science, and it must not acquire any.
   default" caveat **removed** from NOVELTY, ROADMAP and FABLE_HANDOFF in the
   same commit that makes it false.
 
-### T7.6 — Deep-architecture arms (phase 48)  `[UNBLOCKED 2026-08-14 for arms (c) and (d) ONLY — the owner ruled (A); arms (a) content-dependent phase and (b) phase-aware readout are CLOSED by that ruling]`
+### T7.6 — Deep-architecture arms (phase 48)  `[UNBLOCKED 2026-08-14 for arms (c) and (d) ONLY — the owner ruled (A); arms (a) content-dependent phase and (b) phase-aware readout are CLOSED by that ruling]`  `[RETIRED 2026-08-28 — arms (a)/(b) closed by the fork ruling; (c) measured and FAILED as phase 56]`
 **Read before starting.** The (A) ruling closed half of this target. Arms
 **(a)** and **(b)** are not "deferred", they are **closed**: the persistence
 layout no longer carries the channel they would write to, and both already
@@ -1768,7 +1792,7 @@ cannot fail is not a gate; and **name the conventional baseline you are
 measured against before you run**, because "better than our previous
 version" is not evidence of language capability.
 
-### T8.1 — GATE 0: context depth beyond first order (phases 51, 52)  `[PARTIAL 2026-08-28: claude/repo-owner-26nu39 — phase 51 CONFIRMS the criterion batch; phase 52 is VOID on a substrate precondition. Gate 0 NOT adjudicated]`
+### T8.1 — GATE 0: context depth beyond first order (phases 51, 52)  `[PARTIAL 2026-08-28: claude/repo-owner-26nu39 — phase 51 CONFIRMS the criterion batch; phase 52 is VOID on a substrate precondition. Gate 0 NOT adjudicated]`  `[RETIRED 2026-08-28 — Gate 0 never adjudicated; the substrate blocker (52) and the readout bar (54) both stand. Phase 51's batch result STANDS.]`
 **Where this stands, and it is deliberately not called done.**
 - **Phase 51 (batch): the criterion works.** Causal partition beats
   appearance by **+0.372 bits held-out, 5/5 seeds**, with the loss **exactly
@@ -1865,7 +1889,7 @@ before the others.** Everything downstream assumes it clears.
 - **Done when**: `phase51_*.py`, the depth curve with its null, the kill
   rule adjudicated **out loud**, ROADMAP row, harness section.
 
-### T8.2 — GATE 1: compositional binding (phase 52)  `[BLOCKED on T8.1]`
+### T8.2 — GATE 1: compositional binding (phase 52)  `[BLOCKED on T8.1]`  `[RETIRED 2026-08-28]`
 Do not start until Gate 0 has been adjudicated. Representing "X did Y to Z"
 is required by both language and agency, and the architecture's own binding
 mechanism (N8) is measured empty, closed by ruling, and carries a
@@ -1874,7 +1898,7 @@ proposal here must say in advance what it does about lifetime, and must be
 measured against a conventional baseline (a slot-filling or
 role-labelling baseline), not against the project's own earlier attempts.
 
-### T8.3 — GATE 2: word-level generation (phase 53)  `[BLOCKED on T8.1 + T8.2]`
+### T8.3 — GATE 2: word-level generation (phase 53)  `[BLOCKED on T8.1 + T8.2]`  `[RETIRED 2026-08-28]`
 The weakest measured axis. **Do not attempt first** — phase 41 already
 measured detection-driven splitting improving next-*category* prediction
 while making word-level likelihood **worse than not splitting** (−0.081
@@ -1883,7 +1907,7 @@ here re-derives that negative at full cost. Scored against a conventional
 LM baseline at matched compute, with perplexity reported, or it does not
 count.
 
-### T8.4 — GATE 3: vocabulary scale (phase 54)  `[claimed: —]`
+### T8.4 — GATE 3: vocabulary scale (phase 54)  `[claimed: —]`  `[RETIRED 2026-08-28]`
 10³ → 10⁵ vocabulary is two orders of magnitude past anything measured.
 Attractor Crowding Collapse (N3) is named and fixed label-free, and
 hierarchical routing (phase 36) holds ~85% to 800 items — **whether that
@@ -1891,7 +1915,7 @@ survives 100× is unknown, and it is a research question rather than an
 engineering one.** Independent of Gates 0–2, so it can run in parallel;
 its result is informative whichever way Gate 0 goes.
 
-### T8.5 — GATE 4: agency proper (phase 55)  `[claimed: —]`
+### T8.5 — GATE 4: agency proper (phase 55)  `[claimed: —]`  `[CARRIED TO PATH B 2026-08-28 — the agentic pieces are the ones that survive]`
 **The architecture's most natural extension, and it is independent of Gates
 0–3.** Model-based planning over a learned transition graph is standard
 model-based RL, and the pieces exist: `phase15_action_conditioned.py`, plus
@@ -1903,7 +1927,7 @@ a real reward signal, and report regret, not just success rate. This is the
 target most likely to produce something that works, and it should probably
 run **before** T8.2/T8.3 regardless of Gate 0's outcome.
 
-### T8.6 — The hybrid: episodic-memory substrate for an external agent  `[claimed: —]`
+### T8.6 — The hybrid: episodic-memory substrate for an external agent  `[claimed: —]`  `[PATH B — THIS IS THE SURVIVING LINE]`
 **The owner's recommended path, and it clears no research gates.** Expose
 the organism as the **persistent episodic memory and world model** for an
 agent whose language faculty is a conventional LM: the LM generates and

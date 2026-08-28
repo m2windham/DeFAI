@@ -920,6 +920,67 @@ changes what the numbers mean and that deserves its own decision.
 
 ---
 
+### Chapter 22 — We set three tests, and two of them said stop *(phases 54-56)*
+
+**Added 2026-08-28. This is the last chapter of the research line.**
+
+We had spent weeks circling one problem: the system forgets almost
+everything instantly because of how it works, not because of how it is
+tuned. Three cheap experiments were specified to decide whether it was worth
+rebuilding, and **two of them were named in advance as the ones that had to
+move**. The bars were written down before any of them ran.
+
+**Test one: can we read the half of each memory we've been paying for?**
+Every part of this system reads memories by *size* and throws away *timing*.
+Half of every stored memory is timing. Nobody had ever tried reading it. So
+we built a reader that can, and swept the one dial that fills the timing
+channel up. **It does not help.** Even at settings where the channel is
+demonstrably full, reading it does no better than ignoring it — and the
+ordinary reader actually gets *better* at those settings, so we cannot even
+blame the comparison. Half the memory is not just unused. It is not worth
+using.
+
+**Test two: is our binding limit real?** We have long recorded that the
+system can only hold about five things at once. That turns out to be an
+artifact of working in 64 dimensions. Capacity grows in step with dimension —
+at 1024 it is eighty things. **This one moved**, and it corrects something we
+had written down wrongly for a long time. But it was not one of the two that
+mattered, and it does not touch the other half of the problem: how *long*
+those things survive before collapsing, which is unchanged.
+
+**Test three: does the published fix work?** The wider literature has a
+theorem for our exact problem — nonlinear systems like ours always trade away
+memory — and a standard remedy: run a slow, simple memory alongside the fast,
+clever one. We built it. **It made things slightly worse.** The symbol that
+had no memory still had no memory.
+
+**So we stopped.** Not because we ran out of ideas — because we spent the two
+we had the most confidence in, and both came back negative against bars we
+had set ourselves in advance.
+
+**What we are keeping.** The idea from Chapter 20's neighbour still stands:
+grouping memories by *what they predict* rather than *what they look like* is
+measurably better, and that is a real result about the mathematics even
+though this particular machine could not carry it. The polysemy discovery is
+untouched. The engineering — save it, reload it, get the identical system
+back — is untouched. And the way we work is untouched, which is the part that
+made all of the above findable.
+
+**And what we are doing instead.** Everything this system is genuinely good
+at — remembering continuously without being retrained, surviving being
+switched off, building its own map of what follows what — is exactly what
+conventional AI systems are worst at. So it becomes the *memory* for one of
+those, rather than trying to become one. That path needs none of the things
+that just failed.
+
+Three of the experiments in this final stretch had to be thrown away and
+re-run because we got the setup wrong. Each time it was our own advance
+safety check that caught it. That is worth saying, because the conclusion
+here rests on the corrected runs, and the reason to trust them is that the
+same checks passed on those.
+
+---
+
 ---
 
 ## What people push back on, and the honest answer
