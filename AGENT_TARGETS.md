@@ -1593,7 +1593,44 @@ served by a decoder whose advantage was measured at K=112.
 improvement and a safe default are different claims. This one has the first
 and not the second.
 
-### T7.8 — Land the (A) persistence default (no new phase number)  `[claimed: —]`
+### T7.8 — Land the (A) persistence layout (no new phase number)  `[PARTIALLY LANDED 2026-08-28: claude/repo-owner-26nu39 — the layout is named, persistable and pinned; the phase-50 re-measurement bar is NOT met and the target stays open]`
+**Status, owner 2026-08-28.** Three things happened; read all three before
+treating this as done.
+
+**(a) A blocking defect was found and fixed.** The (A) layout **could not be
+persisted at all** — `save_state` wrote `arrays['xi'] = st.xi` when the
+compressor had left `st.xi = None`, and `load_state` refused the resulting
+0-d object array. `c_spec` recorded neither lever, so `p_narrow` round-tripped
+by accident while reporting `False`. Both fixed; harness §20 now round-trips
+every lever combination.
+
+**(b) The target's own instruction — "flip `real_phase` to the default" — was
+NOT followed, deliberately.** Checking the call sites first showed it would be
+a second instance of exactly what T7.9 records for the readout decoder:
+`CompressionSpec()` with no arguments is the **measurement baseline**, not an
+unset preference. `regression_harness.py` uses it as the **c64 arm of the fork
+comparison in §15** — flipping the default would silently turn that A-vs-B
+test into A-vs-A while still printing a number — and §10 pins byte values
+against it. Five phase scripts (33g, 33h, 43, 44, 50) pass explicit kwargs and
+would have been unaffected, but the harness would not.
+
+So the ruling is honored by **naming** the layout:
+`organism_compress.deployment_spec()`. Callers that want the deployment
+encoding ask for it; callers that want the baseline keep getting the baseline.
+That is the owner's amendment to this target, and the reasoning is in the
+function's docstring where the next reader will hit it.
+
+**(c) WHAT IS STILL OPEN, and why this is not closed.** T7.8's own landing bar
+required the phase-50 equivalence bands re-measured **on the default path**
+and **dFORG at K=112/argmax re-reported** — the number the (A) ruling put on a
+watch-list. That needs the 33c ladder with its torch arms, and **this host has
+no torch**. Not attempted, not faked. Whoever takes this runs phase 50 against
+`deployment_spec()` on a torch host and reports that dFORG before anyone calls
+(A) landed.
+
+**Until then**: 1.148× remains *the ratified layout*, and no artifact may quote
+it as what the code does by default — because it still is not.
+
 **Opened by the repo owner 2026-08-14 as the execution half of the (A)
 ruling.** The fork is decided; the code still does (B). This target closes
 that gap and nothing else — it is deliberately an **engineering** target

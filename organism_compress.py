@@ -151,6 +151,38 @@ def _narrow_counts(raw, fallback):
     return fallback
 
 
+def deployment_spec():
+    """The RATIFIED (A) persistence layout (owner ruling 2026-08-14).
+
+    `real_phase` + phase 44's narrow CSR, at complex64 component width:
+    39.07 KB/ACC-pt = 1.148x the prototype bar against (B)'s 70.30 = 2.066x,
+    at a behavior cost measured indistinguishable from zero on the continual
+    ladder (phase 50: worst held-out dACC -0.0012 against a 0.005 band, worst
+    dFORG +0.0034 against 0.010).
+
+    WHY THIS IS A NAMED SPEC AND NOT A CHANGE OF `CompressionSpec`'s DEFAULTS.
+    T7.8 originally read "flip real_phase to the default". Checking the call
+    sites first (owner, 2026-08-28) showed that would have been the second
+    instance of the same mistake T7.9 records for the readout decoder:
+    `CompressionSpec()` with no arguments is the measurement BASELINE, not an
+    unset preference. `regression_harness.py` uses it as the **c64 arm of the
+    fork comparison itself** -- flipping the default would silently turn that
+    section's A-vs-B test into A-vs-A while still reporting a number -- and
+    section 10 pins byte values against it.
+
+    So the ruling is honored by NAMING the layout rather than by redefining
+    the baseline every measurement in the project is quoted against. Callers
+    that want the deployment encoding ask for it; callers that want the
+    baseline keep getting the baseline.
+
+    COMPUTE width is unaffected: this is a persistence encoding only, and
+    `CompressedState.xi_full()` reconstructs at complex128.
+    """
+    return CompressionSpec(xi_dtype=np.complex64, p_floor=0.0,
+                           meta_dtype=np.float32,
+                           real_phase=True, p_narrow=True)
+
+
 class CompressionSpec:
     """What to compress and how hard.
 
