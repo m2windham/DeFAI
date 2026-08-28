@@ -1555,6 +1555,44 @@ own rule is not to bank a number where it was not measured.
   ACC/FORG/cost table held out, ROADMAP row, harness section, and a
   recommendation the owner can act on in one reading.
 
+### T7.9 — Readout default: measured signal, load-bearing default  `[claimed: —]`
+**Opened by the repo owner 2026-08-28 out of the compute-and-use audit, and
+opened specifically to STOP the obvious change rather than to make it.**
+
+The audit ranked "flip `LabelEvidenceReadout`'s default decoder from
+`argmax` to `calib-b8`" as its #1 item — highest information recovered per
+unit cost — on the grounds that 33h measured **+0.026 held-out, positive on
+every held-out seed at K=112**, and the default was simply never moved.
+The measured signal is real. **The cost estimate was wrong, and the owner
+refused the change.**
+
+**Why.** `predict()`'s default is load-bearing. Eight committed phase
+scripts plus `regression_harness.py` call `readout.predict(org, Xe)` with
+**no decoder argument**: phases 33, 33c, 33d, 33f, 33g, 38, 39, and
+`label_readout.py`'s own demo. Among them `phase33c_gate_retest.py`
+produces **0.665 (evict=0) and 0.712 (ORGANISM+B)** — the anchors the
+entire gate decision rests on — and 33d produces the ladder
+0.712/0.837/0.854/0.900. `test_label_readout.py` pins "argmax reproduces
+the committed evict=0 anchor ACC 0.665". Flipping the default silently
+re-defines what all of those scripts compute.
+
+**So this is not a default that was forgotten. It is an anchor.**
+
+**What the target is, if anyone takes it.** Not "flip the default". Either:
+(a) leave it and make the reasoning explicit at the call sites, so the next
+audit does not re-raise it; or (b) if `calib-b8` is wanted in production,
+run it as a phase that re-derives **every** committed number above under
+the new decoder and restates them together — the anchors do not silently
+move, they get re-measured and republished with the change that moved them.
+33h's own scope applies: the gain comes from per-slot label DISTRIBUTIONS
+having mass to recover, so it appears at K=112 and vanishes at low capacity
+(K=24: nothing survives). A default serving callers at K=40 is not obviously
+served by a decoder whose advantage was measured at K=112.
+
+**Standing lesson, and the reason this target exists at all**: a measured
+improvement and a safe default are different claims. This one has the first
+and not the second.
+
 ### T7.8 — Land the (A) persistence default (no new phase number)  `[claimed: —]`
 **Opened by the repo owner 2026-08-14 as the execution half of the (A)
 ruling.** The fork is decided; the code still does (B). This target closes
@@ -1662,7 +1700,49 @@ cannot fail is not a gate; and **name the conventional baseline you are
 measured against before you run**, because "better than our previous
 version" is not evidence of language capability.
 
-### T8.1 — GATE 0: context depth beyond first order (phase 51)  `[claimed: —]`
+### T8.1 — GATE 0: context depth beyond first order (phase 51)  `[claimed: claude/repo-owner-26nu39, 2026-08-28 — phase 51 reserved. RE-SCOPED on the 2026-08-28 literature pass: see the causal-state reframe below]`
+
+**RE-SCOPE, repo owner, 2026-08-28 — read this before the original text.**
+A literature pass changed what this gate should test, in two ways.
+
+**(i) The dual-time-constant arm is published work, not discovery.** The
+memory–nonlinearity trade-off is a known and general result in reservoir
+computing: nonlinear dynamics degrade stored memory regardless of the form
+of the nonlinearity (Inubushi & Yoshimura, *Sci. Rep.* 2017), and the
+remedy that paper proposes is a **mixture reservoir carrying both linear
+and nonlinear dynamics** — which is what T7.6(c) is. It should be run as
+engineering and **must not be claimed as novel**. DeFAI's settling is its
+nonlinearity; the memory loss is the theorem's prediction, not a tuning
+failure.
+
+**(ii) The sharper question is the equivalence relation, not the depth.**
+Computational mechanics (Crutchfield/Shalizi) defines **causal states**:
+the equivalence classes of pasts that induce identical conditional
+distributions over futures — the coarsest partition retaining full
+predictive power, with optimality theorems for prediction, minimality and
+uniqueness. That is the minimal sufficient statistic, constructively
+defined. Now compare what the organism does:
+
+- **`recruit` partitions on APPEARANCE** — a similarity floor on overlap.
+- **N1 partitions on PREDICTED FUTURE** — the Myhill–Nerode criterion, and
+  causal states are exactly its generalization from deterministic automata
+  to stochastic processes.
+
+**This project already found the right equivalence relation and used it
+only as a detector.** N1 is the strongest, most-replicated claim in the
+register; it is also the one place the correct criterion is applied. The
+hypothesis this target now tests is that the criterion belongs in
+`recruit`, not bolted on afterward — and that a first-order graph over
+*causal* states is maximally predictive by construction (the ε-machine
+optimality theorem), which would mean phase 40's "the constraint is graph
+ORDER" was measuring the wrong nodes rather than the wrong order.
+
+**Phase 51 is the cheapest possible test of that**, and it is
+protocol-level: no change to `organism.py`. Run the real organism, take its
+real recruited partition, build the causal-state partition on the same
+observation sequence, and compare **predictive information at matched
+cardinality on held-out data**.
+
 **The make-or-break, and the only target in this category worth running
 before the others.** Everything downstream assumes it clears.
 - **Question**: can the state carry usable context beyond one step, above a

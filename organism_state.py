@@ -210,6 +210,11 @@ def _save_compressed(org, path, spec):
             rank=(None if spec.rank is None else int(spec.rank)),
             meta_dtype=str(np.dtype(spec.meta_dtype)),
             lowrank=st.factors is not None,
+            # T7.1/T7.2 levers: recorded so a loaded state reports the spec it
+            # was WRITTEN with. Omitted before 2026-08-28, which made every
+            # byte number taken from a loaded state wrong for these two.
+            real_phase=st.polar is not None,
+            p_narrow=bool(getattr(spec, 'p_narrow', False)),
         )).encode(), dtype=np.uint8),
         p_data=st.p_data, p_indices=st.p_indices, p_indptr=st.p_indptr,
         used=st.used, count=st.count, age=st.age,
@@ -223,6 +228,12 @@ def _save_compressed(org, path, spec):
     arrays.update(_pack_registry(org))    # O(K): never a byte problem
     if st.factors is not None:
         arrays['xi_U'], arrays['xi_V'] = st.factors
+    elif st.polar is not None:
+        # T7.1 branch (A): the store is (real N-vector, phase scalar). Writing
+        # st.xi here -- which is None under this spec -- produced a 0-d object
+        # array that load_state then refused under allow_pickle=False, so the
+        # ratified layout could not survive a round trip at all.
+        arrays['xi_r'], arrays['xi_phi'] = st.polar
     else:
         arrays['xi'] = st.xi
     if hasattr(org, 'mem'):
@@ -235,14 +246,21 @@ def _save_compressed(org, path, spec):
 def _load_compressed(f, org, K, N):
     """Rebuild the store from a v2 compressed file, at COMPUTE width."""
     spec_d = json.loads(bytes(f['c_spec']).decode())
+    # .get for both: files written before 2026-08-28 carry neither key, and a
+    # missing key means the lever was off when that file was written.
+    real_phase = bool(spec_d.get('real_phase', False))
     spec = CompressionSpec(xi_dtype=np.dtype(spec_d['xi_dtype']),
                            p_floor=spec_d['p_floor'], rank=spec_d['rank'],
-                           meta_dtype=np.dtype(spec_d['meta_dtype']))
+                           meta_dtype=np.dtype(spec_d['meta_dtype']),
+                           real_phase=real_phase,
+                           p_narrow=bool(spec_d.get('p_narrow', False)))
     factors = ((f['xi_U'].copy(), f['xi_V'].copy())
                if spec_d['lowrank'] else None)
+    polar = ((f['xi_r'].copy(), f['xi_phi'].copy()) if real_phase else None)
     st = CompressedState(
-        K=K, N=N, spec=spec,
-        xi=(None if factors is not None else f['xi'].copy()), factors=factors,
+        K=K, N=N, spec=spec, polar=polar,
+        xi=(None if (factors is not None or polar is not None)
+            else f['xi'].copy()), factors=factors,
         used=f['used'].copy(), p_data=f['p_data'].copy(),
         p_indices=f['p_indices'].copy(), p_indptr=f['p_indptr'].copy(),
         count=f['count'].copy(), age=f['age'].copy())
