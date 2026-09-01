@@ -40,6 +40,29 @@ union arm with comparable compactness also reaches high coverage, the filter
 is not the mechanism and M1 stands.
 
 =============================================================================
+CORRECTION TO M1's GATE, made after the first run and recorded rather than
+quietly fixed. This is the SECOND under-specified control in three phases.
+=============================================================================
+As first written, M1 fired on `coverage >= 0.80 AND units <= 15` -- it did
+NOT test injectivity. That is gameable in the obvious direction: coverage is
+trivially maximized by MERGING, since lumping two appearances into one
+concept puts 100% of both their occurrences in it. Measured: the
+relaxed-bar union arm reaches coverage 0.94 at 3.6 units by collapsing to
+3.2 of 5 distinct concepts. My gate returned False only because seed 9
+happened to dip to 0.777; at 0.81 it would have "fired" on an arm that
+merges two of five appearances.
+
+The conclusion was right and the gate that printed it was not. Corrected to
+the JOINT criterion, which is what the question actually requires:
+INJECTIVITY and COMPACTNESS and COVERAGE together. No union arm passes all
+three -- the strict-bar one fragments (131.8 units, coverage 0.12) and the
+relaxed-bar one merges (3.2/5 distinct).
+
+Standing lesson, and it is the same shape as SOP rule 9b: a control needs a
+criterion that its own degenerate solutions cannot satisfy. Coverage alone
+has one (merge everything); injectivity alone has one (fragment everything).
+
+=============================================================================
 KILL RULE
 =============================================================================
 If FILTERED and UNION reach comparable coverage at comparable compactness,
@@ -136,7 +159,15 @@ def main():
     print("\n--- M1: a UNION arm matched for compactness " + "-" * 29)
     print(f"  union at a relaxed bar: {ur.mean():.1f} units, "
           f"coverage {cr.mean():.4f}, distinct {dr.mean():.1f}")
-    m1_fires = (cr >= 0.80).all() and (ur <= 15).all()
+    # JOINT criterion (corrected): a union arm rescues M1 only if it forms
+    # identities AND keeps them distinct AND stays compact. Coverage alone is
+    # satisfied by merging; injectivity alone is satisfied by fragmenting.
+    m1_fires = ((cr >= 0.80).all() and (ur <= 15).all()
+                and (dr == N_APPEARANCE).all())
+    print(f"  joint gate -> coverage {'ok' if (cr>=0.80).all() else 'FAIL'}, "
+          f"compact {'ok' if (ur<=15).all() else 'FAIL'}, "
+          f"injective {'ok' if (dr==N_APPEARANCE).all() else 'FAIL'} "
+          f"(distinct {dr.tolist()})")
     if m1_fires:
         print("  M1 STANDS -- a union arm with comparable compactness also forms")
         print("  identities. The recurrence filter is NOT the mechanism.")
