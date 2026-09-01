@@ -44,6 +44,13 @@ HONEST SCOPE: concept formation is online; the split pass runs over
 accumulated statistics, as phase 51's did. This is not a fully online
 algorithm and does not claim to be.
 
+IMPLEMENTATION NOTE (added after a first attempt timed out, recorded rather
+than silently applied): each concept's identity set is CACHED and refreshed
+every REFRESH assignments instead of being recomputed on every observation.
+The criterion is unchanged -- this only changes how often it is re-evaluated,
+so an identity can lag its exact value by at most REFRESH assignments. The
+M1 sweep runs on three seeds rather than five, for cost.
+
 =============================================================================
 PRE-REGISTERED PREDICTIONS
 =============================================================================
@@ -89,13 +96,23 @@ class NullConcepts:
     """Identity formation with no tuned bars: matching by a hypergeometric
     null, identity by a per-predicate binomial null against its base rate."""
 
-    def __init__(self, z_crit=Z_CRIT, universe=UNIVERSE):
+    def __init__(self, z_crit=Z_CRIT, universe=UNIVERSE, refresh=25):
         self.z, self.U = z_crit, universe
         self.counts, self.n = [], []
         self.base = {}          # predicate -> times seen anywhere
         self.total = 0
+        self.refresh = refresh
+        self._cache, self._stamp = [], []
 
     def identity(self, c):
+        """Cached; refreshed every `refresh` assignments. Criterion unchanged."""
+        if self._stamp[c] is not None and self.n[c] - self._stamp[c] < self.refresh:
+            return self._cache[c]
+        out = self._identity_exact(c)
+        self._cache[c], self._stamp[c] = out, self.n[c]
+        return out
+
+    def _identity_exact(self, c):
         """Predicates whose within-concept rate beats their own base rate."""
         n = self.n[c]
         if n < 3:
@@ -130,12 +147,16 @@ class NullConcepts:
             if z > bz:
                 best, bz = c, z
         if best < 0 or bz < self.z:                # not significantly anything
-            self.counts.append({}); self.n.append(0); best = len(self.counts) - 1
+            self.counts.append({}); self.n.append(0)
+            self._cache.append(set()); self._stamp.append(None)
+            best = len(self.counts) - 1
         for p in S:
             self.counts[best][p] = self.counts[best].get(p, 0) + 1
             self.base[p] = self.base.get(p, 0) + 1
         self.n[best] += 1
         self.total += 1
+        if self._stamp[best] is None:
+            self._stamp[best] = -10**9      # force a compute on first query
         return best
 
 
@@ -253,12 +274,13 @@ def main():
     print("\n--- M1: are the nulls a tuned constant in disguise? " + "-" * 21)
     print(f"{'z_crit':>8}{'units':>8}{'min unified':>13}{'purity':>9}{'PI gain':>10}")
     stable = []
+    sweep_seeds = list(seeds)[:3]          # three seeds for cost; stated in docstring
     for zc in (3.0, 4.0, 6.0, 8.0, 10.0):
-        rr = {s: run_seed(s, z_crit=zc) for s in seeds}
-        uu = np.mean([rr[s]["units"] for s in seeds])
-        un2 = np.mean([rr[s]["unified"] for s in seeds])
-        pu2 = np.mean([rr[s]["purity"] for s in seeds])
-        gp2 = np.mean([rr[s]["pi_gain"] for s in seeds])
+        rr = {s: run_seed(s, z_crit=zc) for s in sweep_seeds}
+        uu = np.mean([rr[s]["units"] for s in sweep_seeds])
+        un2 = np.mean([rr[s]["unified"] for s in sweep_seeds])
+        pu2 = np.mean([rr[s]["purity"] for s in sweep_seeds])
+        gp2 = np.mean([rr[s]["pi_gain"] for s in sweep_seeds])
         stable.append(un2 >= 0.70 and pu2 >= 0.80)
         print(f"{zc:>8.1f}{uu:>8.1f}{un2:>13.4f}{pu2:>9.4f}{gp2:>+10.4f}")
     if sum(stable) >= 4:
