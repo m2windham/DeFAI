@@ -86,6 +86,33 @@ DEVELOPMENT RECORD (before registration; selection seed 0 and dev only):
   - control seed 0: KN2 3.148, KN3 2.658, infinite-N bigram 3.167, best
     infinite-N depth configuration 2.697 (a MIX), gain +0.469.
 
+RESULT (run 2026-09-24, after pre-registration a52103c). RUN VOID.
+  VALIDATION (b) FAILED: the control's frozen configuration realised at
+    N = 16384 scored 3.321 against its infinite-N 2.666 (+0.655; the bar was
+    [0, 0.05]). Per the registration, the run is VOID and P1-P3 carry no
+    verdict. Readout control (a) PASSED 5/5 (infinite-N depth gains
+    +0.456 to +0.480 nats over the infinite-N bigram).
+  MY DESIGN ERROR, recorded as such and not used to rescue the run: (b)
+    required N = 16384 to sit within 0.05 of the infinite-N limit, which
+    assumes capacity converges by 16k -- the very thing under test. It
+    conflated 'is the formula right' (already answered by the per-pair
+    kernel check, corr 0.98-0.99) with 'is capacity nearly solved at 16k'.
+    The answer to the second is plainly no, and that is the finding.
+  NUMBERS, reported without a verdict:
+    real-text test, infinite-N: best 5.5423 (a MIX), best SINGLE 5.5462,
+      bigram 5.6313; KN2 5.5086, KN3 5.4476. Depth over the family's own
+      bigram +0.0890 (more than KN's own KN2->KN3 gain, 0.061); the best
+      configuration still 0.034 behind KN2; mixing fades adds +0.0039.
+    capacity cost of that configuration at N = 1024, seeds 5-9:
+      +0.913 to +0.915 nats (6.456-6.457 vs 5.5423).
+  WHAT-IF LOG (SOP rule 23). PROPERTY exposed: storing counts in
+    superposition costs ~0.9 nats at N = 1024 and ~0.65 nats at N = 16384;
+    cross-talk, not the kernel, dominates -- phase 61's 'no backoff'
+    diagnosis was wrong. QUESTION raised: how does the capacity cost fall
+    with N, and does any practical N reach the kernel's ceiling? Even that
+    ceiling is below KN2 and is, in exact form, fixed-weight interpolated
+    skip-gram counting (Jelinek-Mercer family) -- built before.
+
 PRIOR ART: fixed-weight interpolation is Jelinek-Mercer smoothing; skip-gram
 counts are standard; the kernel is fractional power encoding (Frady et al.
 2021).
