@@ -9,7 +9,49 @@ is deliberately absent. Full reasoning lives in the session notes and the
 review discussion; the standing rules of engagement in `FABLE_HANDOFF.md`
 still bind everything here.
 
+## OWNER DECISION RECORD — 2026-09-24: Path A RE-RETIRED on corrected grounds; phase-field line (61–63) CLOSED
+
+**Ruled by the repo owner, 2026-09-24, after phases 61–63.** The 2026-08-28
+record below retired Path A on phases 52/54/56. The 2026-09-23 failure-point
+scan showed all three grounds were flawed: 52's dwell was ~1.2 settling time
+constants (recruit=0.75 gives 5/5); 54 queried the raw frame instead of the
+settled state (a settled query passes P2, +0.162 at ω=8); 56's [F|F] control
+was identical to its baseline. Its closing sentence — "not a path to language
+or agency, measured" — was also overstated: agency (T8.5) never ran. **That
+record's grounds are SUPERSEDED; its conclusion is re-reached here on
+different evidence.**
+
+### The corrected grounds
+
+| | Question | Result |
+|---|---|---|
+| **61** | Does the field's state carry usable context depth on real text? | Kill rule fired: 5.83 nats vs KN2 5.51 on held-out text (0/5); control passed 5/5, so the probe could see depth |
+| **62** | Is the failure capacity or the kernel? | VOID on its own validation; numbers: at infinite capacity the kernel gains +0.089 from depth but stays 0.034 behind KN2, and in exact form it is Jelinek-Mercer-family skip-gram interpolation (built before); capacity cost at N=1024 is +0.91 nats |
+| **63** | Does separating strong memories make superposed storage earn its keep? | VOID on its readout control; numbers: an exact bigram tail beats the superposed tail at every budget with 50–110× fewer floats |
+| scan | Retrieval / product | A flat vector list beat the organism on every retrieval metric; it is a prototype memory (drops one-offs, fuses near-duplicates); never run on real embeddings or agent data |
+
+**Across every configuration and budget tested, storing memory in the
+oscillator field loses to an exact table — the field at N=1024 uses 25.7M
+floats to score worse than a 0.6M-float Kneser-Ney bigram.** That, not
+phases 52/54/56, is why Path A is retired.
+
+**Not measured, stated so it is not overclaimed:** agency (T8.5) and the
+T8.6 ablation never ran. This ruling does not rest on them.
+
+### What survives
+- **Read the drive, not the resting state** (61 P1): the transit problem of
+  phases 51–60 was self-inflicted by reading settled states.
+- The exact skip-gram form of the phase kernel (62).
+- Selectivity and signal-to-cross-talk trade off in superposed storage (63).
+- SOP rules 20–24 (`AGENT_TARGETS.md` section D).
+- The negatives themselves, and a green tree. Retiring is not deleting.
+
+**Path B** (persistent memory substrate) is not ruled on here; the
+2026-09-23 scan found its product claim unestablished (see the table above).
+
 ## OWNER DECISION RECORD — 2026-08-28: the Path A research programme is RETIRED
+
+> **SUPERSEDED GROUNDS (2026-09-24).** The three experiments below were found flawed by the 2026-09-23 scan; the retirement is re-reached on corrected grounds in the record above.
 
 **Decided by the repo owner, 2026-08-28, against a criterion fixed before
 the experiments ran.** Three decision experiments were specified, with two

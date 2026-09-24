@@ -349,7 +349,9 @@ The project's standing goal: one continuously-running oscillator field
 that perceives, remembers, learns world structure, and generates — now
 validated on synthetic worlds (core track, phases 1–18) with first
 footholds on real language (language track, through its phase 21).
-**PATH A IS RETIRED (owner ruling, 2026-08-28).** Three decision
+**PATH A RE-RETIRED ON CORRECTED GROUNDS (owner ruling, 2026-09-24).** Phases 61–63 found that storing memory in the oscillator field loses to an exact table at every configuration and budget tested (the N=1024 field uses 25.7M floats to score worse than a 0.6M-float Kneser-Ney bigram), and the 2026-09-23 scan found a flat vector list beats it on retrieval. The original 2026-08-28 grounds below (phases 54/56) were found flawed and are superseded; agency was never measured. See the top of `ROADMAP.md`.
+
+*Original 2026-08-28 text, grounds superseded:* **PATH A IS RETIRED (owner ruling, 2026-08-28).** Three decision
 experiments ran against a criterion fixed beforehand; the two named as
 triggers both failed on valid setups. A phase-aware readout does not beat a
 magnitude one *even where the channel is full* (phase 54), and a linear
