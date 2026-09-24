@@ -1,6 +1,6 @@
 """Phase 58 -- is it the SETS or the RECURRENCE FILTER? M1, properly specified.
 
-PRE-REGISTERED 2026-08-28 before any run, per SOP rule 6.
+PRE-REGISTERED 2026-09-01 before any run, per SOP rule 6.
 
 Phase 57 confirmed its decisive claim (P1: predicate sets reach 5/5
 injectivity where the float vector reaches 4/5) but its M1 control FIRED --

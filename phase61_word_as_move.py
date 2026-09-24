@@ -106,6 +106,35 @@ novelty claim.
 Honest scope: P2's embeddings come from the train split (no leakage); the
 field state is computed online; the readout's C accumulates online; test is
 scored frozen, as the baselines are.
+
+RESULT (run 2026-09-24, after pre-registration f8be3f8). KILL RULE FIRED.
+  P1 PASS -- and explained entirely by M1. Recovered move ~ frame corr
+     1.00000; moves form exactly 5 pure units at HOLD 2/3/6 on seeds 5-9.
+     The settled-state reading collapses to 1-2 units at HOLD 2-3 and loses
+     a unit at HOLD 6 on seed 7. No capability over raw-frame clustering;
+     it closes the 51-60 line: the transit problem was self-inflicted.
+  CONTROL PASS 5/5. KN2 2.27-2.42, field lam>0 1.10-1.23 (margin 1.10-1.31),
+     field lam=0 2.31-2.46 (bigram level), KN3 0.67-0.71. The probe sees
+     depth.
+  P2 FAIL 0/5. Test (24,000 tokens): KN2 5.5086, Dirichlet2 5.6313, KN3
+     5.4476; field 5.825-5.835 -- 0.32 nats worse than KN2 and ~0.20 worse
+     than its own smoothing family, so not even 'depth present, smoothing
+     insufficient'.
+  P2b FAIL 0/5. Dev chose lam=0.2 with the softest random kick -- the
+     machine selected to be a bigram -- and lam>0 is 0.002-0.004 worse than
+     lam=0 on test. Every deeper setting was worse on dev.
+  POST-HOC (dev only, not part of the registered verdict):
+     capacity -- lam=0 at N=1024 5.787 vs its N->inf limit (Dirichlet2)
+     5.594; N=4096 gives 5.722, closing a third of the gap.
+     no backoff -- the phase kernel is a PRODUCT over history positions, so
+     a context matching the last word but not the one before scores ~0.
+     Dense trigrams (the control) reward that; sparse real text (KN3 beats
+     KN2 by only 0.06 here) punishes it, because the bigram evidence is
+     thrown away. Backoff needs several depths mixed in the readout, which
+     is rebuilding smoothed n-grams in phase space.
+  Prior art, checked: the kernel is fractional power encoding (Frady et al.
+     2021, arXiv 2109.03429 -- the sinc^2 kernel the control shows);
+     permute-then-bind n-grams are standard HDC.
 """
 
 import os

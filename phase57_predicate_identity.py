@@ -1,7 +1,7 @@
 """Phase 57 -- does a PREDICATE-SET representation give the always-in-transit
 symbol a stable identity, where a float vector could not?
 
-PRE-REGISTERED 2026-08-28 before any run, per SOP rule 6.
+PRE-REGISTERED 2026-08-30 before any run, per SOP rule 6.
 
 BOOKKEEPING NOTE: this does NOT reopen Path A. Path A was retired on
 2026-08-28 and this changes the representation rather than the oscillator

@@ -1,7 +1,7 @@
 """Phase 59 -- can ONE appearance carry TWO identities? Lag-tagged predicates
 against the aliasing case.
 
-PRE-REGISTERED 2026-08-28 before any run, per SOP rule 6.
+PRE-REGISTERED 2026-09-01 before any run, per SOP rule 6.
 
 =============================================================================
 THE TENSION THIS PROBES, AND IT IS THE INTERESTING PART

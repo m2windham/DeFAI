@@ -1,6 +1,6 @@
 """Phase 60 -- replace both tuned constants with measured nulls.
 
-PRE-REGISTERED 2026-08-28 before any run, per SOP rule 6.
+PRE-REGISTERED 2026-09-01 before any run, per SOP rule 6.
 
 =============================================================================
 WHAT THIS FIXES
