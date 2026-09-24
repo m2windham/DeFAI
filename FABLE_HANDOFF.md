@@ -1,3 +1,7 @@
+> **PROJECT ENDED, 2026-09-24 (repo owner).** Path B is retired as well as
+> Path A; there is nothing to hand off. Read the terminal record at the top
+> of `ROADMAP.md`. This brief is kept as history.
+
 > **Addendum, 2026-09-24 (repo owner).** Path A is RE-RETIRED on corrected
 > grounds and the phase-field line (61–63) is CLOSED — read the decision
 > record at the top of `ROADMAP.md` before anything below. The 2026-08-28

@@ -9,6 +9,54 @@ is deliberately absent. Full reasoning lives in the session notes and the
 review discussion; the standing rules of engagement in `FABLE_HANDOFF.md`
 still bind everything here.
 
+## OWNER DECISION RECORD — 2026-09-24: PATH B RETIRED. THE PROJECT IS ENDED.
+
+**Ruled by the repo owner, 2026-09-24, immediately after the Path A
+re-retirement below.** Both lines are now retired and no further phases,
+targets or releases are planned. This is the terminal record of the
+repository; it is first in this file because everything else must be read
+through it.
+
+### Why Path B is retired
+
+Path B was the claim that this system is useful as a persistent memory
+substrate even if it is not a path to language. The 2026-09-23 failure-point
+scan and phases 61–63 leave that claim unsupported:
+
+- **It is a prototype memory, not an episodic one.** `confirm`/pool keep
+  0 of 40 one-off events; `consolidate` (prune at 5% of max) can erase all
+  but a heartbeat; near-duplicates fuse. A memory store that cannot keep a
+  single occurrence cannot hold episodes.
+- **It loses to the simplest baseline at its own job.** A flat vector list
+  beat the organism on every retrieval metric in the scan.
+- **Its storage does not earn its keep.** Across phases 61–63, at every
+  configuration and memory budget tested, storing memory in the oscillator
+  field lost to an exact table; at N = 1024 it used 25.7M floats to score
+  worse than a 0.6M-float Kneser-Ney bigram.
+- **It does not scale as built.** The dense K×K transition matrix is 537 MB
+  at K = 8192 and ~80 GB at 100K slots.
+- **It was never tried as a product.** No cue-based recall API, payload or
+  timestamp; no real embeddings or agent data; no API or LLM integration.
+  These are recorded as never tested, not as tested and failed.
+
+### What the project leaves behind
+
+- **Methods, which transfer to other work:** pre-registration before every
+  run, named mundane accounts (M1), held-out seeds, and SOP rules 20–24 —
+  readout controls, measured nulls, assumption audits before any kill, the
+  what-if log, and controls that must not presume their answer.
+- **Findings, positive and negative:** read the drive, not the resting state
+  (61); the phase kernel's exact skip-gram form (62); selectivity trades
+  against signal-to-cross-talk in superposed storage (63); the recall-prior
+  normalisation defect behind N3 and the revival bug (scan); and the full set
+  of negatives, including the flaws found in this project's own earlier
+  retirement grounds.
+- **A green tree.** Nothing is deleted; every phase script, record and
+  correction stays in history.
+
+**Open targets in `AGENT_TARGETS.md` are closed by this ruling.** Do not
+start new phases on this repository without a new owner decision.
+
 ## OWNER DECISION RECORD — 2026-09-24: Path A RE-RETIRED on corrected grounds; phase-field line (61–63) CLOSED
 
 **Ruled by the repo owner, 2026-09-24, after phases 61–63.** The 2026-08-28

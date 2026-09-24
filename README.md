@@ -1,5 +1,7 @@
 # DeFAI
 
+> **PROJECT ENDED (2026-09-24, owner ruling).** Path A (language/agency research) and Path B (persistent memory substrate) are both retired. Storing memory in the oscillator field lost to an exact table at every configuration and budget tested, a flat vector list beat it on retrieval, and it keeps prototypes rather than episodes. The terminal record is at the top of `ROADMAP.md`. The code, phase scripts and negatives remain as a record; no further work is planned.
+
 Research codebase exploring whether complex-valued oscillator attractor
 networks can do online, unsupervised cognition: form memories from a noisy
 stream, learn the world's transition structure, and generate plausible
@@ -359,7 +361,7 @@ companion state does not fix the substrate's inability to hold a symbol that
 is always in transit (phase 56) — so the published remedy for the
 memory–nonlinearity trade-off does not apply here. **The architecture is not
 a path to language or agency**, and that is now measured rather than argued.
-What survives is Path B: this system as a persistent episodic-memory and
+What survived *at the time* was Path B (itself retired 2026-09-24; see the top of this file): this system as a persistent episodic-memory and
 world-model substrate, which needs none of those gaps to close. Full terminal
 record at the top of `ROADMAP.md`. Retiring is not deleting — the tree stays
 green and the negatives are the deliverable.
