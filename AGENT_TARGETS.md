@@ -233,7 +233,21 @@ positive results evaporated under reseeding.
     was not diagnosed. Phase 61's entry: property -- a product kernel is
     exact-match-or-nothing (no backoff), because every oscillator shared one
     fade; next question -- do heterogeneous fades turn the product into a
-    sum of products, i.e. backoff for free (phase 62).
+    sum of products, i.e. backoff for free (phase 62). (Superseded: phase
+    62's development check showed that diagnosis was wrong -- a single soft
+    fade already is backoff and lost anyway; the property is cross-talk.)
+24. **Every control and validation names the assumption it rests on, and
+    that assumption must not be the claim under test.** Write the
+    assumption into the pre-registration next to the check ("this check
+    assumes X"), then ask whether X is what the phase is trying to find out.
+    If it is, the check cannot certify the run -- redesign it. Added
+    2026-09-24 after the third under-specified control in six phases:
+    phase 58's M1 gate (coverage only; merging satisfies it), phase 59's
+    (injectivity only; fragmentation satisfies it), and phase 62's
+    validation, which required an N = 16384 field to sit within 0.05 nats
+    of its infinite-capacity limit -- i.e. it assumed capacity converges by
+    16k, the very question the phase existed to answer. A control that
+    presumes the answer either voids a good run or certifies a bad one.
 
 ---
 
