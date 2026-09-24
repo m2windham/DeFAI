@@ -1,5 +1,7 @@
 # DeFAI — Agent Targets
 
+> **ALL TARGETS CLOSED (2026-09-24, owner ruling: project ended).** Paths A and B are both retired; see the terminal record at the top of `ROADMAP.md`. No target below should be claimed. The Standing Operating Protocol, including section D (rules 20–24), is kept as the project's methods record.
+
 Actionable work packages derived from `ROADMAP.md`, structured for parallel
 agent sessions. **Claim a target by its ID in your PR title / roadmap row
 before starting** (two sessions once built E2 twice — don't repeat that).
