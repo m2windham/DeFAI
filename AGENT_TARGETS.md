@@ -200,6 +200,55 @@ positive results evaporated under reseeding.
 19. **Hand off cleanly.** If you stop mid-target, push your branch, write
     what is done vs open into the claim slot, and leave the tree green.
 
+### D. Lessons of the 2026-09-23 failure scan and phase 61 (added 2026-09-24, owner order)
+20. **Readout control: show the readout can USE the information, not only
+    that the state HOLDS it.** Every experiment whose verdict depends on a
+    readout includes a positive control -- a case where the answer is known
+    to be present -- scored through the *same* readout, and the run is VOID
+    if the control fails. Standing examples: phase 54 queried the raw frame
+    while the order information sat in the settled state; phase 61's v1
+    state held depth in superposition that no linear readout could see.
+    Both times the information was there and the probe could not reach it.
+21. **Measured nulls, never assumed independence.** A noise floor or
+    threshold is measured from the data it will be applied to (a row's own
+    norm, a permutation, a shuffled stream), not derived from an
+    independence assumption. Real streams repeat in clumps: phase 61's
+    independence null under-estimated cross-talk ~10x because contexts
+    recur thousands of times. Open consequence: the organism's recruit and
+    graduation bars (`perceive`'s 1/sqrt((1+s)(1+s/n)) expected overlap)
+    rest on the same assumption and are unaudited.
+22. **Assumption audit before any retirement or kill.** Before a result is
+    used to retire a line, a mechanism or a program, re-run the fatal test
+    with its key assumption varied (dwell, query point, control arm,
+    threshold family) and record whether the verdict survives. Standing
+    example: Path A was retired on phases 52/54/56; all three verdicts
+    reversed or voided under the 2026-09-23 audit (recruit 0.75 gives 5/5;
+    a settled-state query passes P2; the 56 control was degenerate). Einstein
+    discarded the correct tensor in 1913 over a wrong static-field
+    assumption and spent two years recovering it -- the cost of skipping
+    this rule.
+23. **What-if log.** Every failed or voided phase records, in its ROADMAP
+    row, (a) the specific PROPERTY the failure exposed and (b) the ONE
+    question that property raises next. A failure that names no property
+    was not diagnosed. Phase 61's entry: property -- a product kernel is
+    exact-match-or-nothing (no backoff), because every oscillator shared one
+    fade; next question -- do heterogeneous fades turn the product into a
+    sum of products, i.e. backoff for free (phase 62). (Superseded: phase
+    62's development check showed that diagnosis was wrong -- a single soft
+    fade already is backoff and lost anyway; the property is cross-talk.)
+24. **Every control and validation names the assumption it rests on, and
+    that assumption must not be the claim under test.** Write the
+    assumption into the pre-registration next to the check ("this check
+    assumes X"), then ask whether X is what the phase is trying to find out.
+    If it is, the check cannot certify the run -- redesign it. Added
+    2026-09-24 after the third under-specified control in six phases:
+    phase 58's M1 gate (coverage only; merging satisfies it), phase 59's
+    (injectivity only; fragmentation satisfies it), and phase 62's
+    validation, which required an N = 16384 field to sit within 0.05 nats
+    of its infinite-capacity limit -- i.e. it assumed capacity converges by
+    16k, the very question the phase existed to answer. A control that
+    presumes the answer either voids a good run or certifies a bad one.
+
 ---
 
 ## Category 1 — Release-gate critical path (highest leverage)

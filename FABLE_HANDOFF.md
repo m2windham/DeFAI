@@ -1,3 +1,9 @@
+> **Addendum, 2026-09-24 (repo owner).** Path A is RE-RETIRED on corrected
+> grounds and the phase-field line (61–63) is CLOSED — read the decision
+> record at the top of `ROADMAP.md` before anything below. The 2026-08-28
+> retirement's grounds (phases 52/54/56) were found flawed by the 2026-09-23
+> failure-point scan; SOP rules 20–24 were added to `AGENT_TARGETS.md`.
+
 # DeFAI — Handoff Brief
 
 > **Addendum, 2026-08-04 (onboarding verification pass).** Fresh clone
