@@ -96,6 +96,36 @@ DEVELOPMENT RECORD (before registration; control selection seed 0, dev only):
     1 -> 3.133 / 3.064 / 3.026 / 3.061; phase 62 mix -> 3.001 / 2.922 /
     2.797 / 2.999 (0%).
 
+RESULT (run 2026-09-24, after pre-registration a2307c6). RUN VOID.
+  READOUT CONTROL FAILED on seed 5 (the check stops at the first failure):
+    dev selection on the control picked a SHARP configuration (lam 0.5,
+    amp 3) because H's dev score rewards the explicit store's depth, and
+    that configuration's superposed tail recovered 5% of the exact tail's
+    gain (bar 40%). The control's stated assumption (EB3 bounds the tail)
+    held; its flaw is that the selection objective let the explicit
+    store's gain mask an unreadable tail. Recorded as a control design
+    error, not used to rescue the run.
+  REAL-TEXT NUMBERS, reported without a verdict (frozen configuration
+  lam 0.2, amp 3 -- soft, kernel weights 0.95 / 0.24):
+    B        explicit   tail(bigram)   E0      EB      EB3     H (seeds 5-9)
+    1,000    215,854    525,602        5.9293  5.6130  5.5882  5.767-5.772
+    10,000   539,884    424,348        5.7451  5.5978  5.5882  5.685-5.687
+    100,000  1,072,132  224,846        5.6288  5.5892  5.5882  5.614-5.615
+    (floats; the superposed tail costs 25,726,976 floats at every B)
+    - The mechanism holds: cost vs the infinite-N field falls from 0.91
+      (phase 62, all superposed) to 0.23 / 0.14 / 0.07 as B grows; H - EB3
+      at B = 10k is 0.097-0.099 (P1's bar was 0.10).
+    - The superposed tail IS readable on real text: H beats E0 by 0.16 at
+      B = 1k (47% of the exact tail's gain) and 0.06 at B = 10k (37%).
+    - It never earns its keep: an EXACT BIGRAM tail beats it by 0.09 at
+      B = 10k and 0.02-0.15 at every B, using 50-110x fewer floats.
+    - H never approaches KN2 (5.5086): 0.10-0.26 behind.
+  WHAT-IF LOG (rule 23). PROPERTY: superposed storage is dominated by exact
+    storage of LESS information at a fraction of the memory, at every
+    budget tested -- across 61, 62 and 63 no configuration of the phase
+    field as a memory has beaten an exact table. QUESTION: none left inside
+    this line; see the ROADMAP row for the recommendation to close it.
+
 KILL RULE. P2 fails -> superposition does not earn its keep even for the
 long tail; the phase-field-as-memory line (61-63) closes, and the move/phase
 kernel survives only as a similarity weighting over explicit counts, which
